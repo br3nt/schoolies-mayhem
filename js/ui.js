@@ -9,6 +9,7 @@
   UI.C = C;
   function panel(ctx, x, y, w, h, opts = {}) {
     x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
+    if (U.layoutLog && ctx.canvas.__ui) { const m = ctx.getTransform(); U.layoutLog.panels.push({ x: x + m.e, y: y + m.f, w, h }); }
     ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(x + 2, y + 2, w, h);
     ctx.fillStyle = opts.fill || C.panel; ctx.fillRect(x, y, w, h);
     ctx.fillStyle = opts.edge || C.edge; ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y + h - 1, w, 1); ctx.fillRect(x, y, 1, h); ctx.fillRect(x + w - 1, y, 1, h);
@@ -19,6 +20,8 @@
   // cut text to fit a width (ending in a full stop when it had to be cut)
   const fit = (s, maxW, sc) => { s = String(s); if (U.textWidth(s, sc) <= maxW) return s; const n = Math.max(1, Math.floor((maxW + sc) / (6 * sc)) - 1); return s.slice(0, n).replace(/[ ·:,]+$/, '') + '.'; };
   UI.fit = fit;
+  // short phrases joined two spaces apart, as many to a line as fit in n characters
+  const pack = (segs, n) => { const out = []; for (const sg of segs) { const last = out[out.length - 1]; if (last && (last + '  ' + sg).length <= n) out[out.length - 1] = last + '  ' + sg; else out.push(sg); } return out; };
   // slogans (Brent, 22 Nov 2026): the title-screen tagline and the three-sides premise over the character select
   const TAGLINE = "SCHOOLIES WEEK IN VICTOR HARBOR. NOBODY'S GETTING ANY SLEEP.";
   const PREMISE = 'THE SCHOOLIES HAVE ARRIVED READY TO PARTY. THE LOCALS ARE FRUSTRATED. THE POLICE ARE ON HIGH ALERT.';
@@ -45,16 +48,20 @@
   // ---------- controls: one table drives the "?" overlay, the controls card and the hints ----------
   const K = (key, touch) => () => (I.touchMode ? touch : key);
   const CONTROLS = {
-    foot: { title: 'ON FOOT', get rows() { return [...(G().walkMode === 'screen' ? [[K('WASD / ARROWS', 'LEFT THUMB'), 'WALK (SCREEN DIRECTION)']] : [[K('W / UP', 'THUMB'), 'WALK FORWARD'], [K('S / DOWN', 'THUMB BACK'), 'STEP BACK'], [K('A D / LEFT RIGHT', 'THUMB'), 'TURN']]), ...this.rest]; }, rest: [[K('SHIFT', 'BOOST'), 'SPRINT'], [K('E', 'GET IN'), 'GET IN / BORROW (WALK UP TO IT)'], [K('F', 'KICK'), 'KICK BINS, CONES, BALLS'], [K('SPACE', 'ACT'), 'USE, RING DOORBELLS, STAND BINS UP'], [K('H', 'SHOUT'), 'SHOUT'], ['DOORS', 'WALK INTO A SHOP DOOR TO GO IN; E AT THE COUNTER TO CHAT'], [K('HOLD SPACE', 'HOLD'), 'TACKLED? KEEP THE MARK IN THE GREEN; ARROW (OR TAP) THE WAY IT SAYS WHEN IT FLASHES SLIP']] },
-    car: { title: 'DRIVING AND RIDING', rows: [[K('W / UP', 'THUMB'), 'ACCELERATE'], [K('S / DOWN', 'THUMB BACK'), 'BRAKE, REVERSE'], [K('A D / LEFT RIGHT', 'THUMB'), 'STEER'], [K('SPACE', 'SKID'), 'HANDBRAKE (DRIFT); BUNNY-HOP ON A BIKE'], [K('H', 'HORN'), 'HORN'], [K('SHIFT', 'BOOST'), 'TURBO GOPHER'], [K('E', 'GET OUT'), 'GET OUT']] },
-    rail: { title: 'TRAM AND TRAIN', rows: [[K('W / UP', 'THUMB'), 'FORWARD'], [K('S / DOWN', 'THUMB BACK'), 'BRAKE, BACK UP'], [K('SHIFT', 'BOOST'), 'GIDDY UP / MORE STEAM'], [K('H', 'HORN'), 'BELL / WHISTLE'], [K('E', 'GET OUT'), 'GET OFF (WHEN STOPPED)']] },
-    heli: { title: 'HELICOPTER', rows: [[K('W / S', 'THUMB'), 'FLY FORWARD / BACK'], [K('A D / LEFT RIGHT', 'THUMB'), 'TURN'], [K('SHIFT', 'BOOST'), 'CLIMB'], [K('SPACE', 'SKID'), 'DESCEND AND LAND (HELIPADS ARE GENTLEST)'], [K('E', 'GET OUT'), 'GET OUT (ONCE LANDED)']] },
-    kev: { title: 'CONSTABLE KEV', rows: [[K('H', 'SIREN'), 'SIREN (IN A POLICE CAR, OR ANY CAR WITH THE ROOF LIGHT)'], [K('H', 'MEGA'), 'ON FOOT: MEGAPHONE, RUNNERS WITHIN 30M FREEZE FOR 2.5 S; NEAR A GOPHER, CALL IT OVER'], [K('E', 'ACT'), 'NEXT TO A FROZEN OR CORNERED RUNNER: CUFF THEM'], ['TACKLE', 'RUN INTO A RUNNER: A TACKLE, THEN HOLD SPACE TO KEEP HOLD'], [K('L', 'LIGHT'), 'COMMANDEERED CAR: MAGNETIC FLASHING LIGHT ON THE ROOF'], [K('X', 'SPIKES'), 'DROP A SPIKE STRIP BEHIND YOU'], [K('B', 'BACKUP'), 'CALL BACKUP; NO WORKING COP CAR: A SPARE IS DROPPED OFF'], ['RAM', 'NUDGE A REAR CORNER TO SPIN THEM (PIT); CARS TAKE SEVERAL SOLID HITS']] },
+    foot: { title: 'ON FOOT', get rows() { return [...(I.touchMode ? [['DRAG', G().walkMode === 'screen' ? 'WALK: DRAG ON THE LEFT HALF THE WAY YOU WANT TO GO; FURTHER TO RUN' : 'WALK: DRAG ON THE LEFT HALF; YOU TURN AND WALK TOWARD YOUR FINGER, FURTHER TO RUN']] : G().walkMode === 'screen' ? [['WASD / ARROWS', 'WALK (SCREEN DIRECTION)']] : [['W / UP', 'WALK FORWARD'], ['S / DOWN', 'STEP BACK'], ['A D / LEFT RIGHT', 'TURN']]), ...this.rest]; }, rest: [[K('SHIFT', 'BOOST'), 'SPRINT'], [K('E', 'GET IN'), 'GET IN / BORROW (WALK UP TO IT)'], [K('F', 'KICK'), 'KICK BINS, CONES, BALLS'], [K('SPACE', 'ACT'), 'USE, RING DOORBELLS, STAND BINS UP'], [K('H', 'SHOUT'), 'SHOUT'], ['DOORS', K('WALK INTO A SHOP DOOR TO GO IN; E AT THE COUNTER TO CHAT', 'WALK INTO A SHOP DOOR TO GO IN; ACT AT THE COUNTER TO CHAT')], [K('HOLD SPACE', 'HOLD'), K('TACKLED? KEEP THE MARK IN THE GREEN; ARROW (OR TAP) THE WAY IT SAYS WHEN IT FLASHES SLIP', 'TACKLED? HOLD THE HOLD BUTTON TO KEEP THE MARK IN THE GREEN; TAP THE SIDE IT SAYS WHEN IT FLASHES SLIP')]] },
+    car: { title: 'DRIVING AND RIDING', get rows() { return [...(I.touchMode ? [['DRAG', 'DRIVE: DRAG ON THE LEFT HALF; THE VEHICLE STEERS AND SPEEDS TOWARD YOUR FINGER'], ['DRAG BEHIND', 'BRAKE, THEN REVERSE']] : [['W / UP', 'ACCELERATE'], ['S / DOWN', 'BRAKE, REVERSE'], ['A D / LEFT RIGHT', 'STEER']]), ...this.rest]; }, rest: [[K('SPACE', 'SKID'), 'HANDBRAKE (DRIFT); BUNNY-HOP ON A BIKE'], [K('H', 'HORN'), 'HORN'], [K('SHIFT', 'BOOST'), 'TURBO GOPHER'], [K('E', 'GET OUT'), 'GET OUT']] },
+    rail: { title: 'TRAM AND TRAIN', get rows() { return [...(I.touchMode ? [['DRAG', 'DRAG THE WAY IT FACES TO GO, THE OTHER WAY TO BRAKE AND BACK UP']] : [['W / UP', 'FORWARD'], ['S / DOWN', 'BRAKE, BACK UP']]), ...this.rest]; }, rest: [[K('SHIFT', 'BOOST'), 'GIDDY UP / MORE STEAM'], [K('H', 'HORN'), 'BELL / WHISTLE'], [K('E', 'GET OUT'), 'GET OFF (WHEN STOPPED)']] },
+    heli: { title: 'HELICOPTER', get rows() { return [...(I.touchMode ? [['DRAG', 'FLY: DRAG ON THE LEFT HALF; THE CHOPPER TURNS AND FLIES TOWARD YOUR FINGER']] : [['W / S', 'FLY FORWARD / BACK'], ['A D / LEFT RIGHT', 'TURN']]), ...this.rest]; }, rest: [[K('SHIFT', 'UP'), 'CLIMB'], [K('SPACE', 'DOWN'), 'DESCEND AND LAND (HELIPADS ARE GENTLEST)'], [K('E', 'GET OUT'), 'GET OUT (ONCE LANDED)']] },
+    kev: { title: 'CONSTABLE KEV', rows: [[K('H', 'SIREN'), 'SIREN (IN A POLICE CAR, OR ANY CAR WITH THE ROOF LIGHT)'], [K('H', 'MEGA'), 'ON FOOT: MEGAPHONE, RUNNERS WITHIN 30M FREEZE FOR 2.5 S; NEAR A GOPHER, CALL IT OVER'], [K('E', 'ACT'), 'NEXT TO A FROZEN OR CORNERED RUNNER: CUFF THEM'], ['TACKLE', K('RUN INTO A RUNNER: A TACKLE, THEN HOLD SPACE TO KEEP HOLD', 'RUN INTO A RUNNER: A TACKLE, THEN THE HOLD BUTTON TO KEEP HOLD')], [K('L', 'LIGHT'), 'COMMANDEERED CAR: MAGNETIC FLASHING LIGHT ON THE ROOF'], [K('X', 'SPIKES'), 'DROP A SPIKE STRIP BEHIND YOU'], [K('B', 'BACKUP'), 'CALL BACKUP; NO WORKING COP CAR: A SPARE IS DROPPED OFF'], ['RAM', 'NUDGE A REAR CORNER TO SPIN THEM (PIT); CARS TAKE SEVERAL SOLID HITS']] },
     evade: { title: 'LOSING THE POLICE', rows: [['LEVELS', 'ONE CAR PER CURTAIN (FOUR AT MOST); A ROADBLOCK AT FOUR; THE CHOPPER ONLY AT FIVE, AFTER A LONG CHASE'], ['COOLING', 'THE LINE UNDER THE CURTAINS SAYS WHAT\'S COOLING THINGS RIGHT NOW; THE THIN BAR DRAINS AS IT DOES'], ['SIGHT', 'BREAK LINE OF SIGHT AND STAY OUT OF VIEW TILL THE HEAT COOLS'], ['HIDE', 'BUSHES, CAR PARKS, THE GOLF COURSE, THE CAR WASH, UNDER THE JETTY (GOSSIP COOLS FASTER)'], ['SWAP', 'CHANGE CARS (OR GET OUT) WHERE THEY CAN\'T SEE YOU'], ['RESPRAY', 'RESPRAY SHOPS (SPRAY-CAN ICON ON THE MAP, $25) WIPE YOUR CAR\'S DESCRIPTION'], ['CLOTHES', 'A NEW SHIRT, HAT OR SUNNIES OUT OF SIGHT (CLOTHES SHOP, OP SHOP) DOES THE SAME FOR YOU'], ['ROADBLOCK', 'THERE\'S ALWAYS A GAP, OR THE FOOTPATH'], ['OFFICERS', 'DRIVE OFF, SHOVE THROUGH (THEY JUMP OUT OF THE WAY) OR OUTRUN THEM. IF THEY CATCH YOU, THEY TACKLE AND CUFF'], ['LOCK-UP', 'LET OUT AT THE GATE: THE GOSSIP IS WIPED, NOBODY WATCHES THE GATE FOR A WHILE, AND YOUR BIKE\'S THERE'], ['MERV', 'ON THE GOPHER: ONE CAR TAILS YOU WITH A MEGAPHONE LECTURE; STOP AND THEY BOOK YOU']] },
-    any: { title: 'ANY TIME', rows: [['CLOCK', 'THE TIME OF NIGHT (BY THE MOON) RUNS FAST: ONE GAME MINUTE A SECOND. FINISH BEFORE SUNRISE. TIMED JOBS HAVE THEIR OWN BOXED TIME LEFT'], [K('WHEEL / + -', 'PINCH'), 'ZOOM IN AND OUT (0 RESETS)'], [K('M / TAB', 'MAP'), 'MAP'], [K('J', 'JOB'), 'CURRENT JOB BRIEF'], [K('?', '?'), 'THIS HELP'], [K('P / ESC', 'PAUSE'), 'PAUSE'], [K('N', 'PAUSE MENU'), 'MUTE']] },
+    any: { title: 'ANY TIME', rows: [['CLOCK', 'THE TIME OF NIGHT (BY THE MOON) RUNS FAST: ONE GAME MINUTE A SECOND. FINISH BEFORE SUNRISE. TIMED JOBS HAVE THEIR OWN BOXED TIME LEFT'], [K('WHEEL / + -', 'PINCH'), K('ZOOM IN AND OUT (0 RESETS)', 'ZOOM IN AND OUT')], [K('M / TAB', 'MAP'), 'MAP'], [K('J', 'JOB'), 'CURRENT JOB BRIEF'], [K('?', '?'), 'THIS HELP'], [K('P / ESC', 'PAUSE'), 'PAUSE'], [K('N', 'PAUSE MENU'), 'MUTE']] },
   };
-  CONTROLS.icons = { title: 'MAP ICONS', rows: [['YELLOW', 'JOB TARGETS (EACH WITH ITS OWN ARROW)'], ['LIGHT BLUE', 'YOUR LAST VEHICLE; KEV: THE COP CAR'], ['WHITE PIN', 'YOUR WAYPOINT (CLICK OR TAP THE MAP; FIND A STREET WITH ENTER)'], ['ORANGE', 'KEV: A PRISONER'], ['SPRAY CAN', 'RESPRAY SHOP: $25 FOR A NEW COLOUR'], ['TYRE', 'TYRE PLACE: A FLAT FIXED FOR $10'], ['TEAL SQUARE', 'A SHOP YOU CAN WALK INTO'], ['M R G B T S H', 'MAYHEM MINUTE, RAMP, RACES, HELIPAD']] };
+  CONTROLS.icons = { title: 'MAP ICONS', rows: [['YELLOW', 'JOB TARGETS (EACH WITH ITS OWN ARROW)'], ['LIGHT BLUE', 'YOUR LAST VEHICLE; KEV: THE COP CAR'], ['WHITE PIN', K('YOUR WAYPOINT (CLICK OR TAP THE MAP; FIND A STREET WITH ENTER)', 'YOUR WAYPOINT (TAP THE MAP; TAP THE SEARCH BOX TO FIND A STREET)')], ['ORANGE', 'KEV: A PRISONER'], ['SPRAY CAN', 'RESPRAY SHOP: $25 FOR A NEW COLOUR'], ['TYRE', 'TYRE PLACE: A FLAT FIXED FOR $10'], ['TEAL SQUARE', 'A SHOP YOU CAN WALK INTO'], ['M R G B T S H', 'MAYHEM MINUTE, RAMP, RACES, HELIPAD']] };
   UI.CONTROLS = CONTROLS;
+  // the jobs' own help rows name keys; on a touch screen they name the buttons instead
+  const TOUCH_KEY = { 'SPACE': 'ACT', 'HOLD SPACE': 'HOLD', 'H IN A POLICE CAR': 'SIREN', 'H ON FOOT': 'MEGA', 'H (MEGAPHONE)': 'MEGA', 'L': 'LIGHT', 'B': 'SPARE', 'E / ACT': 'ACT', 'E ALONGSIDE': 'GET IN ALONGSIDE', 'S': 'DRAG BEHIND' };
+  const touchText = str => String(str).replace(/\bHOLD SPACE\b/g, 'HOLD THE HOLD BUTTON').replace(/\bARROW (\(OR TAP\) )?THE WAY IT SAYS\b/g, 'TAP THE SIDE IT SAYS').replace(/\bTHEN H FOR THE SIREN\b/g, 'THEN SIREN').replace(/\bSPACE\b/g, 'ACT').replace(/\bSHIFT\b/g, 'BOOST');
+  UI.touchText = touchText;
   const keyText = k => typeof k === 'function' ? k() : k;
   UI.context = function () {
     const g = G(), pl = g.player; if (!pl) return 'foot';
@@ -66,7 +73,7 @@
     for (const sc of sections) {
       T(ctx, sc.title, x, yy, { color: C.hi, scale: ts }); yy += 11 * ts;
       for (const [k, what] of sc.rows) {
-        const lines = U.wrap(what, Math.max(10, Math.floor((w - kw) / (6 * ts))));
+        const lines = U.wrap(keyText(what), Math.max(10, Math.floor((w - kw) / (6 * ts))));
         T(ctx, keyText(k), x, yy, { color: C.teal, scale: ts });
         lines.forEach((l, i) => T(ctx, l, x + kw, yy + i * 9 * ts, { color: C.white, scale: ts }));
         yy += lines.length * 9 * ts + 2 * ts;
@@ -75,20 +82,25 @@
     }
     return yy - y;
   }
-  UI.measureControls = (ts, sections, w) => { let h = 0; const kw = keyCol(ts); for (const sc of sections) { h += 16 * ts; for (const r of sc.rows) h += U.wrap(r[1], Math.max(10, Math.floor((w - kw) / (6 * ts)))).length * 9 * ts + 2 * ts; } return h; };
+  UI.measureControls = (ts, sections, w) => { let h = 0; const kw = keyCol(ts); for (const sc of sections) { h += 16 * ts; for (const r of sc.rows) h += U.wrap(keyText(r[1]), Math.max(10, Math.floor((w - kw) / (6 * ts)))).length * 9 * ts + 2 * ts; } return h; };
   // the "?" overlay: only the keys that matter right now
   UI.helpOverlay = function (ctx, ts) {
     const g = G(), w = ctx.canvas.width, h = ctx.canvas.height; const cx = UI.context();
     const secs = [CONTROLS[cx]]; if (g.char === 'cop') secs.push(CONTROLS.kev); else secs.push(CONTROLS.evade); secs.push(CONTROLS.any, CONTROLS.icons);
-    const job = M().job; if (job && job.started && job.help) secs.unshift({ title: 'THIS JOB: ' + job.title, rows: job.help }); // the job's own steps first
-    const pw = Math.min(w - 16 * ts, 260 * ts); const ph = Math.min(h - 20 * ts, UI.measureControls(ts, secs, pw - 16 * ts) + 26 * ts);
+    const job = M().job; if (job && job.started && job.help) secs.unshift({ title: 'THIS JOB: ' + job.title, rows: job.help.map(([k, d]) => [K(k, TOUCH_KEY[k] || touchText(k)), K(d, touchText(d))]) }); // the job's own steps first
+    const pw = Math.min(w - 16 * ts, 260 * ts); const full = UI.measureControls(ts, secs, pw - 16 * ts); const ph = Math.min(h - 20 * ts, full + 26 * ts);
     const x = Math.round(w / 2 - pw / 2), y = Math.round(Math.max(8 * ts, h / 2 - ph / 2));
+    // on a touch screen a drag scrolls it when it doesn't fit, and a tap (a short, still touch) closes it
+    const maxS = Math.max(0, full + 26 * ts - ph); UI.helpOvScroll = U.clamp((UI.helpOvScroll || 0) - dragY(), 0, maxS);
     panel(ctx, x, y, pw, ph, { accent: C.teal, fill: 'rgba(18,12,36,0.93)' });
     T(ctx, 'CONTROLS', x + 8 * ts, y + 6 * ts, { color: C.white, scale: ts });
-    T(ctx, I.touchMode ? 'TAP ? TO CLOSE' : '? OR ESC: CLOSE', x + pw - 8 * ts, y + 6 * ts, { color: C.dim, scale: ts, align: 'right' });
-    ctx.save(); ctx.beginPath(); ctx.rect(x, y, pw, ph - 2); ctx.clip();
-    controlsTable(ctx, ts, secs, x + 8 * ts, y + 20 * ts, pw - 16 * ts); ctx.restore();
+    T(ctx, I.touchMode ? (maxS ? 'DRAG: SCROLL  TAP: CLOSE' : 'TAP TO CLOSE') : '? OR ESC: CLOSE', x + pw - 8 * ts, y + 6 * ts, { color: C.dim, scale: ts, align: 'right' });
+    ctx.save(); ctx.beginPath(); ctx.rect(x, y + 17 * ts, pw, ph - 17 * ts - 2); ctx.clip();
+    controlsTable(ctx, ts, secs, x + 8 * ts, y + 20 * ts - Math.round(UI.helpOvScroll), pw - 16 * ts); ctx.restore();
+    if (I.touchMode && I.click()) { g.helpOpen = false; sfx('click'); }
   };
+  // how far the fingers on the screen (not on a button, not pinching) moved up or down since the last frame
+  function dragY() { let d = 0; for (const q of I.pointers.values()) { if (q.btn || q.pinched || q.stale) continue; if (q.dy0 != null) d += q.y - q.dy0; q.dy0 = q.y; } return d; }
 
   // ---------- first-time hints: a short sequence that teaches the basics, once per browser ----------
   const HINTS = [
@@ -98,11 +110,12 @@
     { txt: () => I.touchMode ? 'SKID: HANDBRAKE  HORN: HORN  GET OUT: GET OUT' : 'SPACE: HANDBRAKE   H: HORN   E: GET OUT', done: g => g.hintT > 9 },
     { txt: () => I.touchMode ? 'MAP, JOB AND ? ARE TOP RIGHT' : 'M: MAP   J: JOB BRIEF   ?: CONTROLS', done: g => g.hintT > 9 },
   ];
-  UI.hints = function (ctx, ts, bottomY) {
+  UI.hints = function (ctx, ts, bottomY, cx = ctx.canvas.width / 2, W0 = ctx.canvas.width) {
     const g = G();
     const tipBox = (str, accent, fill, icon) => {
-      const W0 = ctx.canvas.width; const room = Math.min(W0 - 16 * ts, 330 * ts) - 33 * ts - (icon ? 10 * ts : 0); const lines = U.wrap(str, Math.max(8, Math.floor(room / (6 * ts))));
-      const bw = Math.max(...lines.map(l => U.textWidth(l, ts))) + 33 * ts + (icon ? 10 * ts : 0), bh = lines.length * 9 * ts + 7 * ts; const x = Math.round(W0 / 2 - bw / 2), y = bottomY - bh - 4 * ts;
+      const room = Math.min(W0 - 16 * ts, 330 * ts) - 33 * ts - (icon ? 10 * ts : 0); const lines = U.wrap(str, Math.max(8, Math.floor(room / (6 * ts))));
+      const bw = Math.max(...lines.map(l => U.textWidth(l, ts))) + 33 * ts + (icon ? 10 * ts : 0), bh = lines.length * 9 * ts + 7 * ts; const x = Math.round(cx - bw / 2), y = bottomY - bh - 4 * ts;
+      if (UI.hudRects) UI.hudRects.tip = { x, y, w: bw, h: bh };
       UI.tipTop = y; panel(ctx, x, y, bw, bh, { accent, fill }); T(ctx, 'TIP', x + 5 * ts, y + 4 * ts, { color: accent, scale: ts }); lines.forEach((l, i) => T(ctx, l, x + 27 * ts, y + 4 * ts + i * 9 * ts, { color: C.white, scale: ts }));
       if (icon === 'can') VH.Shops.drawCan(ctx, x + bw - 7 * ts, y + bh / 2, ts);
     };
@@ -143,8 +156,11 @@
     const nightTxt = g.char === 'roam' ? 'FREE ROAM · TIME OF DAY' : `NIGHT ${g.night} · ${M().dayName(g.night)}`;
     const tw = Math.max(U.textWidth(nightTxt, ts), U.textWidth(clock, ts * 2) + 14 * ts) + 2 * ip + 2 * ts;
     const short = h < 260 * ts; UI.short = short;
+    const mmS = short && I.touchMode ? 64 * ts : 92 * ts; UI.mmS = mmS;
+    const TL = I.touchMode && !VH.Tackle.on ? UI.touchLayout(w, h, ts) : null; // where the thumb buttons will go
+    const rightEdge = w - pad - 96 * ts - (TL ? TL.blockW : 0); // the minimap (and on a phone on its side, MAP, PAUSE, JOB and ?)
     let cxp = narrow ? pad + tw / 2 : w / 2, cyp = narrow ? pad + 44 * ts : pad;
-    if (!narrow && cxp - tw / 2 < pad + pw + 4 * ts) { cxp = pad + pw + 4 * ts + tw / 2; if (cxp + tw / 2 > w - pad - 96 * ts) { cxp = pad + tw / 2; cyp = pad + 44 * ts; } } // never over the left panel or the minimap
+    if (!narrow && (cxp - tw / 2 < pad + pw + 4 * ts || cxp + tw / 2 > rightEdge)) { cxp = Math.max(pad + pw + 4 * ts + tw / 2, Math.min(cxp, rightEdge - tw / 2)); if (cxp + tw / 2 > rightEdge) { cxp = pad + tw / 2; cyp = pad + 44 * ts; } } // never over the left panel or the minimap
     panel(ctx, cxp - tw / 2, cyp, tw, 28 * ts, { accent: C.teal });
     T(ctx, nightTxt, cxp, cyp + 4 * ts, { align: 'center', color: C.dim, scale: ts });
     T(ctx, clock, cxp + 7 * ts, cyp + 13 * ts, { align: 'center', color: C.white, scale: ts * 2 });
@@ -178,10 +194,11 @@
     const hasPolice = near || (g.char !== 'cop' && (PO.units.length || PO.heli || PO.boat || PO.blocks.length)) || g.char === 'cop';
     const actY = py + (hasPolice ? (g.char === 'cop' ? (kevLines.length * 9 + 9) * ts : polH + 4 * ts) : 0);
     UI.leftBottom = actY + VH.Acts.hud(ctx, ts, pad, actY, pw);
+    const hr = UI.hudRects = { left: { x: pad, y: pad, w: pw, h: UI.leftBottom - pad } }; // where the HUD put things (read by tests/mobile.mjs)
     // --- toasts: at most three short status lines, wrapped so they never run off the edge
     // on narrow screens the status lines go below the left-hand panels (and the touch buttons), so nothing overlaps
     // between the left-hand panels and the minimap when there's room, otherwise below them
-    const side = Math.max(pw, 92 * ts) + 2 * pad, mid = w - 2 * side; const under = narrow || mid < 170 * ts;
+    const side = Math.max(pw, 92 * ts + (TL ? TL.blockW : 0)) + 2 * pad, mid = w - 2 * side; const under = narrow || mid < 170 * ts;
     let ty = under && short ? Math.max(UI.leftBottom + 4 * ts, pad + 44 * ts) : under ? Math.max(pad + 102 * ts, UI.leftBottom + 4 * ts, I.touchMode ? pad + 168 * ts : 0) : pad + 34 * ts; const tn = Math.max(12, Math.floor(((under ? w - 2 * pad : mid) - 4 * ts) / (6 * ts)));
     if (short && !under) ty = Math.max(ty, cyp + 32 * ts);
     for (const m of (short ? g.msgs.slice(-1) : g.msgs)) { const a = Math.min(1, m.t * 2); ctx.globalAlpha = a; for (const l of U.wrap(m.str, tn)) { T(ctx, l, w / 2, ty, { align: 'center', color: m.col, scale: ts }); ty += 10 * ts; } ctx.globalAlpha = 1; }
@@ -195,23 +212,24 @@
       lines.forEach((l, i) => T(ctx, l, w / 2, cy + i * 9 * big, { align: 'center', color: co.col, scale: big })); ctx.globalAlpha = 1;
     }
     // --- minimap
-    const mmS = short && I.touchMode ? 64 * ts : 92 * ts; UI.mmS = mmS; UI.minimap(ctx, w - pad - mmS, pad, mmS, mmS, ts);
+    UI.minimap(ctx, w - pad - mmS, pad, mmS, mmS, ts); hr.minimap = { x: w - pad - mmS, y: pad, w: mmS, h: mmS };
     // --- bottom: street + objective
     const street = UI.streetCache(pl.x, pl.y);
-    if (!(I.touchMode && (narrow || short))) T(ctx, street, pad + 2, I.touchMode ? pad + 44 * ts : h - pad - 9 * ts, { color: C.white, scale: ts });
-    const obj = M().objective(); let objTop = h - pad - 22 * ts;
+    // (on a touch screen it goes under the left-hand panels, cut to their width)
+    if (!(I.touchMode && (narrow || short))) { const sy = I.touchMode ? UI.leftBottom + 4 * ts : h - pad - 9 * ts; const ss = I.touchMode ? fit(street, pw - 4, ts) : street; T(ctx, ss, pad + 2, sy, { color: C.white, scale: ts }); hr.street = { x: pad + 2, y: sy, w: U.textWidth(ss, ts), h: 7 * ts }; }
+    const obj = M().objective(); let objTop = TL && !TL.wide ? TL.top - 4 * ts : h - pad - 22 * ts; const beside = TL && (TL.wide || !narrow); // the objective sits above the thumb buttons, or beside them
     if (obj) {
       const job = M().job; const tm = M().timer(); const secs = tm != null ? Math.max(0, Math.ceil(tm)) : null;
       const tstr = secs != null ? ' · ' + Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0') : ''; const tW = U.textWidth(tstr, ts);
-      const btnW = I.touchMode && !narrow ? 110 * ts : 0; const ocx = (w - btnW) / 2; // on a phone on its side, clear of the thumb buttons
+      const btnW = beside ? w - TL.left + 4 * ts : 0; const ocx = (w - btnW) / 2; // on a phone on its side, clear of the thumb buttons
       const maxW = Math.min(w - btnW - 2 * pad - 2 * ip, 330 * ts); const head = job && job.started ? fit(job.title + (I.touchMode ? '' : '  (J: BRIEF)'), maxW, ts) : '';
       const paras = obj.split('\n'); const first = U.wrap(paras[0], Math.max(8, Math.floor((maxW - tW) / (6 * ts)))); const rest = paras.slice(1).flatMap(p => U.wrap(p, Math.max(8, Math.floor(maxW / (6 * ts)))));
       let lines = [...first, ...rest]; let lastFirst = first.length - 1;
       if (short && lines.length > 3) { const f2 = first.slice(0, 2); if (first.length > 2) f2[1] = fit(f2[1] + ' ' + first.slice(2).join(' '), maxW - tW, ts); lines = [...f2, ...rest.slice(0, 1).map(l => fit(l + (rest.length > 1 ? ' ' + rest.slice(1).join(' ') : ''), maxW, ts))]; lastFirst = f2.length - 1; } // short screens: two lines, then one
       const bw = Math.round(Math.max(U.textWidth(head, ts), ...lines.map((l, i) => U.textWidth(l, ts) + (i === lastFirst ? tW : 0))) + 2 * ip + 4 * ts), bh = lines.length * 9 * ts + 8 * ts + (head ? 9 * ts : 0);
-      const by = h - pad - (I.touchMode && narrow ? 116 : 22) * ts - bh; objTop = by; // on phones, sit above the thumb buttons
+      const by = (TL && !beside ? TL.top - 4 * ts : h - pad - (I.touchMode && narrow && !beside ? 116 : 22) * ts) - bh; objTop = by; // on phones, sit above the thumb buttons
       const fl = (g.objFlash || 0) > 0 && Math.floor(g.objFlash * 6) % 2; const bx = Math.round(ocx - bw / 2);
-      panel(ctx, bx, by, bw, bh, { accent: C.hi, fill: fl ? 'rgba(120,80,10,0.92)' : C.panel, edge: fl ? C.hi : C.edge });
+      panel(ctx, bx, by, bw, bh, { accent: C.hi, fill: fl ? 'rgba(120,80,10,0.92)' : C.panel, edge: fl ? C.hi : C.edge }); hr.obj = { x: bx, y: by, w: bw, h: bh };
       if (head) T(ctx, head, ocx, by + 4 * ts, { align: 'center', color: C.dim, scale: ts });
       lines.forEach((l, i) => {
         const yy = by + 5 * ts + (head ? 9 * ts : 0) + i * 9 * ts; const col = i < first.length ? C.hi : C.teal;
@@ -226,7 +244,7 @@
     if (!pl.onFoot && pl.vehicle && !(short && I.touchMode)) { // (no room for it beside the thumb buttons on a phone on its side)
       const v = pl.vehicle; const kmh = Math.round(v.speed * 3.6);
       const vx = w - pad - 92 * ts, vy = pad + 96 * ts;
-      panel(ctx, vx, vy, 92 * ts, 24 * ts);
+      panel(ctx, vx, vy, 92 * ts, 24 * ts); hr.speedo = { x: vx, y: vy, w: 92 * ts, h: 24 * ts };
       T(ctx, fit((v.rail ? v.name : v.def.name).toUpperCase(), 84 * ts, ts), vx + 4 * ts, vy + 4 * ts, { color: C.dim, scale: ts });
       T(ctx, kmh + ' KM/H', vx + 4 * ts, vy + 13 * ts, { color: C.white, scale: ts });
       if (!v.rail) { const bw = 30 * ts; ctx.fillStyle = '#2a2040'; ctx.fillRect(vx + 58 * ts, vy + 14 * ts, bw, 5 * ts); ctx.fillStyle = G().dmgCol(v.damage); ctx.fillRect(vx + 58 * ts, vy + 14 * ts, bw * (1 - v.damage), 5 * ts);
@@ -245,15 +263,17 @@
     else if (pl.vehicle && g.char === 'cop' && !pl.vehicle.rail && !pl.vehicle.def.heli && !pl.vehicle.def.bike && !pl.vehicle.def.gopher && pl.vehicle.type !== 'police' && pl.vehicle.type !== 'paddy' && !pl.vehicle.roofLight) prompt = (I.touchMode ? 'LIGHT' : 'L') + ': MAGNETIC LIGHT ON THE ROOF';
     // the bottom prompt sits just above the objective, and first-time tips above that
     UI.lastPrompt = prompt; let aboveY = UI.objTop || h - pad - 22 * ts;
-    if (prompt) { const pt = fit(prompt, w - 2 * pad - 8 * ts, ts), pw2 = U.textWidth(pt, ts) + 2 * ip; panel(ctx, w / 2 - pw2 / 2, aboveY - 15 * ts, pw2, 13 * ts, { fill: 'rgba(18,12,36,0.8)' }); T(ctx, pt, w / 2, aboveY - 12 * ts, { align: 'center', color: C.white, scale: ts }); aboveY -= 17 * ts; }
-    UI.tipTop = aboveY; if (!(short && I.touchMode)) UI.hints(ctx, ts, aboveY);
+    // (on a phone on its side, both stay left of the thumb buttons, like the objective)
+    const colW = beside ? TL.left - 4 * ts : w, colX = colW / 2;
+    if (prompt) { const pt = fit(prompt, colW - 2 * pad - 8 * ts, ts), pw2 = U.textWidth(pt, ts) + 2 * ip; panel(ctx, colX - pw2 / 2, aboveY - 15 * ts, pw2, 13 * ts, { fill: 'rgba(18,12,36,0.8)' }); T(ctx, pt, colX, aboveY - 12 * ts, { align: 'center', color: C.white, scale: ts }); hr.prompt = { x: colX - pw2 / 2, y: aboveY - 15 * ts, w: pw2, h: 13 * ts }; aboveY -= 17 * ts; }
+    UI.tipTop = aboveY; if (!(short && I.touchMode)) UI.hints(ctx, ts, aboveY, colX, colW);
     // off-screen target arrows: every target gets its own arrow, label and distance (nearest first); labels shuffle
     // along the edge so they never sit on top of each other
     const vw = g.view; const wpt = g.waypoint ? [{ ...g.waypoint, col: '#ffffff' }] : [];
     const offs = [...wpt, ...g.myMarkers(), ...M().targets().filter(tg => !tg.small).sort((a, b) => Math.hypot(a.x - pl.x, a.y - pl.y) - Math.hypot(b.x - pl.x, b.y - pl.y)).slice(0, 8)];
     const placed = [];
     if (vw && !VH.Tackle.on) for (const tg of offs) {
-      const kz = vw.k || 1, io = UI.inset || { l: 0, t: 0, scale: 1 }; const sx = (tg.x - vw.left) * vw.S * kz - io.l / io.scale, sy = (tg.y - vw.top) * vw.S * kz - io.t / io.scale; const m = 14 * ts, mt = narrow ? Math.max(Math.min(104 * ts, h * 0.3), (UI.leftBottom || 0) + 16 * ts) : Math.min(104 * ts, h * 0.3), mb = Math.max(64 * ts, h - Math.min(UI.objTop || h, UI.tipTop || h) + 16 * ts);
+      const kz = vw.k || 1, io = UI.inset || { l: 0, t: 0, scale: 1 }; const sx = (tg.x - vw.left) * vw.S * kz - io.l / io.scale, sy = (tg.y - vw.top) * vw.S * kz - io.t / io.scale; const m = 14 * ts, mt = Math.max(narrow ? Math.max(Math.min(104 * ts, h * 0.3), (UI.leftBottom || 0) + 16 * ts) : Math.min(104 * ts, h * 0.3), TL && TL.wide ? TL.small[3].y + TL.small[3].h + 12 * ts : 0), mb = Math.max(64 * ts, h - Math.min(UI.objTop || h, UI.tipTop || h) + 16 * ts);
       if (sx > m && sy > m && sx < w - m && sy < h - m) continue;
       const cx = w / 2, cy = h / 2 + (mt - mb) / 2; const a = Math.atan2(sy - cy, sx - cx);
       const k = Math.min((w / 2 - m - 10 * ts) / Math.abs(Math.cos(a) || 1e-6), ((h - mt - mb) / 2) / Math.abs(Math.sin(a) || 1e-6));
@@ -265,11 +285,13 @@
       const side = Math.abs(Math.cos(a)) * (w / 2) > Math.abs(Math.sin(a)) * (h / 2); // on the left or right edge: shuffle up and down
       const hit = (x, y) => placed.some(r => Math.abs(r.x - x) < (r.w + lw) / 2 + 4 * ts && Math.abs(r.y - y) < 14 * ts);
       for (let i = 1, x0 = lx, y0 = ly; i < 12 && hit(lx, ly); i++) { const s = (i % 2 ? 1 : -1) * Math.ceil(i / 2); if (side) ly = U.clamp(y0 + s * 14 * ts, mt, h - mb); else lx = U.clamp(x0 + s * (lw + 8 * ts), lw / 2 + 4 * ts, w - lw / 2 - 4 * ts); }
+      if (TL && lx + lw / 2 + 3 * ts > TL.left && ly + 10 * ts > TL.top) ly = Math.max(mt, TL.top - 12 * ts); // not over the thumb buttons
       placed.push({ x: lx, y: ly, w: lw });
       panel(ctx, lx - lw / 2 - 3 * ts, ly - 3 * ts, lw + 6 * ts, 13 * ts, { fill: 'rgba(18,12,36,0.8)', edge: tg.col || C.edge });
       T(ctx, lab, lx, ly, { align: 'center', color: col, scale: ts });
     }
-    if (I.touchMode && !VH.Tackle.on) UI.touch(ctx, ts); else if (!I.touchMode) I.setButtons([{ id: 'pause', x: w / 2 + tw / 2 + 40 * ts, y: pad, w: 0, h: 0 }]);
+    if (I.touchMode && g.helpOpen) { I.setButtons([]); I.stickZone = 0; } // the ? overlay takes the fingers: drag to scroll, tap to close
+    else if (I.touchMode && !VH.Tackle.on) UI.touch(ctx, ts, TL); else if (!I.touchMode) I.setButtons([{ id: 'pause', x: w / 2 + tw / 2 + 40 * ts, y: pad, w: 0, h: 0 }]);
     VH.Street.drawFeed(ctx, ts);
     // notoriety: little blue camera dots after the gossip label (one per clip on the community page)
     if (VH.Street.notoriety > 0 && g.char !== 'cop') for (let k = 0; k < VH.Street.notoriety; k++) { ctx.fillStyle = '#120c24'; ctx.fillRect(pad + 100 * ts + k * 4 * ts, pad + 20 * ts, 3 * ts + 1, 3 * ts + 1); ctx.fillStyle = '#5fb0ff'; ctx.fillRect(pad + 100 * ts + k * 4 * ts, pad + 20 * ts, 3 * ts, 3 * ts); }
@@ -367,11 +389,18 @@
     // zoom (wheel, +/-, pinch) and pan (arrows / WASD / drag) the full map; 0 recentres
     const mz = UI.mapZ || (UI.mapZ = { z: 1, cx: pl.x, cy: pl.y });
     if (!S.focus) { if (I.consume('zoomIn')) mz.z = Math.min(8, mz.z * 1.5); if (I.consume('zoomOut')) mz.z = Math.max(1, mz.z / 1.5); if (I.consume('zoomReset')) { mz.z = 1; mz.cx = pl.x; mz.cy = pl.y; } }
-    const k0 = Math.min((w - 20) / ov.width, (h - 40 * ts) / ov.height); const k = k0 * mz.z;
+    // the bottom block: the legend, the how-to line and the map credit, each wrapped to the screen (a phone in portrait
+    // takes two or three rows); the map view ends where it starts
+    const nC = Math.max(12, Math.floor((w - 8 * ts) / (6 * ts)));
+    const credit = U.wrap('MAP DATA (C) OPENSTREETMAP CONTRIBUTORS (ODBL)', nC);
+    const howto = pack(I.touchMode ? ['PINCH: ZOOM', 'DRAG: PAN', 'TAP: WAYPOINT'] : ['WHEEL / + -: ZOOM', 'ARROWS: PAN', 'CLICK: WAYPOINT', 'M: CLOSE'], nC);
+    const legRows = UI.mapLegendRows(ts, w - 20 * ts).length;
+    const extra = (legRows - 1) * 11 * ts + (howto.length - 1 + credit.length - 1) * 9 * ts;
+    const k0 = Math.min((w - 20) / ov.width, (h - 40 * ts - extra) / ov.height); const k = k0 * mz.z;
     const pan = S.focus ? 0 : 400 / mz.z * (g.frameDt || 0.016); mz.cx += ((I.down('right') ? 1 : 0) - (I.down('left') ? 1 : 0)) * pan; mz.cy += ((I.down('down') ? 1 : 0) - (I.down('up') ? 1 : 0)) * pan;
     for (const q of I.pointers.values()) { if (q.lx != null && !q.btn) { mz.cx -= (q.x - q.lx) / k * sc; mz.cy -= (q.y - q.ly) / k * sc; } q.lx = q.x; q.ly = q.y; }
     if (mz.z === 1) { mz.cx = W.width / 2; mz.cy = W.height / 2; }
-    const mw = ov.width * k, mh = ov.height * k; const vx0 = 10, vy0 = 22 * ts, vw0 = w - 20, vh0 = h - 40 * ts;
+    const mw = ov.width * k, mh = ov.height * k; const vx0 = 10, vy0 = 22 * ts, vw0 = w - 20, vh0 = h - 40 * ts - extra;
     let mx = vx0 + vw0 / 2 - mz.cx / sc * k, my = vy0 + vh0 / 2 - mz.cy / sc * k;
     if (mz.z === 1) { mx = (w - mw) / 2; my = 22 * ts; }
     ctx.save(); ctx.beginPath(); ctx.rect(vx0 - 4, vy0 - 4, vw0 + 8, vh0 + 8); ctx.clip();
@@ -390,10 +419,11 @@
     if (g.waypoint) { const [x, y] = toM(g.waypoint.x, g.waypoint.y); UI.pin(ctx, x, y, 2); T(ctx, g.waypoint.label, x + 8, y - 12, { color: '#fff', scale: 1 }); }
     const [px, py] = toM(pl.x, pl.y); ctx.fillStyle = Math.floor(g.t * 5) % 2 ? '#fff' : C.pink; ctx.fillRect(Math.round(px) - 3, Math.round(py) - 3, 6, 6);
     ctx.restore();
-    UI.mapLegend(ctx, ts, w / 2, h - 32 * ts, w - 20 * ts);
+    const creditY = h - 10 * ts - (credit.length - 1) * 9 * ts, howtoY = h - 20 * ts - (credit.length - 1) * 9 * ts - (howto.length - 1) * 9 * ts;
+    UI.mapLegend(ctx, ts, w / 2, howtoY - 12 * ts, w - 20 * ts);
     T(ctx, 'MAP OF VICTOR HARBOR', w / 2, 6 * ts, { align: 'center', color: C.hi, scale: ts * 1.5 | 0 || 1 });
-    T(ctx, I.touchMode ? 'PINCH: ZOOM  DRAG: PAN  TAP: WAYPOINT' : 'WHEEL / + -: ZOOM  ARROWS: PAN  CLICK: WAYPOINT  M: CLOSE', w / 2, h - 20 * ts, { align: 'center', color: C.dim, scale: ts });
-    T(ctx, 'MAP DATA (C) OPENSTREETMAP CONTRIBUTORS (ODBL)', w / 2, h - 10 * ts, { align: 'center', color: C.dim, scale: ts });
+    howto.forEach((l, i) => T(ctx, l, w / 2, howtoY + i * 9 * ts, { align: 'center', color: C.dim, scale: ts }));
+    credit.forEach((l, i) => T(ctx, l, w / 2, creditY + i * 9 * ts, { align: 'center', color: C.dim, scale: ts }));
     // the search box (top left of the map) and its results; CLOSE (top right)
     const bw = Math.min(w - 70 * ts, 190 * ts), bx = 14 * ts, by = vy0 + 4 * ts, bh = 14 * ts;
     panel(ctx, bx, by, bw, bh, { fill: S.focus ? 'rgba(18,12,36,0.96)' : 'rgba(18,12,36,0.85)', edge: S.focus ? C.teal : C.edge });
@@ -401,7 +431,7 @@
     T(ctx, S.q ? (S.q + caret).slice(-maxC) : S.focus ? caret || ' ' : (I.touchMode ? 'TAP: FIND A STREET OR PLACE' : 'ENTER: FIND A STREET OR PLACE').slice(0, maxC), bx + 5 * ts, by + 4 * ts, { color: S.q || S.focus ? C.white : C.dim, scale: ts });
     const rr = []; S.res.forEach((it, i) => { const ry = by + bh + i * 12 * ts; const sel = i === S.sel; panel(ctx, bx, ry, bw, 12 * ts, { fill: sel ? 'rgba(60,40,100,0.97)' : 'rgba(18,12,36,0.95)', edge: C.edge }); T(ctx, (it.name + ' · ' + it.kind).slice(0, maxC), bx + 5 * ts, ry + 3 * ts, { color: sel ? C.hi : C.white, scale: ts }); rr.push({ x: bx, y: ry, w: bw, h: 12 * ts, it }); });
     if (S.q && !S.res.length) { panel(ctx, bx, by + bh, bw, 12 * ts, { fill: 'rgba(18,12,36,0.95)' }); T(ctx, 'NOTHING BY THAT NAME', bx + 5 * ts, by + bh + 3 * ts, { color: C.dim, scale: ts }); }
-    const cbw = 40 * ts, cbx = w - cbw - 12 * ts, cby = vy0 + 4 * ts; panel(ctx, cbx, cby, cbw, 14 * ts, { accent: C.pink }); T(ctx, 'CLOSE', cbx + cbw / 2, cby + 4 * ts, { align: 'center', color: C.white, scale: ts });
+    const cbw = 40 * ts, cbx = w - cbw - 12 * ts, cby = vy0 + 4 * ts; UI.mapClose = { x: cbx, y: cby, w: cbw, h: 14 * ts }; panel(ctx, cbx, cby, cbw, 14 * ts, { accent: C.pink }); T(ctx, 'CLOSE', cbx + cbw / 2, cby + 4 * ts, { align: 'center', color: C.white, scale: ts });
     // the real text box sits over the drawn one
     const el = UI.searchEl(); const cssK = I.scale / (I.canvas.width / I.canvas.getBoundingClientRect().width || 1), cssO = cssK / I.scale;
     Object.assign(el.style, { display: 'block', left: bx * cssK + (I.offX || 0) * cssO + 'px', top: by * cssK + (I.offY || 0) * cssO + 'px', width: bw * cssK + 'px', height: bh * cssK + 'px' });
@@ -422,9 +452,10 @@
   };
   // the key to the map icons, drawn as the icons themselves (one row, or two on a narrow screen), centred at x
   UI.MAP_KEY = [['job', 'JOB'], ['car', 'YOUR CAR'], ['pin', 'WAYPOINT'], ['can', 'RESPRAY'], ['tyre', 'TYRES'], ['shop', 'SHOP'], ['M', 'MAYHEM MINUTE'], ['R', 'RAMP'], ['G', 'RACES'], ['H', 'HELIPAD']];
+  const legendItemW = ([ic, txt], ts) => 12 * ts + U.textWidth(txt, ts) + 8 * ts;
+  UI.mapLegendRows = (ts, maxW) => { const rows = [[]]; let rw = 0; for (const it of UI.MAP_KEY) { const iw = legendItemW(it, ts); if (rw + iw > maxW && rows[rows.length - 1].length) { rows.push([]); rw = 0; } rows[rows.length - 1].push(it); rw += iw; } return rows; };
   UI.mapLegend = function (ctx, ts, cx, y, maxW) {
-    const item = ([ic, txt]) => 12 * ts + U.textWidth(txt, ts) + 8 * ts; const rows = [[]]; let rw = 0;
-    for (const it of UI.MAP_KEY) { const iw = item(it); if (rw + iw > maxW && rows[rows.length - 1].length) { rows.push([]); rw = 0; } rows[rows.length - 1].push(it); rw += iw; }
+    const item = it => legendItemW(it, ts); const rows = UI.mapLegendRows(ts, maxW);
     const y0 = y - (rows.length - 1) * 11 * ts;
     rows.forEach((row, ri) => {
       let x = Math.round(cx - row.reduce((a, it) => a + item(it), 0) / 2); const yy = y0 + ri * 11 * ts;
@@ -443,38 +474,50 @@
   UI.pin = (ctx, x, y, s = 1) => { x = Math.round(x); y = Math.round(y); ctx.fillStyle = '#120c24'; ctx.fillRect(x - 2 * s - 1, y - 6 * s - 1, 4 * s + 2, 4 * s + 2); ctx.fillRect(x - 1, y - 2 * s, 2 + (s > 1 ? 1 : 0), 2 * s + 1); ctx.fillStyle = '#ffffff'; ctx.fillRect(x - 2 * s, y - 6 * s, 4 * s, 4 * s); ctx.fillRect(x, y - 2 * s, 1, 2 * s); };
 
   // ---------- touch controls ----------
-  UI.touch = function (ctx, ts) {
-    const w = ctx.canvas.width, h = ctx.canvas.height; const g = G(); const pl = g.player;
-    const sh = UI.short; const r = (sh ? 13 : 15) * ts; const bx = w - r - 8 * ts, by = h - r - (sh ? 6 : 12) * ts;
-    const v = pl.vehicle; const heli = v && v.def && v.def.heli, bike = v && v.def && v.def.bike;
-    const btns = [
-      { id: 'action', x: bx - r, y: by - r, label: pl.onFoot ? 'ACT' : heli ? 'DOWN' : bike ? 'HOP' : 'SKID', col: C.pink },
-      { id: 'enter', x: bx - r * 3.4, y: by - r * 0.3, label: pl.onFoot ? 'GET IN' : 'GET OUT', col: C.teal },
-      { id: 'horn', x: bx - r * 1.2, y: by - r * 3.4, label: pl.onFoot ? (g.char === 'cop' ? 'MEGA' : 'SHOUT') : (v && (v.type === 'police' || v.type === 'paddy' || v.roofLight)) ? 'SIREN' : 'HORN', col: C.hi },
-      { id: 'run', x: bx - r * 3.4, y: by - r * 2.8, label: heli ? 'UP' : 'BOOST', col: '#7c5cff' },
+  // Where the thumb buttons go. One size for every round button: big enough for a thumb (46 CSS px across) and for
+  // its longest label, a word a line. Upright phones stack them in a tall cluster above the bottom-right corner; a
+  // phone on its side spreads them wider and lower, with MAP, PAUSE, JOB and ? left of the minimap instead of under it.
+  const TALL = { action: [0, 0], enter: [2.4, -0.7], horn: [0.2, 2.4], run: [2.4, 1.8], kick: [0, 4.6], spikes: [0, 4.6], backup: [2.4, 4.2], light: [4.8, -0.7] };
+  const WIDE = { action: [0, 0], enter: [2.4, -0.7], horn: [0, 2.3], run: [2.4, 1.7], kick: [4.8, 1.7], spikes: [4.8, 1.7], backup: [4.8, -0.7], light: [7.2, -0.7] };
+  UI.touchLayout = function (w, h, ts) {
+    const g = G(), pl = g.player, v = pl.vehicle; const heli = v && v.def && v.def.heli, bike = v && v.def && v.def.bike;
+    const io = UI.inset || { dpr: 1, scale: 1 }; const css = n => Math.ceil(n * io.dpr / io.scale); // CSS px in art px
+    const wide = w > h, sh = UI.short;
+    const list = [
+      { id: 'action', label: pl.onFoot ? 'ACT' : heli ? 'DOWN' : bike ? 'HOP' : 'SKID', col: C.pink },
+      { id: 'enter', label: pl.onFoot ? 'GET IN' : 'GET OUT', col: C.teal },
+      { id: 'horn', label: pl.onFoot ? (g.char === 'cop' ? 'MEGA' : 'SHOUT') : (v && (v.type === 'police' || v.type === 'paddy' || v.roofLight)) ? 'SIREN' : 'HORN', col: C.hi },
+      { id: 'run', label: heli ? 'UP' : 'BOOST', col: '#7c5cff' },
     ];
-    if (pl.onFoot) btns.push({ id: 'kick', x: bx - r, y: by - r * 5.6, label: 'KICK', col: '#ff9a30' });
-    if (g.char === 'cop' && v && !v.rail && !heli) btns.push({ id: 'spikes', x: bx - r, y: by - r * 5.6, label: 'SPIKES', col: '#ff9a30' }, { id: 'backup', x: bx - r * 3.4, y: by - r * 5.2, label: 'BACKUP', col: '#7fa6ff' });
-    if (g.char === 'cop' && v && !v.rail && !heli && !bike && !v.def.gopher && v.type !== 'police' && v.type !== 'paddy') btns.push({ id: 'light', x: bx - r * 5.8, y: by - r * 0.3, label: 'LIGHT', col: '#9fd4ec' });
-    if (g.char === 'cop' && pl.onFoot && !VH.Police.kevCar()) btns.push({ id: 'backup', x: bx - r * 3.4, y: by - r * 5.2, label: 'SPARE', col: '#7fa6ff' });
-    const rects = btns.map(b => ({ id: b.id, x: b.x, y: b.y, w: r * 2, h: r * 2 }));
-    // MAP, PAUSE, JOB and ?: a 2 x 2 block under the vehicle readout, or (a phone on its side) a row under the small minimap
-    const small = sh ? [['map', 'MAP'], ['pause', 'II'], ['job', 'JOB'], ['help', '?']].map(([id, lab], i) => ({ id, lab, x: w - 4 * ts - UI.mmS + i * (UI.mmS + 3 * ts) / 4, y: 4 * ts + UI.mmS + 4 * ts, w: (UI.mmS + 3 * ts) / 4 - 3 * ts, h: 13 * ts })) : null;
-    const ux = w - 4 * ts - 92 * ts, uy = 4 * ts + 124 * ts;
-    if (small) { rects.push(...small.map(b => ({ id: b.id, x: b.x, y: b.y, w: b.w, h: b.h }))); I.setButtons(rects); I.stickZone = w * 0.5; I.stickR = 26 * ts; }
-    else rects.push({ id: 'pause', x: ux + 50 * ts, y: uy, w: 42 * ts, h: 16 * ts }, { id: 'map', x: ux, y: uy, w: 42 * ts, h: 16 * ts }, { id: 'job', x: ux, y: uy + 20 * ts, w: 42 * ts, h: 16 * ts }, { id: 'help', x: ux + 50 * ts, y: uy + 20 * ts, w: 42 * ts, h: 16 * ts });
+    if (pl.onFoot) list.push({ id: 'kick', label: 'KICK', col: '#ff9a30' });
+    if (g.char === 'cop' && v && !v.rail && !heli) list.push({ id: 'spikes', label: 'SPIKES', col: '#ff9a30' }, { id: 'backup', label: 'BACKUP', col: '#7fa6ff' });
+    if (g.char === 'cop' && v && !v.rail && !heli && !bike && !v.def.gopher && v.type !== 'police' && v.type !== 'paddy') list.push({ id: 'light', label: 'LIGHT', col: '#9fd4ec' });
+    if (g.char === 'cop' && pl.onFoot && !VH.Police.kevCar()) list.push({ id: 'backup', label: 'SPARE', col: '#7fa6ff' });
+    for (const b of list) b.lines = b.label.split(' ');
+    const need = Math.max(...list.map(b => Math.hypot(Math.max(...b.lines.map(l => U.textWidth(l, ts))) / 2, (b.lines.length * 9 - 2) * ts / 2) + 2 * ts));
+    const r = Math.ceil(Math.max((sh ? 13 : 15) * ts, need, css(23)));
+    const at = wide ? WIDE : TALL; const ax = w - r - 6 * ts, ay = h - 1.7 * r - 6 * ts; // the action button's centre
+    for (const b of list) { b.cx = Math.round(ax - at[b.id][0] * r); b.cy = Math.round(ay - at[b.id][1] * r); }
+    // MAP, PAUSE, JOB and ?: a 2 x 2 block
+    const cw = Math.max(css(46), U.textWidth(wide ? 'JOB' : 'PAUSE', ts) + 8 * ts), chh = Math.max(16 * ts, css(46)), gap = 4 * ts;
+    const mmS = UI.mmS || 92 * ts, bw = 2 * cw + gap, bh = 2 * chh + gap;
+    const x0 = wide ? w - 4 * ts - mmS - 4 * ts - bw : w - 4 * ts - bw, y0 = wide ? 4 * ts : 4 * ts + 124 * ts;
+    const small = [['map', 'MAP'], ['pause', cw >= U.textWidth('PAUSE', ts) + 8 * ts ? 'PAUSE' : 'II'], ['job', 'JOB'], ['help', '?']].map(([id, lab], i) => ({ id, lab, x: x0 + (i % 2) * (cw + gap), y: y0 + (i >> 1) * (chh + gap), w: cw, h: chh }));
+    const left = Math.min(...list.map(b => b.cx - r)), top = Math.min(...list.map(b => b.cy - r));
+    return { r, btns: list, small, left, top, blockW: wide ? bw + 4 * ts : 0, wide };
+  };
+  UI.touch = function (ctx, ts, TL) {
+    const w = ctx.canvas.width, h = ctx.canvas.height;
+    const L = TL || UI.touchLayout(w, h, ts), r = L.r;
+    const rects = [...L.btns.map(b => ({ id: b.id, x: b.cx - r, y: b.cy - r, w: r * 2, h: r * 2, round: true })), ...L.small.map(b => ({ id: b.id, x: b.x, y: b.y, w: b.w, h: b.h }))];
     I.setButtons(rects); I.stickZone = w * 0.5; I.stickR = 26 * ts;
-    for (const b of btns) {
-      const cx = b.x + r, cy = b.y + r; const held = I.held[b.id];
-      ctx.globalAlpha = held ? 0.9 : 0.55; ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(cx, cy, r, 0, U.TAU); ctx.fill();
-      ctx.strokeStyle = b.col; ctx.lineWidth = Math.max(1, ts); ctx.beginPath(); ctx.arc(cx, cy, r - 1, 0, U.TAU); ctx.stroke(); ctx.globalAlpha = 1;
-      T(ctx, b.label, cx, cy - 3 * ts, { align: 'center', color: b.col, scale: ts });
+    for (const b of L.btns) {
+      const held = I.held[b.id];
+      ctx.globalAlpha = held ? 0.9 : 0.55; ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(b.cx, b.cy, r, 0, U.TAU); ctx.fill();
+      ctx.strokeStyle = b.col; ctx.lineWidth = Math.max(1, ts); ctx.beginPath(); ctx.arc(b.cx, b.cy, r - 1, 0, U.TAU); ctx.stroke(); ctx.globalAlpha = 1;
+      b.lines.forEach((l, i) => T(ctx, l, b.cx, Math.round(b.cy - (b.lines.length * 9 - 2) * ts / 2 + i * 9 * ts), { align: 'center', color: b.col, scale: ts }));
     }
-    if (small) for (const b of small) { panel(ctx, b.x, b.y, b.w, b.h, { edge: b.id === 'help' && G().helpOpen ? C.teal : C.edge }); T(ctx, b.lab, b.x + b.w / 2, b.y + 3 * ts, { align: 'center', scale: ts, color: b.id === 'help' ? C.teal : C.white }); }
-    else { panel(ctx, ux + 50 * ts, uy, 42 * ts, 16 * ts); T(ctx, 'PAUSE', ux + 71 * ts, uy + 5 * ts, { align: 'center', scale: ts });
-    panel(ctx, ux, uy, 42 * ts, 16 * ts); T(ctx, 'MAP', ux + 21 * ts, uy + 5 * ts, { align: 'center', scale: ts });
-    panel(ctx, ux, uy + 20 * ts, 42 * ts, 16 * ts); T(ctx, 'JOB', ux + 21 * ts, uy + 25 * ts, { align: 'center', scale: ts });
-    panel(ctx, ux + 50 * ts, uy + 20 * ts, 42 * ts, 16 * ts, { edge: G().helpOpen ? C.teal : C.edge }); T(ctx, '?', ux + 71 * ts, uy + 25 * ts, { align: 'center', scale: ts, color: C.teal }); }
+    for (const b of L.small) { panel(ctx, b.x, b.y, b.w, b.h, { edge: b.id === 'help' && G().helpOpen ? C.teal : C.edge }); T(ctx, b.lab, b.x + b.w / 2, Math.round(b.y + b.h / 2 - 3.5 * ts), { align: 'center', scale: ts, color: b.id === 'help' ? C.teal : C.white }); }
     if (I.stick.active) {
       ctx.globalAlpha = 0.5; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(I.stick.ox, I.stick.oy, I.stickR, 0, U.TAU); ctx.stroke();
       ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(I.stick.ox + I.stick.x * I.stickR, I.stick.oy + I.stick.y * I.stickR, 8 * ts, 0, U.TAU); ctx.fill(); ctx.globalAlpha = 1;
@@ -503,6 +546,7 @@
     let s = ts * 2, row = 18 * ts;
     const widest = Math.max(...items.map(it => U.textWidth('> ' + it + ' <', ts * 2)));
     if (y + items.length * row > H - foot || widest > W - 8 * ts) { s = ts; row = 12 * ts; }
+    if (I.touchMode) return touchMenu(ctx, items, x, y, ts, idx, minY, foot, s, row);
     if (y + items.length * row > H - foot) y = Math.max(minY, H - foot - items.length * row);
     if (y + items.length * row > H - foot) row = Math.max(9 * ts, (H - foot - y) / items.length); // squeeze the rows a little rather than run off the screen
     items.forEach((it, i) => {
@@ -511,13 +555,35 @@
       T(ctx, (sel ? '> ' : '') + it + (sel ? ' <' : ''), x, yy, { align: 'center', color: sel ? C.hi : C.white, scale: s });
       taps.push({ x: x - wdt / 2, y: yy - (s > ts ? 4 : 2) * ts, w: wdt, h: row });
     });
+    UI.lastMenu = { items, rects: taps }; // read by tests/mobile.mjs
+    return taps;
+  }
+  // the same menu for fingers: every row at least 46 CSS px tall, and when they won't all fit under the heading, columns
+  function touchMenu(ctx, items, x, y, ts, idx, minY, foot, s, row) {
+    const W = ctx.canvas.width, H = ctx.canvas.height, n = items.length; const io = UI.inset || { dpr: 1, scale: 1 };
+    row = Math.max(row, Math.ceil(46 * io.dpr / io.scale));
+    if (y + n * row > H - foot) y = Math.max(minY, H - foot - n * row);
+    let per = Math.max(1, Math.floor((H - foot - y) / row)); const cols = Math.ceil(n / per); per = Math.ceil(n / cols);
+    if (cols > 1) s = ts;
+    const colW = cols === 1 ? Math.min(W - 8 * ts, Math.max(150 * ts, ...items.map(it => U.textWidth(it, s) + 16 * ts))) : Math.floor((W - 8 * ts) / cols);
+    const x0 = Math.round(x - cols * colW / 2), taps = [];
+    items.forEach((it, i) => {
+      const c = Math.floor(i / per), cell = { x: x0 + c * colW, y: Math.round(y + (i % per) * row), w: colW, h: row }; const sel = i === idx;
+      const chars = Math.max(6, Math.floor((colW - 8 * ts) / (6 * s))); let lines = U.textWidth(it, s) <= colW - 8 * ts ? [it] : U.wrap(it, chars);
+      if (lines.length > 2) lines = [lines[0], fit(lines.slice(1).join(' '), colW - 8 * ts, s)];
+      if (sel) panel(ctx, cell.x + ts, cell.y + ts, cell.w - 2 * ts, cell.h - 2 * ts, { fill: 'rgba(255,79,160,0.25)', edge: C.pink });
+      const lh = 9 * s / ts * ts, ty = cell.y + Math.round((row - (lines.length * lh - 2 * s)) / 2);
+      lines.forEach((l, j) => T(ctx, l, cell.x + cell.w / 2, ty + j * lh, { align: 'center', color: sel ? C.hi : C.white, scale: s }));
+      taps.push(cell);
+    });
+    UI.lastMenu = { items, rects: taps };
     return taps;
   }
   function navigate(n, idxKey) {
     if (I.consume('up')) { UI[idxKey] = (UI[idxKey] + n - 1) % n; sfx('click'); }
     if (I.consume('down')) { UI[idxKey] = (UI[idxKey] + 1) % n; sfx('click'); }
   }
-  function tappedIndex(rects) { const t = I.tap(); if (!t) return -1; return rects.findIndex(r => t.x >= r.x && t.y >= r.y && t.x <= r.x + r.w && t.y <= r.y + r.h); }
+  function tappedIndex(rects) { UI.lastRects = rects; const t = I.tap(); if (!t) return -1; return rects.findIndex(r => t.x >= r.x && t.y >= r.y && t.x <= r.x + r.w && t.y <= r.y + r.h); }
   const confirm = () => I.consume('confirm') || I.consume('enter') || I.consume('action');
 
   // footer lines, wrapped to the screen and drawn up from the bottom edge; returns the height they take
@@ -627,13 +693,13 @@
     const x0 = two ? w / 2 - colW - 5 * ts : w / 2 - colW / 2; const y0 = 26 * ts;
     // scroll with up/down when it doesn't fit (small phones)
     const total = Math.max(hL, two ? hR : 0) + extra.length * 9 * ts + 10 * ts; const view = h - 48 * ts;
-    UI.helpScroll = U.clamp((UI.helpScroll || 0) + ((I.down('down') ? 1 : 0) - (I.down('up') ? 1 : 0)) * 4 * ts, 0, Math.max(0, total - view));
+    UI.helpScroll = U.clamp((UI.helpScroll || 0) + ((I.down('down') ? 1 : 0) - (I.down('up') ? 1 : 0)) * 4 * ts - dragY(), 0, Math.max(0, total - view)); // keys, or a finger
     ctx.save(); ctx.beginPath(); ctx.rect(0, 22 * ts, w, view + 4 * ts); ctx.clip(); ctx.translate(0, -Math.round(UI.helpScroll));
     controlsTable(ctx, ts, left, x0, y0, colW); if (two) controlsTable(ctx, ts, right, w / 2 + 5 * ts, y0, colW);
     const ey = y0 + Math.max(hL, two ? hR : 0) + 2 * ts; extra.forEach((l, i) => T(ctx, l, w / 2, ey + i * 9 * ts, { align: 'center', color: C.dim, scale: ts }));
     ctx.restore();
-    T(ctx, (total > view ? (I.touchMode ? '' : 'UP/DOWN: SCROLL   ') : '') + (I.touchMode ? 'TAP TO GO BACK' : 'ENTER / ESC: BACK'), w / 2, h - 14 * ts, { align: 'center', color: C.pink, scale: ts });
-    if (confirm() || I.tap() || I.consume('back') || I.consume('pause')) { G().state = G().prevState || 'title'; G().prevState = null; UI.helpScroll = 0; sfx('click'); }
+    T(ctx, (total > view ? (I.touchMode ? 'DRAG: SCROLL   ' : 'UP/DOWN: SCROLL   ') : '') + (I.touchMode ? 'TAP TO GO BACK' : 'ENTER / ESC: BACK'), w / 2, h - 14 * ts, { align: 'center', color: C.pink, scale: ts });
+    if (confirm() || (I.touchMode ? I.click() : I.tap()) || I.consume('back') || I.consume('pause')) { G().state = G().prevState || 'title'; G().prevState = null; UI.helpScroll = 0; sfx('click'); }
   };
   // character select: cards sized to their content and centred as a group; side by side when there's room,
   // stacked rows otherwise, each row as tall as its wrapped text (with shorter blurbs when space is tight)
@@ -810,19 +876,23 @@
     const pw = Math.min(w - 16 * ts, 230 * ts);
     const txt = j ? (I.touchMode ? j.brief.replace(/SPACE/g, 'ACT').replace(/\(H\)/g, '(HORN)').replace(/SHIFT/g, 'BOOST') : j.brief) : '';
     const lines = j ? U.wrap(txt, Math.floor((pw - 24 * ts) / (6 * ts))) : [];
-    const ph = 60 * ts + lines.length * 10 * ts + (g.briefNight ? 26 * ts : 0); const x = w / 2 - pw / 2, y = Math.max(6 * ts, h / 2 - ph / 2);
-    if (g.briefNight) { const nt = M().nightOf(g.char, g.night); const hd = g.char === 'roam' ? 'FREE ROAM' : `NIGHT ${g.night}: ${M().dayName(g.night)}` + (nt && nt.title ? ' · ' + nt.title : ''); T(ctx, hd, w / 2, y, { align: 'center', color: C.hi, scale: U.textWidth(hd, ts * 2) > w - 8 * ts ? ts : ts * 2 }); }
-    const py = y + (g.briefNight ? 26 * ts : 0);
+    // the night's header over the phone: big when it fits, otherwise small and wrapped to the screen
+    const nt = g.briefNight && M().nightOf(g.char, g.night); const hd = !g.briefNight ? '' : g.char === 'roam' ? 'FREE ROAM' : `NIGHT ${g.night}: ${M().dayName(g.night)}` + (nt && nt.title ? ' · ' + nt.title : '');
+    const hBig = U.textWidth(hd, ts * 2) <= w - 8 * ts; const hLines = !hd ? [] : hBig ? [hd] : fitLines(hd, w - 8 * ts, ts);
+    const headH = !hd ? 0 : hBig ? 26 * ts : hLines.length * 9 * ts + 8 * ts;
+    const ph = 60 * ts + lines.length * 10 * ts + headH; const x = w / 2 - pw / 2, y = Math.max(6 * ts, h / 2 - ph / 2);
+    hLines.forEach((l, i) => T(ctx, l, w / 2, y + i * 9 * ts, { align: 'center', color: C.hi, scale: hBig ? ts * 2 : ts }));
+    const py = y + headH;
     // phone
-    panel(ctx, x, py, pw, ph - (g.briefNight ? 26 * ts : 0), { fill: '#1d2a22', edge: '#6a8a70', accent: '#9be15d' });
-    ctx.fillStyle = '#9bbc6a'; ctx.fillRect(x + 6 * ts, py + 6 * ts, pw - 12 * ts, ph - (g.briefNight ? 26 * ts : 0) - 22 * ts);
+    panel(ctx, x, py, pw, ph - headH, { fill: '#1d2a22', edge: '#6a8a70', accent: '#9be15d' });
+    ctx.fillStyle = '#9bbc6a'; ctx.fillRect(x + 6 * ts, py + 6 * ts, pw - 12 * ts, ph - headH - 22 * ts);
     const ink = '#1d2a12';
     if (j) {
-      T(ctx, (g.reviewBrief ? 'CURRENT JOB · ' : 'NEW MSG · ') + 'FROM: ' + j.from, x + 10 * ts, py + 10 * ts, { color: ink, scale: ts, shadow: false });
-      T(ctx, j.title + '  (+$' + j.pay + ')', x + 10 * ts, py + 22 * ts, { color: '#3a1a5a', scale: ts, shadow: false });
+      T(ctx, fit((g.reviewBrief ? 'CURRENT JOB · ' : 'NEW MSG · ') + 'FROM: ' + j.from, pw - 20 * ts, ts), x + 10 * ts, py + 10 * ts, { color: ink, scale: ts, shadow: false });
+      T(ctx, fit(j.title + '  (+$' + j.pay + ')', pw - 20 * ts, ts), x + 10 * ts, py + 22 * ts, { color: '#3a1a5a', scale: ts, shadow: false });
       lines.forEach((l, i) => T(ctx, l, x + 10 * ts, py + 36 * ts + i * 10 * ts, { color: ink, scale: ts, shadow: false }));
     } else T(ctx, 'NO JOBS TONIGHT. GO NUTS.', x + 10 * ts, py + 20 * ts, { color: ink, scale: ts, shadow: false });
-    if (Math.floor(g.t * 2) % 2 || g.reviewBrief) T(ctx, g.reviewBrief ? (I.touchMode ? 'TAP TO CARRY ON' : 'ENTER OR J: CARRY ON') : I.touchMode ? 'TAP TO GO' : 'PRESS ENTER', w / 2, py + ph - (g.briefNight ? 26 * ts : 0) - 13 * ts, { align: 'center', color: '#9be15d', scale: ts });
+    if (Math.floor(g.t * 2) % 2 || g.reviewBrief) T(ctx, g.reviewBrief ? (I.touchMode ? 'TAP TO CARRY ON' : 'ENTER OR J: CARRY ON') : I.touchMode ? 'TAP TO GO' : 'PRESS ENTER', w / 2, py + ph - headH - 13 * ts, { align: 'center', color: '#9be15d', scale: ts });
     // only Enter, a tap or J closes it, after a short beat, so a key held while driving can't skip a new job
     const close = I.consume('confirm') || I.consume('job') || I.tap() || I.consume('pause') || I.consume('back');
     I.consume('enter'); I.consume('action');
@@ -843,14 +913,18 @@
       if (I.click() || I.consume('confirm') || I.consume('pause') || I.consume('enter') || I.consume('action')) { resume(); sfx('click'); }
       return;
     }
-    T(ctx, 'PAUSED', w / 2, h * 0.18, { align: 'center', color: C.hi, scale: ts * 3 });
+    // a phone on its side (touch, not much height): a smaller heading and at most two objective lines, so the
+    // finger-sized rows have room
+    const compact = I.touchMode && h < 300 * ts; const hy = compact ? 6 * ts : h * 0.18, iy = compact ? hy + 18 * ts : h * 0.18 + 28 * ts;
+    T(ctx, 'PAUSED', w / 2, hy, { align: 'center', color: C.hi, scale: compact ? ts * 2 : ts * 3 });
     const live = g.char !== 'roam';
     const items = UI.pauseAsk ? [UI.pauseAsk + ': YES', 'NO, CARRY ON'] : ['RESUME', ...(live && M().job ? ['RESTART JOB'] : []), ...(live ? ['RESTART NIGHT'] : []), 'CONTROLS', 'WALKING: ' + (g.walkMode === 'screen' ? 'SCREEN DIRECTION' : 'LIKE A CAR'), 'SOUND: ' + (window.SFX && SFX.isMuted() ? 'OFF' : 'ON'), ...(live ? ['SCHOOLIES WEEK'] : []), 'QUIT TO TITLE', 'CREDITS', ...UI.menuLinks().map(l => l.label)];
-    const job = M().job;
-    if (UI.pauseAsk) T(ctx, UI.pauseAsk === 'RESTART JOB' ? 'START ' + (job ? job.title : 'THE JOB') + ' AGAIN FROM THE TOP?' : `START NIGHT ${g.night} AGAIN FROM THE FIRST JOB?`, w / 2, h * 0.18 + 28 * ts, { align: 'center', color: C.white, scale: ts });
-    else if (job && job.started) { const wrapN = Math.floor((w - 20 * ts) / (6 * ts)); T(ctx, 'JOB: ' + job.title, w / 2, h * 0.18 + 28 * ts, { align: 'center', color: C.white, scale: ts }); U.wrap(M().objective(), wrapN).forEach((l, i) => T(ctx, l, w / 2, h * 0.18 + 39 * ts + i * 9 * ts, { align: 'center', color: C.hi, scale: ts })); }
+    const job = M().job; const wrapN = Math.floor((w - 20 * ts) / (6 * ts)); let infoH = 0;
+    if (UI.pauseAsk) { const q = U.wrap(UI.pauseAsk === 'RESTART JOB' ? 'START ' + (job ? job.title : 'THE JOB') + ' AGAIN FROM THE TOP?' : `START NIGHT ${g.night} AGAIN FROM THE FIRST JOB?`, wrapN); q.forEach((l, i) => T(ctx, l, w / 2, iy + i * 9 * ts, { align: 'center', color: C.white, scale: ts })); infoH = q.length * 9 * ts; }
+    else if (job && job.started) { T(ctx, fit('JOB: ' + job.title, w - 20 * ts, ts), w / 2, iy, { align: 'center', color: C.white, scale: ts }); let ol = U.wrap(M().objective(), wrapN); if (compact && ol.length > 2) ol = [ol[0], fit(ol.slice(1).join(' '), w - 20 * ts, ts)]; ol.forEach((l, i) => T(ctx, l, w / 2, iy + 11 * ts + i * 9 * ts, { align: 'center', color: C.hi, scale: ts })); infoH = 11 * ts + ol.length * 9 * ts; }
     navigate(items.length, 'menuIdx'); UI.menuIdx = Math.min(UI.menuIdx, items.length - 1);
-    const rects = menuList(ctx, items, w / 2, Math.max(Math.min(h * 0.4, h - items.length * 18 * ts - 10 * ts), h * 0.18 + 60 * ts), ts, UI.menuIdx, h * 0.18 + 60 * ts); const ti = tappedIndex(rects); if (ti >= 0) UI.menuIdx = ti;
+    const top = compact ? iy + infoH + 6 * ts : h * 0.18 + 60 * ts;
+    const rects = menuList(ctx, items, w / 2, compact ? top : Math.max(Math.min(h * 0.4, h - items.length * 18 * ts - 10 * ts), top), ts, UI.menuIdx, top); const ti = tappedIndex(rects); if (ti >= 0) UI.menuIdx = ti;
     if (I.consume('pause')) { if (UI.pauseAsk) { UI.pauseAsk = null; UI.menuIdx = 0; } else resume(); return; }
     if (ti >= 0 || confirm()) {
       sfx('menu'); const it = items[UI.menuIdx];

@@ -36,6 +36,7 @@ Read this before changing anything. It applies to every AI coding agent and ever
 ## Before you open a PR
 - `node tests/lint_spawns.mjs` must pass (no raw spawns in mission code).
 - With the game served on port 8765 (`python3 -m http.server 8765`), run the input-only bot on the jobs you touched: `node tests/playthrough.mjs cop:2` (a night), `node tests/playthrough.mjs cop:2:1` (one job), `node tests/playthrough.mjs jobs` (every job on its own) or `node tests/playthrough.mjs scenario:NAME`. It plays by key presses only, fails a job whose targets can't be reached from the street, and limits each job in game seconds. It's a second net, not a guarantee, and some jobs are hard for it; don't make your jobs worse.
+- If you touched the HUD, menus or input, run `node tests/mobile.mjs` too (touch only, on emulated phones).
 - `?check=walkers` and `?check=slots` log the walking and slot self-checks in the browser console; `node tools/e2e_escort.mjs` checks Kev's prisoner deliveries.
 - Play your change in a browser at desktop and phone sizes, and attach a screenshot or short clip.
 - Keep PRs small and focused, with one fix or feature each, and describe what you changed and how you tested it.

@@ -20,12 +20,14 @@
     // when the game runs in a frame (a published artifact), whose edges can be covered by the page around it
     const sa = safeInsets(); const framed = window.self !== window.top || new URLSearchParams(location.search).has('framed');
     const m = framed ? 12 : 0; insL = Math.round((sa.l + m) * dpr); insT = Math.round((sa.t + m) * dpr); insR = Math.round((sa.r + m) * dpr); insB = Math.round((sa.b + m) * dpr);
-    [bb, bctx] = U.canvas(Math.ceil((cw - insL - insR) / scale), Math.ceil((ch - insT - insB) / scale));
+    [bb, bctx] = U.canvas(Math.ceil((cw - insL - insR) / scale), Math.ceil((ch - insT - insB) / scale)); bb.__ui = true;
     ts = Math.max(1, Math.ceil(9 * dpr / (7 * scale) - 0.15));
     I.scale = scale; I.offX = insL; I.offY = insT; UI.inset = { l: insL, t: insT, scale, dpr }; ctx.imageSmoothingEnabled = false; wbW = 0;
   }
   let insL = 0, insT = 0, insR = 0, insB = 0;
   function safeInsets() {
+    const fake = new URLSearchParams(location.search).get('inset'); // ?inset=l,t,r,b (CSS px) simulates a phone's safe area in tests
+    if (fake) { const [l, t, r, b] = fake.split(',').map(Number); return { l: l || 0, t: t || 0, r: r || 0, b: b || 0 }; }
     try {
       const d = document.createElement('div'); d.style.cssText = 'position:fixed;visibility:hidden;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)'; document.body.appendChild(d);
       const cs = getComputedStyle(d); const r = { t: parseFloat(cs.paddingTop) || 0, r: parseFloat(cs.paddingRight) || 0, b: parseFloat(cs.paddingBottom) || 0, l: parseFloat(cs.paddingLeft) || 0 }; d.remove(); return r;
@@ -73,11 +75,16 @@
   }
 
   const TIMES = [12, 18.7, 19.8, 21, 23.95, 2.5];
+  const layoutCheck = new URLSearchParams(location.search).get('check') === 'layout';
   let last = performance.now(), acc = 0;
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now; Game.frameDt = dt;
     if (frame.lastW !== innerWidth || frame.lastH !== innerHeight) { frame.lastW = innerWidth; frame.lastH = innerHeight; resize(); }
-    const st = Game.state; let stepped = false;
+    const st = Game.state; I.inStep = false;
+    if (layoutCheck) U.layoutLog = { text: [], panels: [] };
+    // the touch buttons belong to the HUD: on any other screen (the map, the pause menu, the controls) a finger where
+    // one was drawn is just a finger, so it pans, pinches or taps that screen instead of pressing MAP or PAUSE
+    if (st !== 'play' && st !== 'chat') { if (I.buttons.length) I.setButtons([]); I.stickZone = 0; }
     if (st !== frame.st) { frame.st = st; frame.since = now; }
     const stuck = !['play', 'title', 'select', 'week', 'pause', 'loading', 'map', 'help', 'credits', 'deadEnd'].includes(st) && now - frame.since > 20000;
     try {
@@ -86,7 +93,7 @@
       else {
         if (st === 'play' || st === 'ride' || st === 'title' || st === 'select' || st === 'week' || ((st === 'help' && !Game.prevState) || (st === 'credits' && Game.prevState !== 'pause'))) {
           if (FX.hitStop > 0) FX.hitStop -= dt;
-          else { acc += dt; let n = 0; while (acc >= 1 / 60 && n < 4 && Game.state === st) { stepped = true; if (Game.demo) { demoStep(1 / 60); Game.updateDemo(1 / 60); } else if (st === 'ride') Game.updateRide(1 / 60); else Game.update(1 / 60); acc -= 1 / 60; n++; } if (n === 4) acc = 0; }
+          else { acc += dt; let n = 0; while (acc >= 1 / 60 && n < 4 && Game.state === st) { I.inStep = true; try { if (Game.demo) { demoStep(1 / 60); Game.updateDemo(1 / 60); } else if (st === 'ride') Game.updateRide(1 / 60); else Game.update(1 / 60); } finally { I.inStep = false; I.endStep(); } acc -= 1 / 60; n++; } if (n === 4) acc = 0; }
         } else { Game.stateT = (Game.stateT || 0) + dt; Game.t += dt * 0.25; FX.update(dt * 0.5); }
         const ws = lastWs = worldBuffer(); Game.render(wctx, R.S, ts); Game.view.k = ws / scale;
         bctx.clearRect(0, 0, bb.width, bb.height);
@@ -125,12 +132,15 @@
       U.text(bctx, 'ESC: BACK TO THE GAME', bb.width - 6 * ts, 4 * ts, { align: 'right', color: '#ffd23a', scale: ts });
       if (I.consume('pause') || I.consume('back')) { VH.Missions.settle(); if (st === 'ride') { VH.Lockup.ride = null; Game.afterBust(); } else if (st === 'lockedUp') Game.afterBust(); else if (st === 'nightEnd' || st === 'sunrise' || st === 'win') Game.openWeek(Game.char, Game.night); else Game.state = 'play'; }
     }
+    if (layoutCheck) { window.__layout = { state: Game.state, W: bb.width, H: bb.height, ...U.layoutLog }; U.layoutLog = null; } // what the HUD drew this frame, for tests/mobile.mjs
     ctx.imageSmoothingEnabled = false;
     if (st !== 'loading' && wb) ctx.drawImage(wb, 0, 0, wb.width * lastWs, wb.height * lastWs);
     ctx.drawImage(bb, insL, insT, bb.width * scale, bb.height * scale);
-    // keep key presses until a simulation step has seen them
+    // a press waits in the step store until a simulation step has seen it, and in the frame store for one frame;
+    // screens without steps, and a change of screen, drop both
     const sim = st === 'play' || st === 'ride' || st === 'title' || st === 'select' || st === 'week';
-    if (!sim || stepped || Game.state !== st) I.endFrame();
+    if (Game.state !== st || !!Game.helpOpen !== frame.help) I.newScreen(); else if (!sim) I.clearAll(); else I.endFrame();
+    if (!!Game.helpOpen !== frame.help) UI.helpOvScroll = 0; frame.help = !!Game.helpOpen;
     requestAnimationFrame(frame);
   }
   // world update for the title backdrop: traffic and people carry on without a player

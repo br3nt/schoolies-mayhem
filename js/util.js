@@ -135,6 +135,7 @@ window.VH = window.VH || {};
       const sh = atlas(opts.shadow || 'rgba(10,8,25,0.85)');
       let sx = px; for (const ch of str) { const i = sh.idx[ch] ?? sh.idx['?']; ctx.drawImage(sh.c, i * 6, 0, 5, 7, sx + s, py + s, 5 * s, 7 * s); sx += 6 * s; }
     }
+    if (U.layoutLog && ctx.canvas.__ui) { const m = ctx.getTransform(); U.layoutLog.text.push({ s: str, x: px + m.e, y: py + m.f, w, h: 7 * s }); } // ?check=layout (tests read it)
     const a = atlas(color);
     for (const ch of str) { const i = a.idx[ch] ?? a.idx['?']; ctx.drawImage(a.c, i * 6, 0, 5, 7, px, py, 5 * s, 7 * s); px += 6 * s; }
     return w;
