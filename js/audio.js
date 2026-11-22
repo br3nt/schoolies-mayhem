@@ -8,7 +8,7 @@
   var ctx = null, master = null, comp = null;
   var sfxBus = null, musicBus = null, ambBus = null, engBus = null;
   var noiseBuf = null;
-  var muted = false, volume = 0.8;
+  var muted = false, volume = 0.8, musicVol = 1;
   var voices = 0;                       // active counted one-shot voices
   var hist = {};                        // per-name throttle history
   var want = { music: null, amb: null, siren: false };
@@ -734,7 +734,7 @@
         comp.attack.value = 0.004; comp.release.value = 0.2;
         master.connect(comp); comp.connect(ctx.destination);
         sfxBus = ctx.createGain(); sfxBus.gain.value = 0.9; sfxBus.connect(master);
-        musicBus = ctx.createGain(); musicBus.gain.value = 0.5; musicBus.connect(master);
+        musicBus = ctx.createGain(); musicBus.gain.value = 0.5 * musicVol; musicBus.connect(master);
         ambBus = ctx.createGain(); ambBus.gain.value = 0.7; ambBus.connect(master);
         engBus = ctx.createGain(); engBus.gain.value = 0.7; engBus.connect(master);
         var len = Math.floor(ctx.sampleRate * 2);
@@ -753,10 +753,11 @@
   function setMuted(m) { muted = !!m; applyMaster(); }
   function isMuted() { return muted; }
   function setVolume(v) { volume = clamp(v, 0, 1); applyMaster(); }
+  function setMusicVolume(v) { musicVol = clamp(v, 0, 1); try { if (musicBus) musicBus.gain.setTargetAtTime(0.5 * musicVol, ctx.currentTime, 0.05); } catch (e) { /* ignore */ } }
 
   try {
     document.addEventListener('visibilitychange', function () {
-      try { if (ctx && !document.hidden && ctx.state !== 'running') ctx.resume(); } catch (e) {}
+      try { if (ctx && !document.hidden && ctx.state !== 'running') ctx.resume(); else if (ctx && document.hidden && ctx.state === 'running') ctx.suspend(); } catch (e) {} // (hidden: the game is paused, so the sound sleeps too)
     });
   } catch (e) { /* ignore */ }
 
@@ -771,6 +772,8 @@
     setMuted: safe(setMuted),
     isMuted: function () { return muted; },
     setVolume: safe(setVolume),
+    setMusicVolume: safe(setMusicVolume),
+    getMusicVolume: function () { return musicVol; },
     play: safe(play),
     engine: safe(engine),
     engineStop: safe(engineStop),

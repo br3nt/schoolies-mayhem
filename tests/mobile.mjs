@@ -82,9 +82,11 @@ const CHECKS = {
     const s = await phone(ph); const T = s.tag + ' tap-once';
     try {
       const menu = await s.ev(() => VH.UI.lastMenu);
-      const si = menu.items.findIndex(i => i.startsWith('SOUND')); const m0 = await s.ev(() => SFX.isMuted());
-      await s.tapRect(menu.rects[si]); const m1 = await s.ev(() => SFX.isMuted());
-      check(T + ': title SOUND toggles once', m1 !== m0, `muted ${m0} -> ${m1}`);
+      await s.tapRect(menu.rects[menu.items.indexOf('SETTINGS')]); const sm = await s.ev(() => VH.UI.lastMenu);
+      const si = sm.items.findIndex(i => i.startsWith('SOUND')); const m0 = await s.ev(() => SFX.isMuted());
+      await s.tapRect(sm.rects[si]); const m1 = await s.ev(() => SFX.isMuted());
+      check(T + ': SETTINGS > SOUND toggles once', (await s.state()) === 'settings' && m1 !== m0, `${await s.state()}, muted ${m0} -> ${m1}`);
+      const sm2 = await s.ev(() => VH.UI.lastMenu); await s.tapRect(sm2.rects[sm2.items.indexOf('BACK')]);
       const menu2 = await s.ev(() => VH.UI.lastMenu); const pi = menu2.items.findIndex(i => i === 'NEW GAME' || i === 'PLAY');
       await s.tapRect(menu2.rects[pi]); await s.shot('title-tapped');
       check(T + ': title NEW GAME opens the character select', (await s.state()) === 'select', await s.state());
@@ -112,11 +114,18 @@ const CHECKS = {
     try {
       await page.keyboard.press('ArrowDown'); await sleep(250); check(T + ': one Down moves the title menu one row', (await ev(() => VH.UI.menuIdx)) === 1, 'menuIdx ' + await ev(() => VH.UI.menuIdx));
       await page.keyboard.press('ArrowUp'); await sleep(250);
-      const items = await ev(() => VH.UI.lastMenu.items); const si = items.findIndex(i => i.startsWith('SOUND'));
+      const items = await ev(() => VH.UI.lastMenu.items); const gi = items.indexOf('SETTINGS');
+      for (let i = 0; i < gi; i++) { await page.keyboard.press('ArrowDown'); await sleep(120); }
+      await page.keyboard.press('Enter'); await sleep(250); const si = (await ev(() => VH.UI.lastMenu.items)).findIndex(i => i.startsWith('SOUND'));
       for (let i = 0; i < si; i++) { await page.keyboard.press('ArrowDown'); await sleep(120); }
       const m0 = await ev(() => SFX.isMuted()); await page.keyboard.press('Enter'); await sleep(250);
-      check(T + ': Enter on SOUND toggles once', (await ev(() => SFX.isMuted())) !== m0);
+      check(T + ': Enter on SETTINGS > SOUND toggles once', (await ev(() => VH.Game.state)) === 'settings' && (await ev(() => SFX.isMuted())) !== m0);
       for (let i = 0; i < si; i++) { await page.keyboard.press('ArrowUp'); await sleep(120); }
+      const g0 = await ev(() => VH.Settings.gfx); await page.keyboard.press('ArrowRight'); await sleep(250); const g1 = await ev(() => VH.Settings.gfx);
+      await page.keyboard.press('ArrowLeft'); await sleep(250); const g2 = await ev(() => VH.Settings.gfx);
+      check(T + ': Right and Left on GRAPHICS step it one each way', g1 !== g0 && g2 === g0, `${g0} -> ${g1} -> ${g2}`);
+      await page.keyboard.press('Escape'); await sleep(250); check(T + ': Esc leaves SETTINGS for the title, on SETTINGS', (await ev(() => VH.Game.state)) === 'title' && (await ev(() => VH.UI.menuIdx)) === gi);
+      for (let i = 0; i < gi; i++) { await page.keyboard.press('ArrowUp'); await sleep(120); }
       await page.keyboard.press('Enter'); await sleep(300); check(T + ': Enter on NEW GAME opens the select', (await ev(() => VH.Game.state)) === 'select');
       const s0 = await ev(() => VH.UI.selIdx); await page.keyboard.press('ArrowRight'); await sleep(250);
       check(T + ': one Right moves one card', (await ev(() => VH.UI.selIdx)) === (s0 + 1) % 3 && (await ev(() => VH.Game.state)) === 'select');
@@ -126,6 +135,10 @@ const CHECKS = {
       await page.keyboard.press('m'); await sleep(300); check(T + ': M opens the map', (await ev(() => VH.Game.state)) === 'map');
       await page.keyboard.press('m'); await sleep(300); check(T + ': M closes the map', (await ev(() => VH.Game.state)) === 'play');
       await page.keyboard.press('Escape'); await sleep(300); check(T + ': Esc pauses', (await ev(() => VH.Game.state)) === 'pause');
+      // the pause menu draws seldom (nothing moves), but a key answers while it's still held down, not when it's let go
+      await sleep(200); const i0 = await ev(() => VH.UI.menuIdx); await page.keyboard.down('ArrowDown'); await sleep(70); const i1 = await ev(() => VH.UI.menuIdx); await page.keyboard.up('ArrowDown'); await sleep(150);
+      check(T + ': a still menu answers a key while it is held', i1 === i0 + 1, `menuIdx ${i0} -> ${i1} 70 ms after the key went down`);
+      await page.keyboard.press('ArrowUp'); await sleep(200);
       await page.keyboard.press('Escape'); await sleep(300); check(T + ': Esc resumes', (await ev(() => VH.Game.state)) === 'play');
       check(T + ': no console errors', !errors.length, errors[0]);
     } finally { await ctx.close(); }
@@ -248,7 +261,10 @@ const CHECKS = {
     if (ph.id !== 'iphone-port' && ph.id !== 'iphone-notch') return; // one framed phone, one with a notch
     const extra = ph.id === 'iphone-port' ? 'framed' : '';
     const ratio = s => s.ev(() => {
-      const c = document.getElementById('game'), x = c.getContext('2d'), io = VH.UI.inset; const lum = (px, py) => { const d = x.getImageData(px, py, 1, 1).data; return 0.3 * d[0] + 0.59 * d[1] + 0.11 * d[2] + 1; };
+      // the picture is the layer canvases under #game, each enlarged by the browser: put them together as the screen shows them
+      const c = document.getElementById('game'), io = VH.UI.inset, k = c.width / innerWidth; const cc = document.createElement('canvas'); cc.width = c.width; cc.height = c.height; const x = cc.getContext('2d'); x.imageSmoothingEnabled = false;
+      for (const l of document.querySelectorAll('canvas.layer')) x.drawImage(l, parseFloat(l.style.left) * k, parseFloat(l.style.top) * k, parseFloat(l.style.width) * k, parseFloat(l.style.height) * k);
+      const lum = (px, py) => { const d = x.getImageData(px, py, 1, 1).data; return 0.3 * d[0] + 0.59 * d[1] + 0.11 * d[2] + 1; };
       const edge = io.l > 4 ? 'l' : 't'; const out = [], inn = [];
       // pairs of pixels 3 px either side of the inset line: the world under them is all but the same, so any step in
       // brightness is a backdrop that stops at the inset (sampled away from the middle, where menus and text sit)
@@ -388,6 +404,44 @@ const CHECKS = {
       const L = await s.layout(); const hr = await s.ev(() => VH.UI.hudRects && VH.UI.hudRects.left);
       check(`${T}: no text off the edge`, !offEdge(L).length, offEdge(L).slice(0, 3).join(' | '));
       check(`${T}: the left-hand panels clear of the buttons`, !!hr && !B.some(b => overlap(hr, b)), B.filter(b => hr && overlap(hr, b)).map(b => b.label).join(','));
+    } finally { await s.close(); }
+  },
+  // SETTINGS, from the title and the pause menu: fits the phone (no text off the edge, rows a thumb can hit, nothing
+  // overlapping), a tap changes a row, the choice is saved, SHOW FPS shows the counter, BACK goes back where it came from
+  async settings(ph) {
+    const T = ph.id + ' settings';
+    let s = await phone(ph);
+    try {
+      const menu = await s.ev(() => VH.UI.lastMenu); check(T + ': the title has SETTINGS', menu.items.includes('SETTINGS'), menu.items.join(','));
+      await s.tapRect(menu.rects[menu.items.indexOf('SETTINGS')]); await s.shot('settings');
+      const L = await s.layout(); const m = await s.ev(() => VH.UI.lastMenu);
+      check(T + ': a tap on SETTINGS opens it', L.state === 'settings', L.state);
+      check(T + ': every option is there', ['GRAPHICS', 'FRAME RATE', 'BATTERY SAVER', 'SOUND', 'MUSIC', 'SHOW FPS', 'SCREEN SHAKE', 'BACK'].every(k => m.items.some(i => i.startsWith(k))), m.items.join(','));
+      check(T + ': no text off the edge', !offEdge(L).length, offEdge(L).slice(0, 3).join(' | '));
+      const rc = await Promise.all(m.rects.map(r => s.css(r)));
+      check(T + ': every row is a comfortable target', rc.every(r => r.h >= MIN_TARGET - 1), rc.map(r => Math.round(r.h)).join(','));
+      check(T + ': no rows overlap', !m.rects.some((a, i) => m.rects.some((b, j) => j > i && overlap(a, b, 1))));
+      const rows = L.text.filter(t => m.items.some(i => i === t.s)); const others = L.text.filter(t => !rows.includes(t) && t.y > Math.min(...m.rects.map(r => r.y)));
+      check(T + ': the note and hint clear the rows', !others.some(t => m.rects.some(r => overlap(t, r, 1))), others.filter(t => m.rects.some(r => overlap(t, r, 1))).map(t => t.s).slice(0, 2).join(' | '));
+      const at = id => s.ev(id => { const m = VH.UI.lastMenu; return m.rects[m.items.findIndex(i => i.startsWith(id))]; }, id);
+      await s.tapRect(await at('GRAPHICS')); const q = await s.ev(() => [VH.Settings.gfx, VH.Settings.level()]);
+      check(T + ': a tap on GRAPHICS changes it (AUTO to LOW)', q[0] === 'low' && q[1] === 'low', q.join(' '));
+      await s.tapRect(await at('FRAME RATE')); check(T + ': a tap on FRAME RATE changes it (60 to MAX)', (await s.ev(() => VH.Settings.fps)) === 0);
+      await s.tapRect(await at('SHOW FPS')); check(T + ': SHOW FPS turns on', await s.ev(() => VH.Settings.showFps));
+      await s.tapRect(await at('BACK')); check(T + ': BACK goes back to the title', (await s.state()) === 'title', await s.state());
+      await s.page.reload(); await s.page.waitForFunction(() => window.__ready === true, null, { timeout: 60000 }); await sleep(500);
+      const kept = await s.ev(() => [VH.Settings.gfx, VH.Settings.fps, VH.Settings.showFps]);
+      check(T + ': the choices are saved', kept[0] === 'low' && kept[1] === 0 && kept[2] === true, JSON.stringify(kept));
+      const fps = (await s.layout()).text.find(t => /^FPS \d+$/.test(t.s)); check(T + ': the FPS counter shows, on the screen', !!fps && inside(fps, (await s.layout()).W), fps && fps.s);
+    } finally { await s.close(); }
+    s = await play(ph);
+    try {
+      await s.tapRect(await s.button('pause')); const m = await s.ev(() => VH.UI.lastMenu);
+      check(T + ': the pause menu has SETTINGS', m.items.includes('SETTINGS'), m.items.join(','));
+      await s.tapRect(m.rects[m.items.indexOf('SETTINGS')]); const L = await s.layout(); await s.shot('settings-pause');
+      check(T + ': SETTINGS opens from the pause menu, and fits', L.state === 'settings' && !offEdge(L).length, L.state + ' ' + offEdge(L).slice(0, 2).join(' | '));
+      const m2 = await s.ev(() => VH.UI.lastMenu); await s.tapRect(m2.rects[m2.items.indexOf('BACK')]);
+      check(T + ': BACK goes back to the pause menu', (await s.state()) === 'pause', await s.state());
     } finally { await s.close(); }
   },
   async 'help-names'(ph) {

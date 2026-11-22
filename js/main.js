@@ -3,16 +3,28 @@
 (function (VH) {
   const sfx = (n, o) => window.SFX && SFX.play(n, o);
   const U = VH.U, W = VH.World, R = VH.MapRender, I = VH.Input, UI = VH.UI, FX = VH.FX, Game = VH.Game, M = VH.Missions;
-  const canvas = document.getElementById('game'); const ctx = canvas.getContext('2d');
-  let bb, bctx, scale = 2, ts = 1; let loadP = 0, loadMsg = 'Loading';
-  // The world is drawn into its own buffer at a zoomable pixel scale (closer on foot, wider when driving);
-  // the HUD and menus are drawn into a transparent buffer at the fixed UI scale and laid on top.
-  let wb, wctx, cw = 1, ch = 1, zoom = 1, wbW = 0, wbH = 0, lastWs = 1, camSpd = 0, camLvl = 0;
+  // #game is the input surface (and what the tests measure against); nothing is drawn on it, so it has no pixels.
+  // The picture is three canvases under it, each kept at its own pixel-art scale and enlarged by the browser (nearest
+  // neighbour): the world at its zoomable art scale (closer on foot, wider when driving), the full-screen backdrops
+  // (menu dimming, letterbox bars) and the HUD and menus at the fixed UI scale, inside the safe area. Nothing is drawn
+  // at the screen's full device resolution, so a Retina screen costs no more to draw than any other.
+  const canvas = document.getElementById('game');
+  const layer = (id, alpha) => { const c = document.createElement('canvas'); c.id = id; c.className = 'layer'; c.setAttribute('aria-hidden', 'true'); canvas.parentNode.insertBefore(c, canvas); return [c, c.getContext('2d', { alpha })]; };
+  const [wb, wctx] = layer('world', false), [kb, kctx] = layer('backdrop', true), [bb, bctx] = layer('hud', true); bb.__ui = true;
+  const size = (c, x, w, h) => { if (c.width !== w || c.height !== h) { c.width = w; c.height = h; } x.imageSmoothingEnabled = false; }; // (resizing resets the context)
+  // a canvas whose pixels the browser dropped while the page was away comes back blank, with its settings reset
+  for (const [c, x] of [[wb, wctx], [kb, kctx], [bb, bctx]]) c.addEventListener('contextrestored', () => { x.imageSmoothingEnabled = false; worldStale = true; kb._used = true; });
+  // where a layer sits on the page, in device pixels; CSS pixels are worked out from #game's own box, as input is
+  let kx = 1, ky = 1;
+  const place = (c, x, y, w, h) => { const st = c.style, v = [x * kx, y * ky, w * kx, h * ky].map(n => n + 'px'); if (c._at !== v.join()) { c._at = v.join(); st.left = v[0]; st.top = v[1]; st.width = v[2]; st.height = v[3]; } };
+  let scale = 2, ts = 1; let loadP = 0, loadMsg = 'Loading';
+  let cw = 1, ch = 1, zoom = 1, wbW = 0, wbH = 0, lastWs = 1, camSpd = 0, camLvl = 0, worldStale = true;
 
   function resize() {
     const dpr = +(new URLSearchParams(location.search).get('dpr')) || Math.min(3, window.devicePixelRatio || 1); // ?dpr= simulates phones in tests
     cw = Math.floor(innerWidth * dpr); ch = Math.floor(innerHeight * dpr);
     canvas.width = cw; canvas.height = ch;
+    { const r = canvas.getBoundingClientRect(); kx = (r.width || innerWidth) / cw; ky = (r.height || innerHeight) / ch; }
     scale = Math.max(1, Math.round(Math.max(cw, ch) / 820));
     if (Math.min(cw, ch) / scale < 300) scale = Math.max(1, Math.floor(Math.min(cw, ch) / 300));
     if (ch > cw) while (scale > 1 && cw / scale < 540) scale--; // portrait phones: keep enough width for the HUD
@@ -20,9 +32,10 @@
     // when the game runs in a frame (a published artifact), whose edges can be covered by the page around it
     const sa = safeInsets(); const framed = window.self !== window.top || new URLSearchParams(location.search).has('framed');
     const m = framed ? 12 : 0; insL = Math.round((sa.l + m) * dpr); insT = Math.round((sa.t + m) * dpr); insR = Math.round((sa.r + m) * dpr); insB = Math.round((sa.b + m) * dpr);
-    [bb, bctx] = U.canvas(Math.ceil((cw - insL - insR) / scale), Math.ceil((ch - insT - insB) / scale)); bb.__ui = true;
+    size(bb, bctx, Math.ceil((cw - insL - insR) / scale), Math.ceil((ch - insT - insB) / scale)); place(bb, insL, insT, bb.width * scale, bb.height * scale);
+    size(kb, kctx, Math.ceil(cw / scale), Math.ceil(ch / scale)); place(kb, 0, 0, kb.width * scale, kb.height * scale);
     ts = Math.max(1, Math.ceil(9 * dpr / (7 * scale) - 0.15));
-    I.scale = scale; I.offX = insL; I.offY = insT; UI.inset = { l: insL, t: insT, r: insR, b: insB, scale, dpr }; ctx.imageSmoothingEnabled = false; wbW = 0;
+    I.scale = scale; I.offX = insL; I.offY = insT; UI.inset = { l: insL, t: insT, r: insR, b: insB, scale, dpr }; wbW = 0; worldStale = true;
   }
   let insL = 0, insT = 0, insR = 0, insB = 0;
   function safeInsets() {
@@ -57,7 +70,8 @@
     zoom += (want - zoom) * Math.min(1, (Game.frameDt || 0.016) * 2.5); if (Math.abs(want - zoom) < 0.02) zoom = want;
     const ws = Math.round(scale * zoom * 8) / 8;
     const w = Math.ceil(cw / ws), h = Math.ceil(ch / ws);
-    if (w !== wbW || h !== wbH) { [wb, wctx] = U.canvas(w, h); wbW = w; wbH = h; }
+    if (w !== wbW || h !== wbH) { size(wb, wctx, w, h); wbW = w; wbH = h; }
+    place(wb, 0, 0, w * ws, h * ws);
     return ws;
   }
   addEventListener('resize', resize); resize();
@@ -79,9 +93,53 @@
 
   const TIMES = [12, 18.7, 19.8, 21, 23.95, 2.5];
   const layoutCheck = new URLSearchParams(location.search).get('check') === 'layout';
-  let last = performance.now(), acc = 0;
+  const S = VH.Settings;
+  // ---------- pacing: how often a frame is drawn ----------
+  // Playing: up to the frame-rate setting (60 by default, so a 120 Hz screen draws every other refresh). The title, and
+  // the screens with the world still moving behind them: about 30. A menu over a paused world: at once when there's a
+  // key or a tap, while a key or finger is held, and a few times a second for its blinking prompts; the world under it
+  // isn't drawn again. A hidden page draws nothing at all, and picks up where it was when it comes back.
+  const SIM = st => st === 'play' || st === 'ride' || st === 'title' || st === 'select' || st === 'week' || (st === 'help' && !Game.prevState) || ((st === 'credits' || st === 'settings') && Game.prevState !== 'pause');
+  const LIVE = st => st === 'play' || st === 'ride' || st === 'chat';
+  const IDLE = st => !SIM(st) && !LIVE(st) && st !== 'win' && st !== 'loading'; // (the win card has confetti falling on the world)
+  const Perf = VH.Perf = { raf: 0, drawn: 0, fps: 0, work: 0, _n: 0, _t: 0, _w: 0 };
+  Perf.info = () => ({ fps: Perf.fps, quality: S.level(), cap: S.fpsCap() || 'max', world: wb.width + 'x' + wb.height, hud: bb.width + 'x' + bb.height, frameMs: +Perf.work.toFixed(2) });
+  function targetFps(st) {
+    const cap = S.fpsCap() || 1000;
+    if (LIVE(st)) return cap;
+    if (!IDLE(st)) return Math.min(30, cap);
+    if (I.anyDown()) return Math.min(60, cap); // dragging the map, holding a key to scroll
+    return Math.min(UI.wantFps || 4, cap); // (a screen that animates asks for more)
+  }
+  // Frames are drawn on whole refreshes: every n-th, n from the screen's measured refresh interval (a 120 Hz screen
+  // capped at 60 draws every other one; 144 Hz gives 72, 90 Hz stays at 90: an even beat, never a judder)
+  let last = performance.now(), acc = 0, lastRaf = 0, rafIv = 1000 / 60, since = 0, lastDrawn = 0, lastSt = null, running = false, setV = -1;
+  const every = fps => Math.max(1, Math.floor(1000 / fps / rafIv + 0.1));
+  function loop(now) {
+    if (document.hidden) { running = false; return; }
+    requestAnimationFrame(loop); Perf.raf++;
+    const gap = now - lastRaf; lastRaf = now; if (gap > 2 && gap < 100) rafIv += (gap - rafIv) * 0.05; // (the refresh, smoothed; hitches left out)
+    since++;
+    const st = Game.state, idle = IDLE(st);
+    if (S.version !== setV) { setV = S.version; worldStale = true; } // a setting changed: show it, even under a menu
+    const n = every(targetFps(st));
+    // a still screen answers a key or a tap at once (no sooner than a 60 fps frame apart, while a finger or key is held)
+    const fresh = idle && I.lastInput > lastDrawn && since >= every(60);
+    const poke = st !== lastSt || frame.lastW !== innerWidth || frame.lastH !== innerHeight || (idle && worldStale) || fresh;
+    if (!poke && since < n) return;
+    since = 0;
+    const t0 = performance.now(); lastDrawn = t0; lastSt = st; UI.wantFps = 0;
+    frame(now);
+    // the FPS counter, and AUTO quality's watch on how long frames take
+    const t1 = performance.now(), work = t1 - t0; Perf.drawn++; Perf._n++; Perf._w += work;
+    if (t1 - Perf._t > 1000) { Perf.fps = Math.round(Perf._n * 1000 / (t1 - Perf._t)); Perf.work = Perf._w / Math.max(1, Perf._n); Perf._n = 0; Perf._w = 0; Perf._t = t1; }
+    if (LIVE(st) && st === Game.state) S.sample(now, work, n * rafIv); // (judged against the beat this screen can have)
+  }
+  function start() { if (running || document.hidden) return; running = true; last = performance.now(); lastRaf = 0; acc = 0; since = 99; lastSt = null; worldStale = true; S.resumed(); requestAnimationFrame(loop); }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) start(); });
   function frame(now) {
-    const dt = Math.min(0.05, (now - last) / 1000); last = now; Game.frameDt = dt;
+    const st0 = Game.state, real = Math.max(0, (now - last) / 1000); last = now;
+    const dt = Math.min(SIM(st0) ? 0.05 : 0.25, real); Game.frameDt = Math.min(0.05, dt); // (a still screen draws seldom, but its timers keep time)
     if (frame.lastW !== innerWidth || frame.lastH !== innerHeight) { frame.lastW = innerWidth; frame.lastH = innerHeight; resize(); }
     const st = Game.state; I.inStep = false;
     if (layoutCheck) U.layoutLog = { text: [], panels: [] };
@@ -89,17 +147,19 @@
     // the touch buttons belong to the HUD: on any other screen (the map, the pause menu, the controls) a finger where
     // one was drawn is just a finger, so it pans, pinches or taps that screen instead of pressing MAP or PAUSE
     if (st !== 'play' && st !== 'chat') { if (I.buttons.length) I.setButtons([]); I.stickZone = 0; }
-    if (st !== frame.st) { frame.st = st; frame.since = now; }
-    const stuck = !['play', 'title', 'select', 'week', 'pause', 'loading', 'map', 'help', 'credits', 'deadEnd'].includes(st) && now - frame.since > 20000;
+    if (st !== frame.st) { frame.st = st; frame.since = now; worldStale = true; } // (a new screen: the world under it as it is now)
+    const stuck = !['play', 'title', 'select', 'week', 'pause', 'loading', 'map', 'help', 'credits', 'settings', 'deadEnd'].includes(st) && now - frame.since > 20000;
     try {
       if (st !== 'map' && UI._sel && UI._sel.style.display !== 'none') UI.hideSearch();
       if (st === 'loading') { UI.loading(bctx, ts, loadP, loadMsg); }
       else {
-        if (st === 'play' || st === 'ride' || st === 'title' || st === 'select' || st === 'week' || ((st === 'help' && !Game.prevState) || (st === 'credits' && Game.prevState !== 'pause'))) {
+        const frozen = IDLE(st) && !worldStale; // a menu over a paused world: the world as it was
+        if (SIM(st)) {
           if (FX.hitStop > 0) FX.hitStop -= dt;
           else { acc += dt; let n = 0; while (acc >= 1 / 60 && n < 4 && Game.state === st) { I.inStep = true; try { if (Game.demo) { demoStep(1 / 60); Game.updateDemo(1 / 60); } else if (st === 'ride') Game.updateRide(1 / 60); else Game.update(1 / 60); } finally { I.inStep = false; I.endStep(); } acc -= 1 / 60; n++; } if (n === 4) acc = 0; }
-        } else { Game.stateT = (Game.stateT || 0) + dt; Game.t += dt * 0.25; FX.update(dt * 0.5); }
-        const ws = lastWs = worldBuffer(); Game.render(wctx, R.S, ts); Game.view.k = ws / scale;
+        } else { Game.stateT = (Game.stateT || 0) + dt; Game.t += dt * 0.25; if (!frozen) FX.update(dt * 0.5); }
+        if (!frozen) { const ws = lastWs = worldBuffer(); Game.render(wctx, R.S, ts); Game.view.k = ws / scale; worldStale = false; }
+        else if (Game.cam) R.pump(Game.cam.x, Game.cam.y, 3); // (the map tiles round a new start keep loading under its brief)
         bctx.clearRect(0, 0, bb.width, bb.height);
         if (st === 'play') {
           UI.hud(bctx, ts);
@@ -119,6 +179,7 @@
         else if (st === 'week') UI.week(bctx, ts);
         else if (st === 'deadEnd') UI.deadEnd(bctx, ts);
         else if (st === 'help') UI.help(bctx, ts);
+        else if (st === 'settings') UI.settings(bctx, ts);
         else if (st === 'credits') UI.credits(bctx, ts);
         else if (st === 'brief') UI.brief(bctx, ts);
         else if (st === 'pause') UI.pause(bctx, ts);
@@ -136,18 +197,19 @@
       { const hw = U.textWidth('ESC: BACK TO THE GAME', ts); bctx.fillStyle = 'rgba(18,12,36,0.92)'; bctx.fillRect(bb.width - 9 * ts - hw, 0, hw + 9 * ts, 10 * ts); U.text(bctx, 'ESC: BACK TO THE GAME', bb.width - 5 * ts, 1.5 * ts, { align: 'right', color: '#ffd23a', scale: ts }); } // (on its own plate in the top strip, clear of a message card)
       if (I.consume('pause') || I.consume('back')) { VH.Missions.settle(); if (st === 'ride') { VH.Lockup.ride = null; Game.afterBust(); } else if (st === 'lockedUp') Game.afterBust(); else if (st === 'nightEnd' || st === 'sunrise' || st === 'win') Game.openWeek(Game.char, Game.night); else Game.state = 'play'; }
     }
+    if (S.showFps) { const s = 'FPS ' + Perf.fps, w = U.textWidth(s, ts); bctx.fillStyle = 'rgba(18,12,36,0.8)'; bctx.fillRect(0, Math.round(bb.height * 0.45), w + 6 * ts, 11 * ts); U.text(bctx, s, 3 * ts, Math.round(bb.height * 0.45) + 2 * ts, { color: '#9be15d', scale: ts }); }
     if (layoutCheck) { window.__layout = { state: Game.state, W: bb.width, H: bb.height, ...U.layoutLog }; U.layoutLog = null; } // what the HUD drew this frame, for tests/mobile.mjs
-    ctx.imageSmoothingEnabled = false;
-    if (st !== 'loading' && wb) ctx.drawImage(wb, 0, 0, wb.width * lastWs, wb.height * lastWs);
-    // full-screen backdrops go on the whole canvas, edge to edge; the UI layer (inset by the safe area) goes on top
-    for (const f of UI.backdrops) { if (typeof f === 'string') { ctx.fillStyle = f; ctx.fillRect(0, 0, cw, ch); } else f(ctx, cw, ch, y => insT + y * scale); }
-    ctx.drawImage(bb, insL, insT, bb.width * scale, bb.height * scale);
+    // full-screen backdrops go on their own layer, edge to edge (drawn in screen pixels, kept at the UI scale)
+    if (UI.backdrops.length || kb._used) {
+      kctx.setTransform(1, 0, 0, 1, 0, 0); kctx.clearRect(0, 0, kb.width, kb.height); kctx.setTransform(1 / scale, 0, 0, 1 / scale, 0, 0);
+      for (const f of UI.backdrops) { if (typeof f === 'string') { kctx.fillStyle = f; kctx.fillRect(0, 0, cw, ch); } else f(kctx, cw, ch, y => Math.round((insT + y * scale) / scale) * scale); } // (edges on whole backdrop pixels)
+      kctx.setTransform(1, 0, 0, 1, 0, 0); kb._used = UI.backdrops.length > 0;
+    }
     // a press waits in the step store until a simulation step has seen it, and in the frame store for one frame;
     // screens without steps, and a change of screen, drop both
     const sim = st === 'play' || st === 'ride' || st === 'title' || st === 'select' || st === 'week';
     if (Game.state !== st || !!Game.helpOpen !== frame.help) I.newScreen(); else if (!sim) I.clearAll(); else I.endFrame();
     if (!!Game.helpOpen !== frame.help) UI.helpOvScroll = 0; frame.help = !!Game.helpOpen;
-    requestAnimationFrame(frame);
   }
   // world update for the title backdrop: traffic and people carry on without a player
   Game.updateDemo = function (dt) {
@@ -179,7 +241,7 @@
   document.addEventListener('visibilitychange', () => { if (document.hidden) Game.autoPause(); });
   async function boot() {
     I.init(canvas); try { canvas.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
-    requestAnimationFrame(frame);
+    wctx.fillStyle = '#120c24'; wctx.fillRect(0, 0, wb.width, wb.height); start();
     try {
       if (window.SFX && U.store.get('muted', false)) SFX.setMuted(true);
       Game.zoomOff = +U.store.get('zoom', 0) || 0; Game.walkMode = U.store.get('walk', 'car');

@@ -679,7 +679,7 @@
     R.draw(ctx, left, top, vw, vh);
     const t = Game.t; const hour = Game.hour; const night = L.lightsOn(hour) > 0.3;
     // surf foam + twinkles along the shore
-    Game.shoreGrid.query(left - 4, top - 4, left + vw / S + 4, top + vh / S + 4, s => {
+    if (VH.Settings.q().glints) Game.shoreGrid.query(left - 4, top - 4, left + vw / S + 4, top + vh / S + 4, s => {
       const a = 0.5 + 0.5 * Math.sin(t * 1.7 + s[2] * 20);
       if (a > 0.55) { ctx.fillStyle = `rgba(240,250,255,${(a - 0.55) * 1.6})`; const sx = Math.round((s[0] - left) * S), sy = Math.round((s[1] - top) * S); ctx.fillRect(sx - 2, sy, 4, 1); if (a > 0.85) ctx.fillRect(sx - 1, sy - 1, 2, 1); }
     });
@@ -709,10 +709,10 @@
     const midnight = hour >= 23.6 || hour < 0.9; const bluffD = Math.hypot(pl.x - Game.places.bluff.x, pl.y - Game.places.bluff.y);
     if ((midnight && bluffD < 500) || Game.forceGhost) Game.ghostWhale.draw(ctx, left, top, S);
     // lighting
-    const { sources, glows } = Game.collectLights(left, top, vw / S, vh / S, hour);
+    const { sources, glows } = L.lightsOn(hour) > 0 ? Game.collectLights(left, top, vw / S, vh / S, hour) : { sources: [], glows: [] }; // (by day nothing's lit)
     L.apply(ctx, left, top, S, hour, sources, glows);
     // moonlight glints on the water at night
-    if (night) Game.drawGlints(ctx, left, top, S, vw, vh, t);
+    const q = VH.Settings.q(); if (night && q.glints) Game.drawGlints(ctx, left, top, S, vw, vh, t);
     VH.Lockup.drawBeam(ctx, left, top, S, hour); VH.Street.drawCams(ctx, left, top, S); VH.Missions.drawTorch && VH.Missions.drawTorch(ctx, left, top, S);
     Game.drawSpeedLines(ctx, vw, vh);
     VH.Police.drawAir(ctx, left, top, S, night);

@@ -20,14 +20,17 @@
   L.fogLevel = (hour, special) => { let h = hour < 12 ? hour + 24 : hour; const f = U.clamp((h - 21.5) / 1.5, 0, 1) * U.clamp((29.5 - h) / 1.5, 0, 1); return Math.max(f * 0.75, special || 0); };
 
   L.ensure = function (w, h) {
-    if (!L.lightCanvas || L.lightCanvas.width !== w || L.lightCanvas.height !== h) { [L.lightCanvas, L.lightCtx] = U.canvas(w, h); [L.glowCanvas, L.glowCtx] = U.canvas(w, h); }
+    if (!L.lightCanvas || L.lightCanvas.width !== w || L.lightCanvas.height !== h) { [L.lightCanvas, L.lightCtx] = U.canvas(w, h); }
   };
+  const Q = () => VH.Settings ? VH.Settings.q() : { light: 1, bloom: true, fog: 2 };
   // sources: [{x,y,r,col,a, cone?:{ang,len}}]
   L.apply = function (ctx, left, top, S, hour, sources, glows) {
-    const w = ctx.canvas.width, h = ctx.canvas.height; L.ensure(w, h);
+    const w = ctx.canvas.width, h = ctx.canvas.height; const q = Q();
     const amb = L.ambient(hour); const on = L.lightsOn(hour);
     if (amb[0] > 0.985 && amb[1] > 0.985 && amb[2] > 0.95 && !on) return;
-    const lc = L.lightCtx;
+    // the light map: soft light, so at a lower quality it's drawn at half the size and enlarged smoothly
+    const f = on > 0 ? q.light : 1, lw = Math.ceil(w * f), lh = Math.ceil(h * f); L.ensure(lw, lh);
+    const lc = L.lightCtx; lc.setTransform(f, 0, 0, f, 0, 0);
     lc.globalCompositeOperation = 'source-over'; lc.fillStyle = U.rgb(amb[0] * 255, amb[1] * 255, amb[2] * 255); lc.fillRect(0, 0, w, h);
     if (on > 0) {
       lc.globalCompositeOperation = 'lighter';
@@ -42,9 +45,12 @@
       }
       lc.globalAlpha = 1;
     }
-    ctx.globalCompositeOperation = 'multiply'; ctx.drawImage(L.lightCanvas, 0, 0); ctx.globalCompositeOperation = 'source-over';
+    lc.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'multiply';
+    if (f === 1) ctx.drawImage(L.lightCanvas, 0, 0); else { ctx.imageSmoothingEnabled = true; ctx.drawImage(L.lightCanvas, 0, 0, w * f, h * f, 0, 0, w, h); ctx.imageSmoothingEnabled = false; }
+    ctx.globalCompositeOperation = 'source-over';
     // bloom: small additive glows at the bulbs
-    if (on > 0 && glows.length) {
+    if (on > 0 && glows.length && q.bloom) {
       ctx.globalCompositeOperation = 'lighter';
       for (const g of glows) {
         const sx = (g.x - left) * S, sy = (g.y - top) * S; if (sx < -20 || sy < -20 || sx > w + 20 || sy > h + 20) continue;
@@ -58,7 +64,7 @@
     if (level <= 0.01) return;
     const fog = SP.fog(); const w = ctx.canvas.width, h = ctx.canvas.height;
     // one seamless pattern fill per layer (tiling drawImage calls left faint seams that drifted with the fog)
-    const layers = [[3.2, 0.9, 0.62], [5.0, 0.55, 0.42]];
+    const layers = Q().fog > 1 ? [[3.2, 0.9, 0.62], [5.0, 0.55, 0.42]] : [[3.2, 0.9, 0.85]]; // (one layer at low quality, a little thicker)
     const pat = L.fogPat || (L.fogPat = ctx.createPattern(fog, 'repeat'));
     const smooth = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = true;
     for (const [scale, speed, alpha] of layers) {

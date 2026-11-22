@@ -5,8 +5,11 @@
   const FX = VH.FX = { parts: [], texts: [], shake: 0, shakeX: 0, shakeY: 0, hitStop: 0, flash: 0 };
   const MAX = 900;
   // p: {x,y,z,vx,vy,vz,life,max,type,col,size,rot,vr,grav,drag}
+  const Q = () => VH.Settings ? VH.Settings.q() : { parts: MAX, thin: 0, shadows: true };
+  const THIN = { puff: 1, chip: 1, spark: 1, drop: 1, leaf: 1 }; // the cosmetic kinds a low quality setting thins out
   FX.add = function (p) {
-    if (FX.parts.length >= MAX) FX.parts.shift();
+    const q = Q(); if (q.thin && THIN[p.type] && Math.random() < q.thin) return p; // (not kept: never drawn)
+    if (FX.parts.length >= Math.min(MAX, q.parts)) FX.parts.splice(0, FX.parts.length - Math.min(MAX, q.parts) + 1);
     p.z = p.z || 0; p.vz = p.vz || 0; p.max = p.life; p.rot = p.rot || 0; p.vr = p.vr || 0; p.drag = p.drag ?? 1.5; p.grav = p.grav ?? 0;
     FX.parts.push(p); return p;
   };
@@ -30,7 +33,7 @@
   FX.note = (x, y) => FX.add({ type: 'note', x, y, vx: U.rand(-0.5, 0.5), vy: -1.5, life: 1.6, col: U.pick(['#ff4fa0', '#38e0c8', '#ffd23a', '#fff']), drag: 0 });
   FX.text = (x, y, str, col = '#fff', opts = {}) => {
     const same = FX.texts.find(o => o.str === str && Math.abs(o.x - x) < 8 && Math.abs(o.y - y) < 8 && o.life > o.max - 1.2); if (same) { same.life = same.max; return; } for (const o of FX.texts) if (Math.abs(o.x - x) < 8 && Math.abs(o.y - y) < 2.2 && o.life > o.max - 1) y = o.y - 2.4; FX.texts.push({ x, y, str, col, life: opts.life || 1.6, max: opts.life || 1.6, vy: opts.vy ?? -2.2, big: opts.big }); if (FX.texts.length > 40) FX.texts.shift(); };
-  FX.kick = (amount, stop = 0) => { FX.shake = Math.min(1.2, FX.shake + amount); if (stop) FX.hitStop = Math.max(FX.hitStop, stop); };
+  FX.kick = (amount, stop = 0) => { if (VH.Settings && !VH.Settings.shake) amount = 0; FX.shake = Math.min(1.2, FX.shake + amount); if (stop) FX.hitStop = Math.max(FX.hitStop, stop); };
 
   FX.update = function (dt) {
     for (let i = FX.parts.length - 1; i >= 0; i--) {
@@ -47,6 +50,7 @@
   };
   // draw in world space; toS(x,y) converts metres → art px
   FX.draw = function (ctx, left, top, S, layer) {
+    const shadows = Q().shadows;
     for (const p of FX.parts) {
       const sx = (p.x - left) * S, sy = (p.y - top) * S - p.z * S;
       if (sx < -20 || sy < -20 || sx > ctx.canvas.width + 20 || sy > ctx.canvas.height + 20) continue;
@@ -60,7 +64,7 @@
         case 'wake': { ctx.strokeStyle = p.col; ctx.globalAlpha = t * 0.8; ctx.lineWidth = 1; const L = (1.4 - t) * S * 0.9; ctx.beginPath(); ctx.moveTo(Math.round(sx), Math.round(sy)); ctx.lineTo(Math.round(sx - Math.cos(p.rot) * L), Math.round(sy - Math.sin(p.rot) * L)); ctx.stroke(); ctx.globalAlpha = 1; break; }
         case 'spark': ctx.fillStyle = p.col; ctx.fillRect(Math.round(sx), Math.round(sy), 1, 1); ctx.fillRect(Math.round(sx - p.vx * 0.02 * S), Math.round(sy - p.vy * 0.02 * S), 1, 1); break;
         default: {
-          if (p.z > 0.05) { ctx.fillStyle = 'rgba(20,20,40,0.3)'; ctx.fillRect(Math.round(sx), Math.round(sy + p.z * S), p.size, p.size); }
+          if (p.z > 0.05 && shadows) { ctx.fillStyle = 'rgba(20,20,40,0.3)'; ctx.fillRect(Math.round(sx), Math.round(sy + p.z * S), p.size, p.size); }
           ctx.fillStyle = p.col; const sz = Math.max(1, Math.round(p.size * (p.type === 'leaf' ? (Math.abs(Math.sin(p.rot)) + 0.3) : 1)));
           ctx.globalAlpha = Math.min(1, t * 3); ctx.fillRect(Math.round(sx), Math.round(sy), sz, Math.max(1, Math.round(p.size))); ctx.globalAlpha = 1;
         }

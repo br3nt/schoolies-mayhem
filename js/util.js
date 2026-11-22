@@ -49,7 +49,7 @@ window.VH = window.VH || {};
   // test hooks in the URL (?play= with &night=, &from=, &atPlace= or &brief=): saves and records (not settings) are kept
   // in memory for that page only, so nothing done there (by a test, or a curious visitor) unlocks nights or sets records
   U.TEST_HOOKS = typeof location !== 'undefined' && /[?&]play=/.test(location.search) && /[?&](night|from|atPlace|brief)=/.test(location.search);
-  const mem = new Map(); const SETTING = k => /^(muted|zoom|walk|hints|tip:)/.test(k); // (settings like the zoom still save)
+  const mem = new Map(); const SETTING = k => /^(muted|zoom|walk|hints|settings|tip:)/.test(k); // (settings like the zoom still save)
   U.store = {
     get(k, d) { if (mem.has(k)) { const v = mem.get(k); return v == null ? d : JSON.parse(v); } try { const v = localStorage.getItem(PREFIX + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
     set(k, v) { if (U.TEST_HOOKS && !SETTING(k)) { mem.set(k, JSON.stringify(v)); return; } try { localStorage.setItem(PREFIX + k, JSON.stringify(v)); } catch (e) { /* private mode */ } },
@@ -135,15 +135,22 @@ window.VH = window.VH || {};
     str = String(str).toUpperCase();
     const w = U.textWidth(str, s);
     let px = Math.round(align === 'center' ? x - w / 2 : align === 'right' ? x - w : x); const py = Math.round(y);
-    if (opts.shadow !== false) {
-      const sh = atlas(opts.shadow || 'rgba(10,8,25,0.85)');
-      let sx = px; for (const ch of str) { const i = sh.idx[ch] ?? sh.idx['?']; ctx.drawImage(sh.c, i * 6, 0, 5, 7, sx + s, py + s, 5 * s, 7 * s); sx += 6 * s; }
-    }
     if (U.layoutLog && ctx.canvas.__ui) { const m = ctx.getTransform(); U.layoutLog.text.push({ s: str, x: px + m.e, y: py + m.f, w, h: 7 * s }); } // ?check=layout (tests read it)
-    const a = atlas(color);
-    for (const ch of str) { const i = a.idx[ch] ?? a.idx['?']; ctx.drawImage(a.c, i * 6, 0, 5, 7, px, py, 5 * s, 7 * s); px += 6 * s; }
+    // each string is drawn once, at 1:1 with its shadow, and kept: a frame then draws a line of text with one drawImage
+    // rather than two per letter
+    const shadow = opts.shadow === false ? '' : opts.shadow || 'rgba(10,8,25,0.85)'; const key = color + '|' + shadow + '|' + str;
+    let c = textCache.get(key);
+    if (c) { textCache.delete(key); textCache.set(key, c); } // (most recently used last)
+    else {
+      if (textCache.size >= 600) { const k0 = textCache.keys().next().value; textCache.get(k0).width = 0; textCache.delete(k0); } // (clocks and counters make new strings all the time: the oldest goes)
+      const w1 = U.textWidth(str, 1); let x; [c, x] = U.canvas(w1 + 1, 8);
+      for (const [col, o] of shadow ? [[shadow, 1], [color, 0]] : [[color, 0]]) { const a = atlas(col); let sx = o; for (const ch of str) { const i = a.idx[ch] ?? a.idx['?']; x.drawImage(a.c, i * 6, 0, 5, 7, sx, o, 5, 7); sx += 6; } }
+      textCache.set(key, c);
+    }
+    ctx.drawImage(c, px, py, c.width * s, c.height * s);
     return w;
   };
+  const textCache = new Map();
   U.textWidth = (str, s = 1) => String(str).length * 6 * s - s;
   U.wrap = (str, maxChars) => {
     const out = []; for (const para of String(str).split('\n')) {

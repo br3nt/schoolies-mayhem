@@ -60,7 +60,7 @@
     heli: { title: 'HELICOPTER', get rows() { return [...(I.touchMode ? [['DRAG', 'FLY: DRAG ON THE LEFT HALF; THE CHOPPER TURNS AND FLIES TOWARD YOUR FINGER']] : [['W / S', 'FLY FORWARD / BACK'], ['A D / LEFT RIGHT', 'TURN']]), ...this.rest]; }, rest: [[K('SHIFT', 'UP'), 'CLIMB'], [K('SPACE', 'DOWN'), 'DESCEND AND LAND (HELIPADS ARE GENTLEST)'], [K('E', 'ACT'), 'GET OUT (ONCE LANDED)']] },
     kev: { title: 'CONSTABLE KEV', rows: [[K('H', 'SIREN'), 'SIREN (IN A POLICE CAR, OR ANY CAR WITH THE ROOF LIGHT)'], [K('H', 'MEGA'), 'ON FOOT: MEGAPHONE, RUNNERS WITHIN 30M FREEZE FOR 2.5 S; NEAR A GOPHER, CALL IT OVER'], [K('E', 'ACT'), 'NEXT TO A FROZEN OR CORNERED RUNNER: CUFF THEM'], ['TACKLE', K('RUN INTO A RUNNER: A TACKLE, THEN HOLD SPACE TO KEEP HOLD', 'RUN INTO A RUNNER: A TACKLE, THEN THE HOLD BUTTON TO KEEP HOLD')], [K('L', 'LIGHT / ...'), 'COMMANDEERED CAR: MAGNETIC FLASHING LIGHT ON THE ROOF'], [K('X', 'SPIKES / ...'), 'DROP A SPIKE STRIP BEHIND YOU'], [K('B', 'BACKUP / ...'), 'CALL BACKUP; NO WORKING COP CAR: A SPARE IS DROPPED OFF'], ['RAM', 'NUDGE A REAR CORNER TO SPIN THEM (PIT); CARS TAKE SEVERAL SOLID HITS']] },
     evade: { title: 'LOSING THE POLICE', rows: [['LEVELS', 'ONE CAR PER CURTAIN (FOUR AT MOST); A ROADBLOCK AT FOUR; THE CHOPPER ONLY AT FIVE, AFTER A LONG CHASE'], ['COOLING', 'THE LINE UNDER THE CURTAINS SAYS WHAT\'S COOLING THINGS RIGHT NOW; THE THIN BAR DRAINS AS IT DOES'], ['SIGHT', 'BREAK LINE OF SIGHT AND STAY OUT OF VIEW TILL THE HEAT COOLS'], ['HIDE', 'BUSHES, CAR PARKS, THE GOLF COURSE, THE CAR WASH, UNDER THE JETTY (GOSSIP COOLS FASTER)'], ['SWAP', 'CHANGE CARS (OR GET OUT) WHERE THEY CAN\'T SEE YOU'], ['RESPRAY', 'RESPRAY SHOPS (SPRAY-CAN ICON ON THE MAP, $25) WIPE YOUR CAR\'S DESCRIPTION'], ['CLOTHES', 'A NEW SHIRT, HAT OR SUNNIES OUT OF SIGHT (CLOTHES SHOP, OP SHOP) DOES THE SAME FOR YOU'], ['ROADBLOCK', 'THERE\'S ALWAYS A GAP, OR THE FOOTPATH'], ['OFFICERS', 'DRIVE OFF, SHOVE THROUGH (THEY JUMP OUT OF THE WAY) OR OUTRUN THEM. IF THEY CATCH YOU, THEY TACKLE AND CUFF'], ['LOCK-UP', 'LET OUT AT THE GATE: THE GOSSIP IS WIPED, NOBODY WATCHES THE GATE FOR A WHILE, AND YOUR BIKE\'S THERE'], ['MERV', 'ON THE GOPHER: ONE CAR TAILS YOU WITH A MEGAPHONE LECTURE; STOP AND THEY BOOK YOU']] },
-    any: { title: 'ANY TIME', get rows() { return [...(I.touchMode ? [['ACT', 'THE BIG BUTTON DOES THE MOST USEFUL THING RIGHT NOW AND SAYS WHAT: GET IN, KICK, CUFF, CHAT...'], ['...', 'THE OTHER ACTIONS THAT APPLY (UP TO TWO MORE SIT BESIDE ACT)']] : []), ...this.rest]; }, rest: [['CLOCK', 'THE TIME OF NIGHT (BY THE MOON) RUNS FAST: ONE GAME MINUTE A SECOND. FINISH BEFORE SUNRISE. TIMED JOBS HAVE THEIR OWN BOXED TIME LEFT'], [K('WHEEL / + -', 'PINCH'), K('ZOOM IN AND OUT (0 RESETS)', 'ZOOM IN AND OUT')], [K('M / TAB', 'MAP (TOP)'), 'MAP'], [K('J', '! (TOP)'), 'CURRENT JOB BRIEF'], [K('?', '? (TOP)'), 'THIS HELP'], [K('P / ESC', 'II (TOP)'), 'PAUSE'], [K('N', 'PAUSE MENU'), 'MUTE']] },
+    any: { title: 'ANY TIME', get rows() { return [...(I.touchMode ? [['ACT', 'THE BIG BUTTON DOES THE MOST USEFUL THING RIGHT NOW AND SAYS WHAT: GET IN, KICK, CUFF, CHAT...'], ['...', 'THE OTHER ACTIONS THAT APPLY (UP TO TWO MORE SIT BESIDE ACT)']] : []), ...this.rest]; }, rest: [['CLOCK', 'THE TIME OF NIGHT (BY THE MOON) RUNS FAST: ONE GAME MINUTE A SECOND. FINISH BEFORE SUNRISE. TIMED JOBS HAVE THEIR OWN BOXED TIME LEFT'], [K('WHEEL / + -', 'PINCH'), K('ZOOM IN AND OUT (0 RESETS)', 'ZOOM IN AND OUT')], [K('M / TAB', 'MAP (TOP)'), 'MAP'], [K('J', '! (TOP)'), 'CURRENT JOB BRIEF'], [K('?', '? (TOP)'), 'THIS HELP'], [K('P / ESC', 'II (TOP)'), 'PAUSE'], [K('N', 'SETTINGS'), 'MUTE'], ['SETTINGS', 'GRAPHICS, FRAME RATE, BATTERY SAVER, SOUND AND MUSIC: ON THE TITLE AND PAUSE MENUS']] },
   };
   CONTROLS.icons = { title: 'MAP ICONS', rows: [['YELLOW', 'JOB TARGETS (EACH WITH ITS OWN ARROW)'], ['LIGHT BLUE', 'YOUR LAST VEHICLE; KEV: THE COP CAR'], ['WHITE PIN', K('YOUR WAYPOINT (CLICK OR TAP THE MAP; FIND A STREET WITH ENTER)', 'YOUR WAYPOINT (TAP THE MAP; TAP THE SEARCH BOX TO FIND A STREET)')], ['ORANGE', 'KEV: A PRISONER'], ['SPRAY CAN', 'RESPRAY SHOP: $25 FOR A NEW COLOUR'], ['TYRE', 'TYRE PLACE: A FLAT FIXED FOR $10'], ['TEAL SQUARE', 'A SHOP YOU CAN WALK INTO'], ['M R G B T S H', 'MAYHEM MINUTE, RAMP, RACES, HELIPAD']] };
   UI.CONTROLS = CONTROLS;
@@ -379,15 +379,16 @@
   UI.searchEl = function () {
     if (UI._sel) return UI._sel; const el = document.createElement('input'); el.type = 'text'; el.autocomplete = 'off'; el.spellcheck = false; el.setAttribute('aria-label', 'Find a street or place');
     Object.assign(el.style, { position: 'fixed', opacity: '0.01', border: '0', padding: '0', margin: '0', fontSize: '16px', zIndex: 5, display: 'none', background: 'transparent', color: 'transparent', caretColor: 'transparent' });
+    const poke = () => { I.lastInput = performance.now(); }; // (the map is a still screen: it draws again at once)
     el.addEventListener('keydown', e => {
-      const s = UI.search; e.stopPropagation();
+      const s = UI.search; e.stopPropagation(); poke();
       if (e.key === 'ArrowDown') { s.sel = Math.min((s.res.length || 1) - 1, s.sel + 1); e.preventDefault(); }
       else if (e.key === 'ArrowUp') { s.sel = Math.max(0, s.sel - 1); e.preventDefault(); }
       else if (e.key === 'Enter') { if (s.res[s.sel]) UI.pickPlace(s.res[s.sel]); el.blur(); e.preventDefault(); }
       else if (e.key === 'Tab') e.preventDefault();
       else if (e.key === 'Escape') { el.value = ''; s.q = ''; s.res = []; el.blur(); e.preventDefault(); }
     });
-    el.addEventListener('input', () => { const s = UI.search; s.q = el.value.toUpperCase().slice(0, 28); s.res = UI.searchFind(s.q); s.sel = 0; });
+    el.addEventListener('input', () => { poke(); const s = UI.search; s.q = el.value.toUpperCase().slice(0, 28); s.res = UI.searchFind(s.q); s.sel = 0; });
     el.addEventListener('focus', () => { UI.search.focus = true; }); el.addEventListener('blur', () => { UI.search.focus = false; });
     document.body.appendChild(el); return (UI._sel = el);
   };
@@ -442,7 +443,7 @@
     // the search box (top left of the map) and its results; CLOSE (top right)
     const bw = Math.min(w - 70 * ts, 190 * ts), bx = 14 * ts, by = vy0 + 4 * ts, bh = 14 * ts;
     panel(ctx, bx, by, bw, bh, { fill: S.focus ? 'rgba(18,12,36,0.96)' : 'rgba(18,12,36,0.85)', edge: S.focus ? C.teal : C.edge });
-    const caret = S.focus && Math.floor(g.t * 2.5) % 2 ? '_' : ''; const maxC = Math.floor((bw - 10 * ts) / (6 * ts));
+    if (S.focus) UI.wantFps = 8; const caret = S.focus && Math.floor(g.t * 2.5) % 2 ? '_' : ''; const maxC = Math.floor((bw - 10 * ts) / (6 * ts));
     T(ctx, S.q ? (S.q + caret).slice(-maxC) : S.focus ? caret || ' ' : (I.touchMode ? 'TAP: FIND A STREET OR PLACE' : 'ENTER: FIND A STREET OR PLACE').slice(0, maxC), bx + 5 * ts, by + 4 * ts, { color: S.q || S.focus ? C.white : C.dim, scale: ts });
     const rr = []; S.res.forEach((it, i) => { const ry = by + bh + i * 12 * ts; const sel = i === S.sel; panel(ctx, bx, ry, bw, 12 * ts, { fill: sel ? 'rgba(60,40,100,0.97)' : 'rgba(18,12,36,0.95)', edge: C.edge }); T(ctx, (it.name + ' · ' + it.kind).slice(0, maxC), bx + 5 * ts, ry + 3 * ts, { color: sel ? C.hi : C.white, scale: ts }); rr.push({ x: bx, y: ry, w: bw, h: 12 * ts, it }); });
     if (S.q && !S.res.length) { panel(ctx, bx, by + bh, bw, 12 * ts, { fill: 'rgba(18,12,36,0.95)' }); T(ctx, 'NOTHING BY THAT NAME', bx + 5 * ts, by + bh + 3 * ts, { color: C.dim, scale: ts }); }
@@ -732,7 +733,7 @@
     const cur = links[UI.creditIdx] && links[UI.creditIdx].link;
     // scroll: slowly by itself when it doesn't fit, always keeping the chosen link in view
     let y = 0, selY = 0; for (const r of rows) { if (r.link && r.link === cur) selY = y; y += hOf(r); }
-    const maxS = Math.max(0, total - view); UI.creditScroll = U.clamp((UI.creditScroll || 0) + (maxS ? (g.frameDt || 0.016) * 6 * ts : 0), 0, maxS);
+    const maxS = Math.max(0, total - view); if (maxS && UI.creditScroll < maxS) UI.wantFps = 30; UI.creditScroll = U.clamp((UI.creditScroll || 0) + (maxS ? (g.frameDt || 0.016) * 6 * ts : 0), 0, maxS);
     if (maxS) { if (selY < UI.creditScroll) UI.creditScroll = selY; if (selY + LK > UI.creditScroll + view) UI.creditScroll = Math.min(maxS, selY + LK - view); }
     const oy = top + Math.max(0, (view - total) / 2) - UI.creditScroll; const rects = [];
     ctx.save(); ctx.beginPath(); ctx.rect(0, top - 1 * ts, w, view + 4 * ts); ctx.clip();
@@ -765,7 +766,7 @@
     const last = U.store.get('last', null); const lc = last && g.CHARS[last] && M().nightCount(last) ? last : null;
     const short = lc ? g.CHARS[lc].name.replace('CONSTABLE ', '') : '';
     const cont = lc ? (M().allDone(lc) ? `CONTINUE: ${short}'S WEEK` : `CONTINUE: ${short} · NIGHT ${M().firstUnfinished(lc)}` + (M().resumeAt(lc, M().firstUnfinished(lc)) ? ` · JOB ${M().resumeAt(lc, M().firstUnfinished(lc)) + 1}` : '')) : null;
-    const items = [lc ? 'PLAY' : 'NEW GAME', ...(cont ? [cont] : []), 'FREE ROAM', 'SOUND: ' + (window.SFX && SFX.isMuted() ? 'OFF' : 'ON'), 'CONTROLS', 'CREDITS', ...UI.menuLinks().map(l => l.label)];
+    const items = [lc ? 'PLAY' : 'NEW GAME', ...(cont ? [cont] : []), 'FREE ROAM', 'SETTINGS', 'CONTROLS', 'CREDITS', ...UI.menuLinks().map(l => l.label)];
     UI.menuIdx = Math.min(UI.menuIdx, items.length - 1);
     navigate(items.length, 'menuIdx');
     const footH = footer(ctx, ts, [`(C) ${UI.CREDITS.year} ${UI.CREDITS.author} · MAP DATA (C) OPENSTREETMAP CONTRIBUTORS`, UI.CREDITS.footer]); // wrapped, so it fits a phone
@@ -778,7 +779,7 @@
       if (it === 'NEW GAME' || it === 'PLAY') { g.state = 'select'; UI.selIdx = Math.max(0, ['schoolie', 'grump', 'cop'].indexOf(lc)); }
       else if (it.startsWith('CONTINUE')) { if (M().allDone(lc)) g.openWeek(lc); else g.playNight(lc, M().firstUnfinished(lc)); }
       else if (it === 'FREE ROAM') { if (roamOk) g.beginRun('roam'); else { sfx('fail'); UI.roamNote = { t: 4 }; } }
-      else if (it.startsWith('SOUND')) { SFX.setMuted(!SFX.isMuted()); U.store.set('muted', SFX.isMuted()); }
+      else if (it === 'SETTINGS') UI.openSettings('title');
       else if (it === 'CONTROLS') { g.state = 'help'; }
       else if (it === 'CREDITS') { g.prevState = 'title'; g.state = 'credits'; UI.creditIdx = 0; UI.creditScroll = 0; }
       else { const l = UI.menuLinks().find(q => q.label === it); if (l) UI.openLink(l); }
@@ -811,7 +812,7 @@
     const x0 = two ? w / 2 - colW - 5 * ts : w / 2 - colW / 2; const y0 = 26 * ts;
     // scroll with up/down when it doesn't fit (small phones)
     const total = Math.max(hL, two ? hR : 0) + extra.length * 9 * ts + 10 * ts; const view = h - 48 * ts;
-    UI.helpScroll = U.clamp((UI.helpScroll || 0) + ((I.down('down') ? 1 : 0) - (I.down('up') ? 1 : 0)) * 4 * ts - dragY(), 0, Math.max(0, total - view)); // keys, or a finger
+    UI.helpScroll = U.clamp((UI.helpScroll || 0) + ((I.down('down') ? 1 : 0) - (I.down('up') ? 1 : 0)) * 4 * ts * (G().frameDt || 0.016) * 60 - dragY(), 0, Math.max(0, total - view)); // keys, or a finger
     ctx.save(); ctx.beginPath(); ctx.rect(0, 22 * ts, w, view + 4 * ts); ctx.clip(); ctx.translate(0, -Math.round(UI.helpScroll));
     controlsTable(ctx, ts, left, x0, y0, colW); if (two) controlsTable(ctx, ts, right, w / 2 + 5 * ts, y0, colW);
     const ey = y0 + Math.max(hL, two ? hR : 0) + 2 * ts; extra.forEach((l, i) => T(ctx, l, w / 2, ey + i * 9 * ts, { align: 'center', color: C.dim, scale: ts }));
@@ -1039,7 +1040,7 @@
     const compact = I.touchMode && h < 300 * ts; const hy = compact ? 6 * ts : h * 0.18, iy = compact ? hy + 18 * ts : h * 0.18 + 28 * ts;
     T(ctx, 'PAUSED', w / 2, hy, { align: 'center', color: C.hi, scale: compact ? ts * 2 : ts * 3 });
     const live = g.char !== 'roam';
-    const items = UI.pauseAsk ? [UI.pauseAsk + ': YES', 'NO, CARRY ON'] : ['RESUME', ...(live && M().job ? ['RESTART JOB'] : []), ...(live ? ['RESTART NIGHT'] : []), 'CONTROLS', 'WALKING: ' + (g.walkMode === 'screen' ? 'SCREEN DIRECTION' : 'LIKE A CAR'), 'SOUND: ' + (window.SFX && SFX.isMuted() ? 'OFF' : 'ON'), ...(live ? ['SCHOOLIES WEEK'] : []), 'QUIT TO TITLE', 'CREDITS', ...UI.menuLinks().map(l => l.label)];
+    const items = UI.pauseAsk ? [UI.pauseAsk + ': YES', 'NO, CARRY ON'] : ['RESUME', ...(live && M().job ? ['RESTART JOB'] : []), ...(live ? ['RESTART NIGHT'] : []), 'CONTROLS', 'WALKING: ' + (g.walkMode === 'screen' ? 'SCREEN DIRECTION' : 'LIKE A CAR'), 'SETTINGS', ...(live ? ['SCHOOLIES WEEK'] : []), 'QUIT TO TITLE', 'CREDITS', ...UI.menuLinks().map(l => l.label)];
     const job = M().job; const wrapN = Math.floor((w - 20 * ts) / (6 * ts)); let infoH = 0;
     if (UI.pauseAsk) { const q = U.wrap(UI.pauseAsk === 'RESTART JOB' ? 'START ' + (job ? job.title : 'THE JOB') + ' AGAIN FROM THE TOP?' : `START NIGHT ${g.night} AGAIN FROM THE FIRST JOB?`, wrapN); q.forEach((l, i) => T(ctx, l, w / 2, iy + i * 9 * ts, { align: 'center', color: C.white, scale: ts })); infoH = q.length * 9 * ts; }
     else if (job && job.started) { T(ctx, fit('JOB: ' + job.title, w - 20 * ts, ts), w / 2, iy, { align: 'center', color: C.white, scale: ts }); let ol = U.wrap(M().objective(), wrapN); if (compact && ol.length > 2) ol = [ol[0], fit(ol.slice(1).join(' '), w - 20 * ts, ts)]; ol.forEach((l, i) => T(ctx, l, w / 2, iy + 11 * ts + i * 9 * ts, { align: 'center', color: C.hi, scale: ts })); infoH = 11 * ts + ol.length * 9 * ts; }
@@ -1053,11 +1054,57 @@
       if (it === 'RESUME') resume(); else if (it === 'CONTROLS') { g.prevState = 'pause'; g.state = 'help'; }
       else if (it === 'RESTART JOB' || it === 'RESTART NIGHT') { UI.pauseAsk = it; UI.menuIdx = 1; }
       else if (it.startsWith('WALKING')) { g.walkMode = g.walkMode === 'screen' ? 'car' : 'screen'; U.store.set('walk', g.walkMode); }
-      else if (it.startsWith('SOUND')) { SFX.setMuted(!SFX.isMuted()); U.store.set('muted', SFX.isMuted()); }
+      else if (it === 'SETTINGS') UI.openSettings('pause');
       else if (it === 'CREDITS') { g.prevState = 'pause'; g.state = 'credits'; UI.creditIdx = 0; UI.creditScroll = 0; }
       else if (it === 'SCHOOLIES WEEK') { M().abandonNight(); g.openWeek(g.char, g.night); } else if (it === 'QUIT TO TITLE') { M().abandonNight(); g.toTitle(); }
       else { const l = UI.menuLinks().find(q => q.label === it); if (l) UI.openLink(l); } // a new tab: the game stays as it is
     }
+  };
+  // ---------- SETTINGS (from the title and the pause menu): graphics, frame rate, battery saver, sound and music,
+  // the FPS counter, screen shake. A row's value changes with Enter, a tap, or left/right; saved at once. ----------
+  UI.openSettings = function (from) { const g = G(); UI.settingsFrom = { state: from, idx: UI.menuIdx }; g.prevState = from; g.state = 'settings'; UI.setIdx = 0; };
+  const onOff = v => v ? 'ON' : 'OFF';
+  UI.settingsRows = function () {
+    const S = VH.Settings, saver = S.saver(), muted = !!(window.SFX && SFX.isMuted());
+    const offSaver = () => { S.battery = false; S.save(); };
+    const cyc = (key, opts) => d => { const i = opts.indexOf(S[key]); S[key] = opts[(Math.max(0, i) + d + opts.length) % opts.length]; S.save(); };
+    return [
+      { id: 'gfx', label: 'GRAPHICS', val: saver ? 'LOW (SAVER)' : S.gfx === 'auto' ? 'AUTO (' + S.autoLevel.toUpperCase() + ')' : S.gfx.toUpperCase(), change: saver ? offSaver : cyc('gfx', ['auto', 'low', 'medium', 'high']),
+        note: saver ? 'BATTERY SAVER IS ON, SO GRAPHICS ARE LOW. CHANGE THIS TO TURN THE SAVER OFF.' : 'AUTO SUITS THIS DEVICE, STEPPING DOWN IF FRAMES RUN SLOW. MEDIUM: SOFTER LIGHTS. LOW: ALSO FEWER SPARKS, NO BULB GLOW.' },
+      { id: 'fps', label: 'FRAME RATE', val: saver ? '30 (SAVER)' : S.fps ? String(S.fps) : 'MAX', change: saver ? offSaver : cyc('fps', [30, 60, 0]),
+        note: saver ? 'BATTERY SAVER IS ON, SO IT RUNS AT 30. CHANGE THIS TO TURN THE SAVER OFF.' : '60 IS SMOOTH AND KIND TO THE BATTERY. 30 IS KINDER STILL. MAX FOLLOWS A FAST SCREEN (120 OR MORE).' },
+      { id: 'battery', label: 'BATTERY SAVER', val: onOff(saver), change: () => { S.battery = !saver; S.save(); },
+        note: '30 FRAMES A SECOND, LOW GRAPHICS. COMES ON BY ITSELF WHEN THE DEVICE IS UNPLUGGED AND LOW, UNTIL YOU CHOOSE.' },
+      { id: 'sound', label: 'SOUND', val: onOff(!muted), change: () => { if (!window.SFX) return; SFX.setMuted(!SFX.isMuted()); U.store.set('muted', SFX.isMuted()); },
+        note: I.touchMode ? 'ALL THE GAME\'S SOUND.' : 'ALL THE GAME\'S SOUND. N MUTES IT ANY TIME.' },
+      { id: 'music', label: 'MUSIC', val: S.music ? Math.round(S.music * 100) + '%' : 'OFF', change: d => { cyc('music', [0, 0.25, 0.5, 0.75, 1])(d); S.applyAudio(); }, note: 'HOW LOUD THE MUSIC IS UNDER EVERYTHING ELSE.' },
+      { id: 'showFps', label: 'SHOW FPS', val: onOff(S.showFps), change: () => { S.showFps = !S.showFps; S.save(); }, note: 'A SMALL FRAMES-A-SECOND COUNTER AT THE LEFT EDGE OF THE SCREEN.' },
+      { id: 'shake', label: 'SCREEN SHAKE', val: onOff(S.shake), change: () => { S.shake = !S.shake; S.save(); }, note: 'THE SCREEN JOLTS ON A BIG HIT.' },
+      { id: 'back', label: 'BACK', note: '' },
+    ];
+  };
+  UI.settings = function (ctx, ts) {
+    const w = ctx.canvas.width, h = ctx.canvas.height, g = G();
+    backdrop(ctx, g.prevState === 'pause' ? 'rgba(18,12,36,0.8)' : 'rgba(18,12,36,0.72)');
+    const close = () => { const f = UI.settingsFrom || { state: 'title', idx: 0 }; g.state = f.state === 'pause' ? 'pause' : 'title'; g.prevState = null; UI.menuIdx = f.idx || 0; UI.settingsFrom = null; sfx('click'); };
+    const compact = h < 300 * ts; const hy = compact ? 6 * ts : h * 0.1;
+    T(ctx, 'SETTINGS', w / 2, hy, { align: 'center', color: C.hi, scale: compact ? ts * 2 : ts * 3 });
+    const rows = UI.settingsRows(); const n = rows.length;
+    navigate(n, 'setIdx'); UI.setIdx = U.clamp(UI.setIdx || 0, 0, n - 1);
+    // the selected row's note, wrapped above the hint line at the foot
+    const nC = Math.max(12, Math.floor((w - 16 * ts) / (6 * ts))); const hint = I.touchMode ? 'TAP A ROW TO CHANGE IT' : 'UP/DOWN: CHOOSE · ENTER OR LEFT/RIGHT: CHANGE · ESC: BACK';
+    const note = U.wrap(rows[UI.setIdx].note || '', nC).slice(0, 3); const hl = U.wrap(hint, nC);
+    const footH = (note.length + hl.length) * 9 * ts + 8 * ts;
+    note.forEach((l, i) => T(ctx, l, w / 2, h - footH + 2 * ts + i * 9 * ts, { align: 'center', color: C.white, scale: ts }));
+    hl.forEach((l, i) => T(ctx, l, w / 2, h - (hl.length - i) * 9 * ts - 3 * ts, { align: 'center', color: C.dim, scale: ts }));
+    const items = rows.map(r => r.val != null ? r.label + ': ' + r.val : r.label);
+    const top = hy + (compact ? 18 : 30) * ts;
+    const rects = menuList(ctx, items, w / 2, compact ? top : Math.max(top, Math.min(h * 0.24, h - footH - n * 18 * ts)), ts, UI.setIdx, top, footH + 2 * ts);
+    const ti = tappedIndex(rects); if (ti >= 0) UI.setIdx = ti;
+    if (I.consume('back') || I.consume('pause')) return close();
+    const r = rows[UI.setIdx]; const d = I.consume('left') ? -1 : I.consume('right') ? 1 : 0;
+    if (ti >= 0 || confirm()) { if (r.id === 'back') return close(); r.change(1); sfx('menu'); }
+    else if (d && r.change) { r.change(d); sfx('click'); }
   };
   function card(ctx, ts, title, col, lines, foot) {
     const w = ctx.canvas.width, h = ctx.canvas.height; backdrop(ctx, 'rgba(18,12,36,0.78)');
@@ -1115,7 +1162,7 @@
   };
   UI.win = function (ctx, ts) {
     const g = G(); const w = M().winFor(g.char); const wrapN = Math.floor(ctx.canvas.width / (6 * ts)) - 4;
-    if (Math.random() < 0.3) FX.confetti(g.player.x + U.rand(-20, 20), g.player.y - 10, 4);
+    if (Math.random() < 0.3 * (g.frameDt || 0.016) * 60) FX.confetti(g.player.x + U.rand(-20, 20), g.player.y - 10, 4);
     card(ctx, ts, w.title, C.pink, [...U.wrap(w.text, wrapN), '', ...recordLines(), '', ...statLines()], I.touchMode ? 'TAP FOR THE WEEK' : 'ENTER: BACK TO THE WEEK');
     if (g.stateT > 2 && (confirm() || I.tap())) g.openWeek(g.char, g.night);
   };

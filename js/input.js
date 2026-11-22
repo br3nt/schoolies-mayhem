@@ -15,22 +15,23 @@
   };
   I.init = function (canvas) {
     I.canvas = canvas;
+    const poke = () => { I.lastInput = performance.now(); }; // (a still screen draws again at once)
     addEventListener('keydown', e => {
-      if (e.target && e.target.tagName === 'INPUT') return; // typing in the map search box
+      poke(); if (e.target && e.target.tagName === 'INPUT') return; // typing in the map search box
       const a = MAP[e.code]; if (!a) return; if (['up', 'down', 'left', 'right', 'action', 'map'].includes(a) || e.code === 'Space') e.preventDefault();
       if (!I.keys[a]) press(a); I.keys[a] = true; if (a === 'confirm') { I.edge.enter = I.edge.enter || false; }
       I.touchMode = false; window.SFX && SFX.init();
     });
-    addEventListener('keyup', e => { const a = MAP[e.code]; if (a) I.keys[a] = false; });
+    addEventListener('keyup', e => { poke(); const a = MAP[e.code]; if (a) I.keys[a] = false; });
     addEventListener('blur', () => { I.keys = {}; });
     // mouse wheel zooms (one step per notch, throttled so a trackpad flick isn't ten steps)
     let wheelT = 0;
-    canvas.addEventListener('wheel', e => { e.preventDefault(); const now = performance.now(); if (now - wheelT < 120 || Math.abs(e.deltaY) < 2) return; wheelT = now; press(e.deltaY < 0 ? 'zoomIn' : 'zoomOut'); }, { passive: false });
+    canvas.addEventListener('wheel', e => { e.preventDefault(); poke(); const now = performance.now(); if (now - wheelT < 120 || Math.abs(e.deltaY) < 2) return; wheelT = now; press(e.deltaY < 0 ? 'zoomIn' : 'zoomOut'); }, { passive: false });
     const toArt = e => { const r = canvas.getBoundingClientRect(); return [((e.clientX - r.left) * (canvas.width / r.width) - (I.offX || 0)) / I.scale, ((e.clientY - r.top) * (canvas.height / r.height) - (I.offY || 0)) / I.scale]; };
     canvas.addEventListener('pointerdown', e => {
       // preventDefault stops the browser moving focus here, so take it back ourselves: inside the published
       // artifact's iframe the keyboard only works while this window has focus
-      e.preventDefault(); window.focus(); window.SFX && SFX.init(); canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
+      e.preventDefault(); poke(); window.focus(); window.SFX && SFX.init(); canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
       if (e.pointerType === 'touch') I.touchMode = true;
       const [x, y] = toArt(e); const p = { x, y, sx: x, sy: y, btn: null, stick: false, t: performance.now() };
       // a touch that starts in the screen's edge zone (where the phone's own swipes live: the notification shade, the
@@ -49,11 +50,11 @@
       if (!b) { I.tapped.push({ x, y }); I.stepTaps.push({ x, y }); } // a press on a thumb button is that button, not a tap on the screen
     });
     canvas.addEventListener('pointermove', e => {
-      const p = I.pointers.get(e.pointerId); if (!p) return; const [x, y] = toArt(e); p.x = x; p.y = y;
+      const p = I.pointers.get(e.pointerId); if (!p) return; poke(); const [x, y] = toArt(e); p.x = x; p.y = y;
       if (I.pinch && I.pinch.b && (p === I.pinch.a || p === I.pinch.b)) { const d = Math.hypot(I.pinch.a.x - I.pinch.b.x, I.pinch.a.y - I.pinch.b.y); if (d > I.pinch.d0 * 1.3) { press('zoomIn'); I.pinch.d0 = d; } else if (d < I.pinch.d0 / 1.3) { press('zoomOut'); I.pinch.d0 = d; } }
       if (p.stick) { const R = I.stickR || 30; let dx = x - I.stick.ox, dy = y - I.stick.oy; const d = Math.hypot(dx, dy); if (d > R) { I.stick.ox = x - dx / d * R; I.stick.oy = y - dy / d * R; dx = x - I.stick.ox; dy = y - I.stick.oy; } I.stick.x = dx / R; I.stick.y = dy / R; I.stick.mag = Math.min(1, Math.hypot(dx, dy) / R); }
     });
-    const up = e => { const p = I.pointers.get(e.pointerId); if (!p) return; // a click or tap (not a drag) is kept for the full map
+    const up = e => { const p = I.pointers.get(e.pointerId); if (!p) return; poke(); // a click or tap (not a drag) is kept for the full map
       if (!p.btn && !p.pinched && !p.stale && Math.hypot(p.x - p.sx, p.y - p.sy) < 6 && performance.now() - p.t < 450) I.clicks.push({ x: p.x, y: p.y });
       if (p.btn) I.held[p.btn] = false; if (p.stick) { I.stick.active = false; I.stick.mag = 0; I.stick.x = I.stick.y = 0; } if (I.pinch && (p === I.pinch.a || p === I.pinch.b)) I.pinch = null; I.pointers.delete(e.pointerId); };
     canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
@@ -64,6 +65,8 @@
   // which button is under a point: round buttons by their circle (a touch generous), the rest by their box
   I.hit = (x, y) => { let best = null, bd = Infinity; for (const b of I.buttons) { const d = Math.hypot(x - b.x - b.w / 2, y - b.y - b.h / 2); if ((b.round ? d <= b.w / 2 * 1.12 : x >= b.x && y >= b.y && x <= b.x + b.w && y <= b.y + b.h) && d < bd) { best = b; bd = d; } } return best; }; // (the nearest, where two overlap)
   I.down = a => !!(I.keys[a] || I.held[a]);
+  I.lastInput = 0;
+  I.anyDown = () => I.pointers.size > 0 || Object.values(I.keys).some(Boolean); // any key or finger down
   I.pressed = a => !!(I.inStep ? I.edge : I.fEdge)[a];
   I.consume = a => { const v = I.pressed(a); if (v) { I.edge[a] = false; I.fEdge[a] = false; } return v; };
   I.endStep = () => { I.edge = {}; I.stepTaps.length = 0; };
