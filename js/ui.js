@@ -19,8 +19,16 @@
   // slogans (Brent, 22 Nov 2026): the title-screen tagline and the three-sides premise over the character select
   const TAGLINE = "SCHOOLIES WEEK IN VICTOR HARBOR. NOBODY'S GETTING ANY SLEEP.";
   const PREMISE = 'THE SCHOOLIES HAVE ARRIVED READY TO PARTY. THE LOCALS ARE FRUSTRATED. THE POLICE ARE ON HIGH ALERT.';
-  // one line if it fits the width, otherwise word-wrapped
-  const fitLines = (str, maxW, sc) => (U.textWidth(str, sc) <= maxW ? [str] : U.wrap(str, Math.max(8, Math.floor(maxW / (6 * sc)))));
+  // one line if it sits comfortably (under 70% of the width), otherwise a line per sentence, and any sentence
+  // still too wide is word-wrapped
+  const fitLines = (str, maxW, sc) => {
+    if (U.textWidth(str, sc) <= maxW * 0.7) return [str];
+    const out = [];
+    for (const sent of str.match(/[^.!?]+[.!?]?/g).map(x => x.trim()).filter(Boolean)) {
+      if (U.textWidth(sent, sc) <= maxW) out.push(sent); else out.push(...U.wrap(sent, Math.max(8, Math.floor(maxW / (6 * sc)))));
+    }
+    return out;
+  };
 
   // curtain icon for the gossip meter
   function curtain(ctx, x, y, on, flash, s) {
@@ -357,7 +365,7 @@
     const s = Math.max(2, Math.floor(Math.min(w / 100, h / 60)));
     const ly = Math.round(h * 0.07);
     logo(ctx, w / 2, ly, s, t);
-    fitLines(TAGLINE, w - 16 * ts, ts).forEach((l, i) => T(ctx, l, w / 2, ly + 20 * s + i * 10 * ts, { align: 'center', color: C.teal, scale: ts }));
+    fitLines(TAGLINE, w - 16 * ts, ts).forEach((l, i) => T(ctx, l, w / 2, ly + 22 * s + i * 10 * ts, { align: 'center', color: C.teal, scale: ts }));
     const save = U.store.get('save', null);
     const items = ['NEW GAME', ...(save ? ['CONTINUE NIGHT ' + save.night] : []), 'FREE ROAM', 'SOUND: ' + (window.SFX && SFX.isMuted() ? 'OFF' : 'ON'), 'CONTROLS'];
     UI.menuIdx = Math.min(UI.menuIdx, items.length - 1);

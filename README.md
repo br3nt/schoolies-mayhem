@@ -26,7 +26,7 @@ WASD or the arrow keys to move or drive · **E** get in or out · **Space** hand
 
 ## Fix it yourself, with your coding agent 🤖
 
-This game is built to be worked on with AI coding agents, and contributions are very welcome. Point yours (Claude Code, Codex, Copilot, Cursor, …) at this repo and ask it to fix a bug or build a feature from the issues or discussions, then open a pull request.
+This game is built to be worked on with AI coding agents, and contributions are very welcome: send them as pull requests to this repository (see [Licence](#licence)). Point yours (Claude Code, Codex, Copilot, Cursor, …) at this repo and ask it to fix a bug or build a feature from the issues or discussions, then open a pull request.
 
 Your agent should read [`AGENTS.md`](AGENTS.md) first. It explains how the game is put together, the rules every change must follow, and the checks to run before a PR. In short:
 
@@ -35,6 +35,13 @@ Your agent should read [`AGENTS.md`](AGENTS.md) first. It explains how the game 
 - things only spawn on pre-validated spots (`Spawn.pick`), never at raw coordinates;
 - no weapons, no real people, and only original art, sound and music;
 - run the lint and the input-only playthrough tests, and include a screenshot or short clip in the PR.
+
+## Licence
+
+Copyright © 2026 Brent Jacobs. All rights reserved: this is not an open-source licence (see [`LICENSE.md`](LICENSE.md)).
+
+- **Contributions are welcome through this repository:** pull requests and issues (plus ideas and lore in Discussions).
+- **Copies:** direct clones and copies are monitored, and any additions made in copies will be ported back into this game.
 
 ## Credits
 
