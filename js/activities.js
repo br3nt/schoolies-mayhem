@@ -64,7 +64,7 @@
   // ---------- drift scoring (roundabouts keep a top three) ----------
   A.onDriftEnd = function () {};
   A.updateDrift = function (dt) {
-    const g = G(), v = pv(); if (!v || v.rail || v.def.gopher || v.def.bike) { A.drift = null; return; }
+    const g = G(), v = pv(); if (!v || v.rail || v.def.gopher || v.def.bike || v.boat) { A.drift = null; return; } // (Round B: boats don't drift-score)
     const fx = Math.cos(v.ang), fy = Math.sin(v.ang); const vR = Math.abs(-v.vx * fy + v.vy * fx);
     if (vR > 3 && v.speed > 8 && v.z === 0) {
       if (!A.drift) A.drift = { pts: 0, rb: null, t: 0 };
@@ -193,8 +193,9 @@
   };
   // markers for the minimap and full map
   A.markers = function () {
-    if (G().char === 'cop') return [];
-    return [...A.minutes.map(m => ({ x: m.x, y: m.y, letter: 'M', col: '#ff4fa0' })), ...A.ramps.map(r => ({ x: r.x, y: r.y, letter: 'R', col: '#ff9a30' })), ...A.races.map(r => ({ x: r.start.x, y: r.start.y, letter: r.letter, col: '#38e0c8' }))];
+    const rb = VH.RB ? VH.RB.markers() : []; // Round B hook: boats, the water race, skate park, dirt jumps, courts, bowls, fireworks
+    if (G().char === 'cop') return rb;
+    return [...rb, ...A.minutes.map(m => ({ x: m.x, y: m.y, letter: 'M', col: '#ff4fa0' })), ...A.ramps.map(r => ({ x: r.x, y: r.y, letter: 'R', col: '#ff9a30' })), ...A.races.map(r => ({ x: r.start.x, y: r.start.y, letter: r.letter, col: '#38e0c8' }))];
   };
   // HUD widget: combo, Mayhem Minute, race timer
   A.hud = function (ctx, ts, x, y, w) {

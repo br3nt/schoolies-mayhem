@@ -580,13 +580,16 @@
     ],
     roam: [night([])],
   };
+  // Round B hook: Jaz's fireworks night is her last (fireworks.js), added with M.addNight below; the night select
+  // final night there, unlocked after her others.
   M.WIN = {
-    schoolie: { title: 'SCHOOLIES LEGEND', text: "THE GHOST WHALE WINKED AT YOU. NOBODY WILL BELIEVE IT. EVERYONE WILL TALK ABOUT IT FOR YEARS." },
+    schoolie: { title: 'SCHOOLIES LEGEND', text: /* Round B hook */ VH.Fireworks ? "MIDNIGHT, AND THE WHOLE BAY LIT UP. NOBODY KNOWS WHO DID IT. EVERYBODY KNOWS WHO DID IT. NOBODY GOT HURT AND NOTHING CAUGHT FIRE, AND THE TOWN WILL TALK ABOUT IT FOR YEARS." : "THE GHOST WHALE WINKED AT YOU. NOBODY WILL BELIEVE IT. EVERYONE WILL TALK ABOUT IT FOR YEARS." },
     grump: { title: 'PEACE AND QUIET', text: "THE DOOF HAS STOPPED. MERV SLEEPS LIKE A BABY. NEXT YEAR'S SCHOOLIES ARE ALREADY PLANNING THEIR REVENGE." },
     cop: { title: 'CONSTABLE OF THE YEAR (RUNNER-UP)', text: 'KEV FILED HIS REPORT: "WHALE, GHOST, FLYING. NO FURTHER ACTION." THE SARGE HAS ASKED HIM TO TAKE SOME LEAVE.' },
   };
   M.addNight = function (char, n) { const list = M.STORY[char] || (M.STORY[char] = []); list.push(Array.isArray(n) ? night(n) : night(n.jobs || [], n)); return list.length; };
   M.addJob = function (char, n, proto) { const nt = (M.STORY[char] || [])[n - 1]; if (nt) nt.jobs.push(proto); return !!nt; };
+  if (VH.Fireworks) M.addNight('schoolie', { id: 'sun', jobs: VH.Fireworks.night() }); // Round B hook: Jaz's fireworks night is her fourth and last (fireworks.js)
   M.nights = char => M.STORY[char] || [];
   M.nightCount = char => M.nights(char).length;
   M.nightOf = (char, n) => M.nights(char)[n - 1] || null;
@@ -669,7 +672,7 @@
   // ---------- restarts (pause menu): safe from any state: in a vehicle, mid-chase, mid-struggle, aboard a runaway ----------
   M.settle = function () {
     const g = G(), p = pl(); if (VH.Escort.paddy && VH.Escort.paddy.v) VH.Escort.paddy.v.removed = true; VH.Escort.paddy = null;
-    VH.Tackle.on = null; VH.Street.grab = null; VH.Shops.chat = null; M.cuffing = null; VH.Lockup.ride = null;
+    VH.Tackle.on = null; VH.Street.grab = null; VH.Shops.chat = null; M.cuffing = null; VH.Lockup.ride = null; VH.RB && VH.RB.settle(); // (Round B hook: mini-games, races, boarding, tube planting)
     p.aboard = null; p.rollT = 0; p.dizzyT = 0; p.stunT = 0; p.breath = 1; p.inShop = null; p.hidden = false;
     if (p.vehicle) { const v = p.vehicle; v.driver = null; v.throttle = v.brake = v.steer = 0; v.handbrake = 1; v.siren = false; if (v.rail) { v.v = 0; } v.vx = v.vy = 0; p.vehicle = null; p.onFoot = true; }
     VH.Police.reset(); g.meter = 0; g.heatCeil = 0; g.watch.forEach(v => { v.removed = true; }); g.watch = []; g.pendingBrief = 0;
@@ -735,7 +738,7 @@
   };
   M.event = function (name, data) { const j = M.job; if (j && j.started && j.on) return j.on(name, data); return false; };
   M.targets = function () {
-    const t = (M.job && M.job.started ? M.job.targets() : []).concat(VH.Acts.targets());
+    const t = (M.job && M.job.started ? M.job.targets() : []).concat(VH.Acts.targets(), VH.RB ? VH.RB.targets() : []); // Round B hook
     // Kev with someone in the back: the lock-up is always marked
     for (const x of VH.Escort.targets()) t.push(x); // prisoners, and the desks while one is on the way
     const mr = G().markRespray; if (mr) t.push({ x: mr.x, y: mr.y, label: 'RESPRAY', r: 6 });

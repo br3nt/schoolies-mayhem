@@ -220,7 +220,7 @@
     cop: { shirts: ['#7fa6d8'], hair: ['#1a2236'] },
   };
   // 10x10 figure inside a 12x12 canvas with a dark 1-px outline, so people read clearly at any zoom.
-  SP.person = (shirt, hair, frame, opts = {}) => get(`p:${shirt}${hair}${frame}${opts.hat || ''}${opts.glow || ''}${opts.sunnies ? 's' : ''}${opts.lying ? 'l' : ''}${opts.wade ? 'w' : ''}`, () => {
+  SP.person = (shirt, hair, frame, opts = {}) => get(`p:${shirt}${hair}${frame}${opts.hat || ''}${opts.helmetCol || ''}${opts.glow || ''}${opts.sunnies ? 's' : ''}${opts.lying ? 'l' : ''}${opts.wade ? 'w' : ''}`, () => {
     const [c, x] = U.canvas(12, 12);
     x.translate(1, 1);
     // frames: 0 standing; 1-4 a walk cycle; 5-8 a run cycle (left foot forward, passing, right foot forward, passing).
@@ -253,6 +253,7 @@
     if (opts.hat === 'bucket') { x.fillStyle = '#d8cfa8'; x.fillRect(3, 3, 5, 4); x.fillStyle = '#bfb48a'; x.fillRect(4, 4, 3, 2); }
     if (opts.hat === 'cap') { x.fillStyle = '#c4372e'; x.fillRect(4, 3, 3, 4); x.fillRect(7, 4, 2, 2); x.fillStyle = '#e05a4a'; x.fillRect(4, 4, 2, 2); }
     if (opts.hat === 'beanie') { x.fillStyle = '#2e5a9a'; x.fillRect(4, 3, 4, 4); x.fillStyle = '#ffd23a'; x.fillRect(5, 4, 1, 1); }
+    if (opts.hat === 'helmet') { x.fillStyle = '#1a1a24'; x.fillRect(3, 2, 6, 6); x.fillStyle = opts.helmetCol || '#e0402e'; x.fillRect(3, 3, 5, 4); x.fillStyle = '#f4f4f0'; x.fillRect(4, 3, 3, 1); x.fillStyle = '#5a7a9a'; x.fillRect(7, 4, 1, 2); } // Round B hook: motorbike helmets
     if (opts.hat === 'sunhat') { x.fillStyle = '#e8d8a0'; x.fillRect(2, 2, 7, 6); x.fillStyle = '#c9b06a'; x.fillRect(4, 4, 3, 2); x.fillStyle = '#ff4fa0'; x.fillRect(3, 3, 5, 1); }
     if (opts.sunnies) { x.fillStyle = '#111'; x.fillRect(7, 3, 1, 4); x.fillStyle = '#5fb0ff'; x.fillRect(7, 4, 1, 1); }
     x.setTransform(1, 0, 0, 1, 0, 0);

@@ -242,7 +242,7 @@
     });
     P.blockT -= dt;
     const maxBlocks = 1;
-    if (m < 4 || P.gentle() || P.blocks.length >= maxBlocks || P.blockT > 0 || pl.onFoot || pl.vehicle.speed < 6) return;
+    if (m < 4 || P.gentle() || P.blocks.length >= maxBlocks || P.blockT > 0 || pl.onFoot || pl.vehicle.speed < 6 || pl.vehicle.boat) return; // (Round B: no roadblocks on the water)
     P.blockT = 16;
     const v = pl.vehicle; const dx = v.vx / v.speed, dy = v.vy / v.speed;
     const ahead = c => { const ex = c.x - pl.x, ey = c.y - pl.y, d = Math.hypot(ex, ey); return d > 70 && d < 260 && (ex * dx + ey * dy) / d > 0.6; };
@@ -266,6 +266,7 @@
 
   // ---------- the boat off the foreshore ----------
   P.updateBoat = function (dt) {
+    if (VH.Water && VH.Water.policeBoat(dt)) return; // Round B hook: on the water the police boat is a real boat that chases and boards (watercraft.js)
     const g = G(), pl = g.player, m = g.meter;
     const want = m >= 3 && !P.gentle() && W.seaDist(pl.x, pl.y) < 200 && G().char !== 'cop';
     if (want && !P.boat) {
@@ -384,7 +385,7 @@
     if (I.consume('light')) {
       const v = pl.vehicle;
       if (!v) g.toast('THE ROOF LIGHT GOES ON A CAR: COMMANDEER ONE FIRST (E)', '#ffd23a');
-      else if (v.rail || v.def.heli || v.def.bike || v.def.gopher) g.toast("THE MAGNET WON'T STICK TO THAT", '#ff9a30');
+      else if (v.rail || v.boat || v.def.heli || v.def.bike || v.def.gopher) g.toast("THE MAGNET WON'T STICK TO THAT", '#ff9a30');
       else if (v.type === 'police' || v.type === 'paddy') g.toast("THIS ONE'S GOT LIGHTS ALREADY: H FOR THE SIREN", '#9fd4ec');
       else if (!v.roofLight) { v.roofLight = true; v.siren = true; sfx('clang', { pitch: 1.4, vol: 0.5 }); g.callout('ROOF LIGHT ON!', '#9fd4ec'); g.toast('MAGNETIC LIGHT ON THE ROOF. H: SIREN ON AND OFF', '#9fd4ec'); }
       else { v.roofLight = false; v.siren = false; g.toast('ROOF LIGHT OFF', '#9fd4ec'); }
@@ -471,7 +472,7 @@
   // ================= drawing =================
   P.drawGround = function (ctx, left, top, S) {
     for (const s of P.spikes) { const sx = (s.x - left) * S, sy = (s.y - top) * S; if (sx < -60 || sy < -60 || sx > ctx.canvas.width + 60 || sy > ctx.canvas.height + 60) continue; const spr = SP.spikes(); ctx.save(); ctx.translate(Math.round(sx), Math.round(sy)); ctx.rotate(s.a); ctx.drawImage(spr, -s.len * S / 2, -2, s.len * S, 4); ctx.restore(); }
-    const b = P.boat; if (b) { VH.drawRot(ctx, SP.boat(), (b.x - left) * S, (b.y - top) * S + Math.sin(G().t * 2) * 1, b.ang, 1, true); }
+    const b = P.boat; if (b && !b.boat) { /* Round B hook: a real police boat draws itself */ VH.drawRot(ctx, SP.boat(), (b.x - left) * S, (b.y - top) * S + Math.sin(G().t * 2) * 1, b.ang, 1, true); }
   };
   P.drawPeople = function (ctx, left, top, S) {
     for (const o of P.officers) { const fr = o.dive > 0 || o.downT > 0 || o.state === 'tackle' ? 0 : VH.walkFrame(o); const lying = o.downT > 0 || o.state === 'tackle'; ctx.fillStyle = 'rgba(20,20,45,0.35)'; ctx.fillRect(Math.round((o.x - left) * S) - 2, Math.round((o.y - top) * S) - 2, 7, 7); VH.drawRot(ctx, SP.person(o.rank === 'sergeant' ? '#5a7ab8' : '#7fa6d8', '#1a2236', fr, { hat: 'cop' }), (o.x - left) * S, (o.y - top) * S, o.ang + (lying ? Math.PI / 2 : 0)); if (o.rank === 'sergeant') { U.text(ctx, 'SARGE', (o.x - left) * S, (o.y - top) * S - 14, { align: 'center', color: '#9fd4ec' }); } }

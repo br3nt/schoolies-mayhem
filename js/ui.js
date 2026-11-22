@@ -71,6 +71,7 @@
   const keyText = k => typeof k === 'function' ? k() : k;
   UI.context = function () {
     const g = G(), pl = g.player; if (!pl) return 'foot';
+    const rb = VH.RB && VH.RB.helpContext(); if (rb && CONTROLS[rb]) return rb; // Round B hook: boats, BMX, hoops, bowls, setting up
     if (pl.onFoot) return 'foot'; if (pl.vehicle && pl.vehicle.rail) return 'rail'; if (pl.vehicle && pl.vehicle.def.heli) return 'heli'; return 'car';
   };
   const keyCol = ts => 17 * 6 * ts + 6 * ts;
@@ -135,6 +136,7 @@
   };
 
   UI.hud = function (ctx, ts) {
+    if (VH.RB && VH.RB.cinema(ctx, ts)) return; // Round B hook: the midnight fireworks show replaces the HUD
     const g = G(), pl = g.player, w = ctx.canvas.width, h = ctx.canvas.height; const c = g.CHARS[g.char] || g.CHARS.roam;
     const pad = 4 * ts, ip = 5 * ts; // the screen margin, and the padding inside every panel
     const narrow = w < 380 * ts; UI.narrow = narrow;
@@ -203,6 +205,7 @@
     const hasPolice = near || (g.char !== 'cop' && (PO.units.length || PO.heli || PO.boat || PO.blocks.length)) || g.char === 'cop';
     const actY = py + (hasPolice ? (g.char === 'cop' ? (kevLines.length * 9 + 9) * ts : polH + 4 * ts) : 0);
     UI.leftBottom = actY + VH.Acts.hud(ctx, ts, pad, actY, pw);
+    UI.leftX = pad; UI.leftW = pw; VH.RB && VH.RB.hud(ctx, ts); // Round B hook: race, jam, hoops, bowls, boarding and suspicion panels (they move UI.leftBottom down)
     const hr = UI.hudRects = { left: { x: pad, y: pad, w: pw, h: UI.leftBottom - pad } }; // where the HUD put things (read by tests/mobile.mjs)
     // --- toasts: at most three short status lines, wrapped so they never run off the edge
     // on narrow screens the status lines go below the left-hand panels (and the touch buttons), so nothing overlaps
@@ -270,7 +273,8 @@
     else if (pl.inShop) { prompt = VH.Shops.prompt(); src = 'shop'; }
     else if (pl.onFoot && !VH.Tackle.on) { const v = g.nearestVehicle(pl.x, pl.y, g.ENTER_R); if (v) { prompt = UI.enterPrompt(v); src = 'enter'; } }
     else if (pl.vehicle && (pl.vehicle.type === 'police' || pl.vehicle.roofLight) && !pl.vehicle.siren && g.char === 'cop') prompt = (I.touchMode ? 'SIREN BUTTON' : 'H') + ': SIREN ON';
-    else if (pl.vehicle && g.char === 'cop' && !pl.vehicle.rail && !pl.vehicle.def.heli && !pl.vehicle.def.bike && !pl.vehicle.def.gopher && pl.vehicle.type !== 'police' && pl.vehicle.type !== 'paddy' && !pl.vehicle.roofLight) prompt = (I.touchMode ? 'LIGHT' : 'L') + ': MAGNETIC LIGHT ON THE ROOF';
+    else if (pl.vehicle && g.char === 'cop' && !pl.vehicle.rail && !pl.vehicle.boat && !pl.vehicle.def.heli && !pl.vehicle.def.bike && !pl.vehicle.def.gopher && pl.vehicle.type !== 'police' && pl.vehicle.type !== 'paddy' && !pl.vehicle.roofLight) prompt = (I.touchMode ? 'LIGHT' : 'L') + ': MAGNETIC LIGHT ON THE ROOF';
+    if (VH.RB && !pl.inShop) prompt = VH.RB.prompt(prompt) || prompt; // Round B hook
     // the bottom prompt sits just above the objective, and first-time tips above that
     UI.lastPrompt = prompt; UI.lastPromptSrc = src; let aboveY = UI.objTop || h - pad - 22 * ts;
     // (on a phone on its side, both stay left of the thumb buttons, like the objective)
@@ -332,7 +336,7 @@
     if (g.waypoint) { const [mx, my] = toM(g.waypoint.x, g.waypoint.y); UI.pin(ctx, U.clamp(mx, x + 3, x + w - 4), U.clamp(my, y + 7, y + h - 2), 1); }
     const PO = VH.Police, LK = VH.Lockup; const blink = Math.floor(g.t * 6) % 2;
     for (const r of VH.Shops.resprays) { const [mx, my] = toM(r.x, r.y); if (mx < x || my < y || mx > x + w || my > y + h) continue; (r.service === 'tyres' ? VH.Shops.drawTyre : VH.Shops.drawCan)(ctx, Math.round(mx), Math.round(my), 1); }
-    for (const m of [...VH.Acts.markers(), ...(g.helipads || []).map(h => ({ x: h.x, y: h.y, letter: 'H', col: '#ffffff' }))]) { const [mx, my] = toM(m.x, m.y); if (mx < x || my < y || mx > x + w || my > y + h) continue; ctx.fillStyle = 'rgba(18,12,36,0.8)'; ctx.fillRect(Math.round(mx) - 3, Math.round(my) - 4, 7, 9); U.text(ctx, m.letter, Math.round(mx) - 2, Math.round(my) - 3, { color: m.col, shadow: false }); }
+    for (const m of [...VH.Acts.markers(), ...(g.helipads || []).map(h => ({ x: h.x, y: h.y, letter: 'H', col: '#ffffff' }))]) { const [mx, my] = toM(m.x, m.y); if (mx < x || my < y || mx > x + w || my > y + h) continue; if (m.draw) { m.draw(ctx, Math.round(mx), Math.round(my), 1); continue; } /* Round B hook: icon markers */ ctx.fillStyle = 'rgba(18,12,36,0.8)'; ctx.fillRect(Math.round(mx) - 3, Math.round(my) - 4, 7, 9); U.text(ctx, m.letter, Math.round(mx) - 2, Math.round(my) - 3, { color: m.col, shadow: false }); }
     if (LK.b) { const [mx, my] = toM(LK.centre.x, LK.centre.y); ctx.fillStyle = '#4a4f66'; ctx.fillRect(Math.round(mx) - 3, Math.round(my) - 2, 7, 5); ctx.fillStyle = '#c9ccd8'; ctx.fillRect(Math.round(mx) - 3, Math.round(my) - 4, 2, 2); ctx.fillRect(Math.round(mx) + 2, Math.round(my) - 4, 2, 2); }
     if (VH.Street.scannerT > 0) for (const v of PO.patrols) { const [mx, my] = toM(v.x, v.y); ctx.fillStyle = '#7fa6ff'; ctx.fillRect(Math.round(mx) - 1, Math.round(my) - 1, 3, 3); }
     for (const v of [...PO.units, ...PO.backup]) { const [mx, my] = toM(v.x, v.y); ctx.fillStyle = blink ? '#ff3030' : '#3070ff'; ctx.fillRect(Math.round(mx) - 2, Math.round(my) - 2, 4, 4); }
@@ -423,14 +427,15 @@
     if (R.drawMapLabels) R.drawMapLabels(ctx, toM, k / sc, ts, [vx0, vy0, vw0, vh0]); // [Round C map] street, suburb and park names
     for (const r of VH.Shops.resprays) { const [x, y] = toM(r.x, r.y); (r.service === 'tyres' ? VH.Shops.drawTyre : VH.Shops.drawCan)(ctx, Math.round(x), Math.round(y), 2); T(ctx, r.name, x + 8, y - 4, { color: '#9be15d', scale: 1 }); }
     for (const s of VH.Shops.list) { const [x, y] = toM(s.door.x, s.door.y); ctx.fillStyle = '#38e0c8'; ctx.fillRect(Math.round(x) - 2, Math.round(y) - 2, 4, 4); }
-    for (const m of [...VH.Acts.markers(), ...(g.helipads || []).map(h => ({ x: h.x, y: h.y, letter: 'H', col: '#ffffff' }))]) { const [x, y] = toM(m.x, m.y); ctx.fillStyle = 'rgba(18,12,36,0.85)'; ctx.fillRect(Math.round(x) - 4, Math.round(y) - 5, 9, 11); U.text(ctx, m.letter, Math.round(x) - 2, Math.round(y) - 3, { color: m.col, shadow: false }); }
+    for (const m of [...VH.Acts.markers(), ...(g.helipads || []).map(h => ({ x: h.x, y: h.y, letter: 'H', col: '#ffffff' }))]) { const [x, y] = toM(m.x, m.y); if (m.draw) { m.draw(ctx, Math.round(x), Math.round(y), 1); continue; } /* Round B hook: icon markers */ ctx.fillStyle = 'rgba(18,12,36,0.85)'; ctx.fillRect(Math.round(x) - 4, Math.round(y) - 5, 9, 11); U.text(ctx, m.letter, Math.round(x) - 2, Math.round(y) - 3, { color: m.col, shadow: false }); }
     for (const tg of M().targets()) { if (tg.small) continue; const [x, y] = toM(tg.x, tg.y); ctx.fillStyle = Math.floor(g.t * 4) % 2 ? (tg.col || C.hi) : C.pink; ctx.fillRect(Math.round(x) - 3, Math.round(y) - 3, 6, 6); }
     for (const m of g.myMarkers()) { const [x, y] = toM(m.x, m.y); UI.carIcon(ctx, x, y, 2); T(ctx, m.label, x + 8, y - 4, { color: g.MINE_COL, scale: 1 }); }
     if (g.waypoint) { const [x, y] = toM(g.waypoint.x, g.waypoint.y); UI.pin(ctx, x, y, 2); T(ctx, g.waypoint.label, x + 8, y - 12, { color: '#fff', scale: 1 }); }
     const [px, py] = toM(pl.x, pl.y); ctx.fillStyle = Math.floor(g.t * 5) % 2 ? '#fff' : C.pink; ctx.fillRect(Math.round(px) - 3, Math.round(py) - 3, 6, 6);
     ctx.restore();
     const creditY = h - 10 * ts - (credit.length - 1) * 9 * ts, howtoY = h - 20 * ts - (credit.length - 1) * 9 * ts - (howto.length - 1) * 9 * ts;
-    UI.mapLegend(ctx, ts, w / 2, howtoY - 12 * ts, w - 20 * ts);
+    const legTop = UI.mapLegend(ctx, ts, w / 2, howtoY - 12 * ts, w - 20 * ts);
+    VH.RB && VH.RB.legend(ctx, w, legTop - 12 * ts, ts); // Round B hook
     T(ctx, 'MAP OF VICTOR HARBOR', w / 2, 6 * ts, { align: 'center', color: C.hi, scale: ts * 1.5 | 0 || 1 });
     howto.forEach((l, i) => T(ctx, l, w / 2, howtoY + i * 9 * ts, { align: 'center', color: C.dim, scale: ts }));
     credit.forEach((l, i) => T(ctx, l, w / 2, creditY + i * 9 * ts, { align: 'center', color: C.dim, scale: ts }));
@@ -478,6 +483,7 @@
         T(ctx, txt, x + 12 * ts, yy, { color: C.white, scale: ts }); x += item(it);
       }
     });
+    return y0; // (Round B hook: its icon row goes above)
   };
   // the light-blue "your car" icon and the white waypoint pin, shared by the map and the minimap
   UI.carIcon = (ctx, x, y, s = 1) => { x = Math.round(x); y = Math.round(y); ctx.fillStyle = '#120c24'; ctx.fillRect(x - 3 * s - 1, y - 2 * s - 1, 6 * s + 2, 4 * s + 2); ctx.fillStyle = G().MINE_COL; ctx.fillRect(x - 3 * s, y - 2 * s, 6 * s, 4 * s); ctx.fillStyle = '#120c24'; ctx.fillRect(x - s, y - 2 * s, 2 * s, 4 * s); };
@@ -530,7 +536,7 @@
         out.push({ id: 'horn', label: loud ? 'SIREN' : 'HORN', priority: loud ? 56 : 20 }); // (one priority, so it doesn't swap places with DRIFT when it goes on)
       }
       if (g.char === 'cop' && !v.rail && !heli) { const ch = kevChase(g); out.push({ id: 'spikes', label: 'SPIKES', priority: ch ? 75 : 12 }, { id: 'backup', label: 'BACKUP', priority: ch ? 73 : 11 });
-        if (!bike && !v.def.gopher && v.type !== 'police' && v.type !== 'paddy' && !v.roofLight) out.push({ id: 'light', label: 'LIGHT', priority: 54 }); }
+        if (!bike && !v.boat && !v.def.gopher && v.type !== 'police' && v.type !== 'paddy' && !v.roofLight) out.push({ id: 'light', label: 'LIGHT', priority: 54 }); } // (Round B: no roof light on a boat)
       return out;
     },
   ];
@@ -775,9 +781,10 @@
   UI.help = function (ctx, ts) {
     const w = ctx.canvas.width, h = ctx.canvas.height; backdrop(ctx, 'rgba(18,12,36,0.9)');
     T(ctx, 'CONTROLS', w / 2, 8 * ts, { align: 'center', color: C.hi, scale: ts * 2 });
-    const all = [CONTROLS.foot, CONTROLS.car, CONTROLS.rail, CONTROLS.heli, CONTROLS.kev, CONTROLS.evade, CONTROLS.any, CONTROLS.icons];
+    const rbSecs = VH.RB ? VH.RB.helpSections() : []; // Round B hook: speedboat, jet ski, BMX, hoops, bowls
+    const all = [CONTROLS.foot, CONTROLS.car, CONTROLS.rail, CONTROLS.heli, CONTROLS.kev, CONTROLS.evade, ...rbSecs, CONTROLS.any, CONTROLS.icons];
     const two = w >= 420 * ts; const colW = two ? Math.min(250 * ts, (w - 30 * ts) / 2) : Math.min(w - 16 * ts, 300 * ts);
-    const left = two ? [all[0], all[1], all[2], all[3]] : all, right = two ? [all[4], all[5], all[6], all[7]] : [];
+    const left = two ? [all[0], all[1], all[2], all[3], ...rbSecs.slice(0, 2)] : all, right = two ? [all[4], all[5], ...rbSecs.slice(2), CONTROLS.any, CONTROLS.icons] : [];
     const hL = UI.measureControls(ts, left, colW), hR = UI.measureControls(ts, right, colW);
     const extra = ['GOSSIP: MAYHEM FILLS THE CURTAINS. MORE CURTAINS, MORE POLICE.', 'BREAK THEIR LINE OF SIGHT AND LIE LOW TO LOSE THEM: THE LINE UNDER THE CURTAINS SAYS WHAT IS COOLING THINGS.', 'IF THEY CATCH YOU, THEY TACKLE AND CUFF: AN ARREST IS ENOUGH.', 'BUSTED? THE PADDY WAGON TAKES YOU UP THE HILL TO THE LOCK-UP.', 'NOBODY GETS HURT: PEOPLE ALWAYS JUMP OUT OF THE WAY.'];
     const x0 = two ? w / 2 - colW - 5 * ts : w / 2 - colW / 2; const y0 = 26 * ts;

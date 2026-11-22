@@ -57,6 +57,7 @@
     Game.initPlaces();
     VH.Props.init(W.propsRaw);
     VH.Lockup.init(); VH.Police.init(); VH.Acts.init(); VH.Street.init(); VH.Shops.init();
+    VH.RB && VH.RB.init(); // Round B hook: boats, sports, fireworks (sports.js, watercraft.js, fireworks.js)
     // footies on the ovals and pitches, and a couple at Warland Reserve
     for (const a of W.areas) if (a.k === 'pitch' && Math.abs(a.bb[2] - a.bb[0]) > 40) { let cx = 0, cy = 0; for (let i = 0; i < a.p.length; i += 2) { cx += a.p[i]; cy += a.p[i + 1]; } VH.Props.add(PK.ball, cx / (a.p.length / 2), cy / (a.p.length / 2), 0); }
     for (let i = 0; i < 2; i++) VH.Props.add(PK.ball, Game.places.warland.x - 25 + i * 6, Game.places.warland.y + 14, 0);
@@ -96,6 +97,7 @@
     // bikes to borrow along the foreshore
     const wl = Game.places.warland; [['bmx', -14, -30, '#ff4fa0'], ['cruiser', -10, -30, '#38e0c8'], ['escooter', -6, -30, '#222'], ['bmx', 60, -20, '#ffd23a']].forEach(([t, dx, dy, col]) => { const n = W.nearestEdge(wl.x + dx, wl.y + dy, 30); if (n) { const off = n.e.w / 2 + 1; Game.vehicles.push(new VH.Vehicle(t, n.x + Math.sin(n.ang) * off, n.y - Math.cos(n.ang) * off, n.ang, { colour: col, parked: true })); } });
     VH.Acts.newNight(); VH.Street.newNight();
+    VH.RB && VH.RB.newNight(); // Round B hook
     // the player
     const home = Game.homeFor(Game.char);
     Game.lastVeh = null; Game.waypoint = null; Game.offered = null; Game.carParks && Game.carParks.forEach(a => { a.cars = null; a.filledAt = null; });
@@ -133,17 +135,20 @@
       else if (v.type === 'police' && Game.char !== 'cop') Game.addMeter(2.5, "YOU NICKED THE COP CAR?!", 3);
       else if (v.def.heli && Game.char !== 'cop') { Game.addMeter(v.kind === 'police' ? 4.6 - Game.meter : 3.2, v.kind === 'police' ? 'YOU NICKED THE POLICE CHOPPER?!' : 'YOU NICKED THE RESCUE CHOPPER?!', 4.2); Game.toast(I.touchMode ? 'UP: CLIMB   DOWN: DESCEND   DRAG: FLY' : 'SHIFT: CLIMB   SPACE: DESCEND   W/S: FLY   A/D: TURN', '#38e0c8'); }
       else if (v.def.heli) Game.toast(I.touchMode ? 'UP: CLIMB   DOWN: DESCEND   DRAG: FLY' : 'SHIFT: CLIMB   SPACE: DESCEND   W/S: FLY   A/D: TURN', '#38e0c8');
+      else if (v.boat) { if (Game.char !== 'cop') { Game.addMeter(0.6, v.def.name.toUpperCase() + ' BORROWED'); VH.Police.witness(0.4, 'BOAT THEFT, IN FULL VIEW!'); } } // Round B hook
       else { Game.addMeter(0.6, 'CAR BORROWED'); VH.Police.witness(0.5, 'CAR THEFT, IN FULL VIEW!'); if (v.parked && Math.random() < 0.5) { Game.alarm = { v, t: 2.5 }; } }
     }
     if (!silent && !v.owned) Game.stats.stolen++;
     v.ai = null; v.parked = false; sfx('door');
     if (!v.rail) { Game.lastVeh = v; Game.lastGoneSaid = false; }
-    if (Game.char === 'cop' && !v.rail && !v.def.heli && !v.def.bike && !v.def.gopher && v.type !== 'police' && v.type !== 'paddy' && !v.roofLight) Game.toast(VH.Input.touchMode ? 'LIGHT: SLAP THE MAGNETIC LIGHT ON THE ROOF' : 'L: SLAP THE MAGNETIC LIGHT ON THE ROOF', '#9fd4ec');
+    if (Game.char === 'cop' && !v.rail && !v.boat && !v.def.heli && !v.def.bike && !v.def.gopher && v.type !== 'police' && v.type !== 'paddy' && !v.roofLight) Game.toast(VH.Input.touchMode ? 'LIGHT: SLAP THE MAGNETIC LIGHT ON THE ROOF' : 'L: SLAP THE MAGNETIC LIGHT ON THE ROOF', '#9fd4ec');
+    if (v.boat && VH.Water) VH.Water.onEnter(v); // Round B hook
     if (Game.kitSaved && !v.rail) { Game.kitSaved = false; v.flat = false; v.damage = Math.max(0, v.damage - 0.4); v.dead = false; Game.toast('TYRE KIT USED: PATCHED UP', '#9be15d'); }
     VH.Missions.event('enter', v);
   };
   Game.exit = function (force) {
     const pl = Game.player, v = pl.vehicle; if (!v) return;
+    if (v.boat && VH.Water && VH.Water.exitBoat(v, force)) return; // Round B hook: step off only where there's somewhere to step; Kev boards
     if (force) { v.vx *= 0.2; v.vy *= 0.2; if (v.rail) v.v = 0; if (v.def && v.def.heli && v.z > 0.3) return; }
     if (v.def && v.def.heli && v.z > 0.3) { Game.toast('LAND FIRST (HOLD ' + (I.touchMode ? 'DOWN' : 'SPACE') + ')'); return; } // the one exception: not out of a helicopter in the air
     // E works at any speed: a step out at walking pace, otherwise a dive and a tuck-and-roll the way you were going
@@ -232,7 +237,7 @@
   Game.busted = function () {
     Game.stats.busted++; const fine = Math.min(Game.cash, 25); Game.cash -= fine;
     Game.bustInfo = { fine, line: U.pick(["I KNOW YOUR MOTHER, YOU KNOW.", "THIS ISN'T THE CITY, MATE.", "I'VE A GOOD MIND TO RING YOUR NAN.", 'SCHOOLIES OR NOT, THAT LETTERBOX HAD FEELINGS.', "WE DON'T DO THAT AROUND HERE.", "RIGHT. WE'LL SAY NO MORE ABOUT IT. BUT I'M WRITING IT DOWN."]) };
-    sfx('fail'); FX.flash = 0.6; VH.Street.grab = null; VH.Tackle.on = null; Game.player.inShop = null;
+    sfx('fail'); FX.flash = 0.6; VH.Street.grab = null; VH.Tackle.on = null; Game.player.inShop = null; VH.RB && VH.RB.settle(); // (Round B hook)
     const pl = Game.player; Game.lastBustPos = { x: pl.x, y: pl.y }; VH.Police.reset(); Game.watch.forEach(v => v.removed = true); Game.watch = [];
     VH.Lockup.startRide({ x: pl.x, y: pl.y });
   };
@@ -288,6 +293,7 @@
     }
     if (other && (other === pl.vehicle || v === pl.vehicle) && impact > 6) { const victim = v === pl.vehicle ? other : v; if (victim && victim.ai) { Game.addMeter(0.4, 'PRANG!'); victim.ai.angry = 3; VH.Police.witness(0.5, 'PRANG IN FRONT OF THE POLICE!'); } if (victim && (victim.patrol || victim.police)) { Game.addMeter(0.8, 'YOU HIT A POLICE CAR!'); VH.Police.witness(0.6); } }
     if (v === pl.vehicle && impact > 3) VH.Missions.event('crash', impact);
+    if (VH.Moto) VH.Moto.onCrash(v, impact); // Round B hook: off a motorbike at speed: tuck and roll
   };
   Game.onDive = function (ped, v) { const pl = Game.player; if (v === pl.vehicle) { Game.stats.dives++; if (Math.random() < 0.35) FX.text(ped.x, ped.y - 2, U.pick(['JUMP!', 'NICE ROLL!', 'TEN FROM THE JUDGES!', 'STUNTMAN!']), '#9be15d'); Game.addMeter(0.15); } };
   Game.onSink = function (v) {
@@ -305,7 +311,7 @@
     Game.addMeter(0.8, 'CAR IN THE DRINK!'); if (!P.inGrace()) { Game.meter = Math.max(Game.meter, 1.7); P.seenT = 0; } P.last = { x: v.x, y: v.y };
     Game.toast('SOMEONE SAW THE CAR GO IN. THE POLICE ARE COMING TO LOOK', '#ff9a30');
   };
-  Game.onLand = (v, air) => VH.Acts.onLand(v, air);
+  Game.onLand = (v, air) => { VH.Acts.onLand(v, air); VH.RB && VH.RB.onLand(v, air); }; // Round B hook: tricks, grinds
   Game.onDriftEnd = (v, t, kick) => { if (v === Game.player.vehicle && kick > 2) FX.text(v.x, v.y - 5, 'DRIFT BOOST!', '#38e0c8'); };
   // damage stages (dents, smoke, sparks, limping, disabled) are called out on your car and on the one you're after
   Game.onDamageStage = function (v, stage) {
@@ -437,6 +443,7 @@
     if (Game.timeOverride == null) Game.hour += dt * Game.clockRate; else Game.hour = Game.timeOverride;
     if (Game.hour >= 24) Game.hour -= 24;
     const pl = Game.player;
+    const rbBusy = VH.RB ? VH.RB.preUpdate(dt) : false; // Round B hook: mini-games, tube planting and the midnight show take their keys first
     // controls
     if ((I.consume('enter') || I.consume('confirm')) && !VH.Street.grab && !VH.Police.arrest && !VH.Tackle.on && !(pl.inShop && VH.Shops.tryChat())) {
       if (VH.Escort.key()) { /* a prisoner: grab, put in the car, take out, hand over */ }
@@ -463,7 +470,7 @@
     if (I.consume('kick') && pl.onFoot && !(pl.stunT > 0) && !pl.water) Game.kick();
     VH.Tackle.update(dt);
     if (pl.aboard) Game.rideAboard(dt);
-    else if (VH.Police.arrest || VH.Tackle.on) { pl.vx *= 0.5; pl.vy *= 0.5; if (pl.vehicle) { pl.vehicle.throttle = 0; pl.vehicle.brake = 1; pl.vehicle.steer = 0; } }
+    else if (VH.Police.arrest || VH.Tackle.on || rbBusy) { pl.vx *= 0.5; pl.vy *= 0.5; if (pl.vehicle) { pl.vehicle.throttle = 0; pl.vehicle.brake = 1; pl.vehicle.steer = 0; } }
     else if (pl.onFoot) Game.updateFoot(dt);
     else {
       const v = pl.vehicle; const c = I.drive(v.ang, v.speed);
@@ -473,7 +480,7 @@
         if (!I.stick.active) { const fwd = I.down('up') || (I.down('right') && Math.cos(v.ang) > 0.3) || (I.down('left') && Math.cos(v.ang) < -0.3); thr = fwd ? 1 : 0; brk = I.down('down') ? 1 : 0; }
         v.throttle = thr; v.brake = brk; v.boost = I.down('run');
       } else { v.throttle = c.throttle; v.brake = c.brake; v.steer = c.steer; v.handbrake = c.hb ? 1 : 0; v.boost = (I.down('run') && Game.upgrades.turbo && v.def.gopher) || (v.def.heli && I.down('run')) || v.boostT > 0;
-        if (v.def.bike && I.consume('action') && v.z === 0) { v.vz = 4.2 + v.speed * 0.08; v.z = 0.01; sfx('hop'); } }
+        if (v.def.bike && !v.def.motor && I.consume('action') && v.z === 0) { /* Round B hook: Space is the wheelie on a motorbike */ v.vz = 4.2 + v.speed * 0.08; v.z = 0.01; sfx('hop'); } }
       pl.x = v.x; pl.y = v.y; pl.ang = v.ang; pl.vx = v.vx; pl.vy = v.vy;
       Game.stats.distance += v.speed * dt;
     }
@@ -488,6 +495,7 @@
       if (v.rail && v.driver !== 'player' && !v.missionDrive) { v.throttle = 0; if (v.coastT > 0) { v.coastT -= dt; v.brake = 0; } else v.brake = 0.5; }
     }
     Game.updateCop(dt);
+    VH.RB && VH.RB.preVehicles(dt); // Round B hook: cars stop at the water's edge; rivals and hoons steer
     for (const v of active) { v.update(dt); }
     for (const v of active) { VH.Collide.walls(v); VH.Props.collideVehicle(v); }
     VH.Collide.vehicles(active);
@@ -514,7 +522,7 @@
     for (const m of Game.msgs) m.t -= dt; Game.msgs = Game.msgs.filter(m => m.t > 0);
     // population upkeep
     Game.popT = (Game.popT || 0) - dt; if (Game.popT <= 0) { Game.popT = 0.5; Game.populate(false); }
-    VH.Missions.update(dt); Game.offerCar(dt); if (Game.char === 'cop') VH.Escort.update(dt); if (Game.state === 'play') { VH.Acts.update(dt); VH.Street.update(dt); VH.Shops.update(dt); }
+    VH.Missions.update(dt); Game.offerCar(dt); if (Game.char === 'cop') VH.Escort.update(dt); if (Game.state === 'play') { VH.Acts.update(dt); VH.Street.update(dt); VH.Shops.update(dt); VH.RB && VH.RB.update(dt); }
     Game.audio(dt);
   };
   // a proper boot: the nearest bin, cone, esky, chair or footy in front of you goes flying (never people or animals)
@@ -642,7 +650,7 @@
     if (!window.SFX) return;
     const pl = Game.player;
     if (pl.onFoot) SFX.engine({ speed: 0, throttle: 0, kind: 'foot' });
-    else { const v = pl.vehicle; const kind = v.rail ? v.kind : v.def.heli ? 'truck' : v.def.bike ? (v.def.electric ? 'gopher' : 'foot') : v.def.gopher ? 'gopher' : v.type === 'truck' ? 'truck' : v.type === 'police' ? 'police' : v.type === 'ute' ? 'ute' : 'car'; SFX.engine({ speed: U.clamp(v.speed / (v.def.maxV || 16), 0, 1), throttle: v.throttle || 0, kind }); SFX.skid(v.rail ? 0 : U.clamp(v.skid, 0, 1)); }
+    else { const v = pl.vehicle; const kind = v.boat ? (v.def.jetski ? 'jetski' : 'boat') : v.rail ? v.kind : v.def.heli ? 'truck' : v.def.motor ? 'moto' : v.def.bike ? (v.def.electric ? 'gopher' : 'foot') : v.def.gopher ? 'gopher' : v.type === 'truck' ? 'truck' : v.type === 'police' ? 'police' : v.type === 'ute' ? 'ute' : 'car'; SFX.engine({ speed: U.clamp(v.speed / (v.def.maxV || 16), 0, 1), throttle: v.throttle || 0, kind }); SFX.skid(v.rail ? 0 : U.clamp(v.skid, 0, 1)); }
     if (pl.onFoot) SFX.skid(0);
     const P = VH.Police; const copNear = P.units.some(v => Math.hypot(v.x - pl.x, v.y - pl.y) < 160) || P.blocks.some(b => Math.hypot(b.x - pl.x, b.y - pl.y) < 120) || P.backup.length > 0;
     const mySiren = !pl.onFoot && pl.vehicle.siren;
@@ -659,8 +667,10 @@
     // camera with look-ahead
     const lead = pl.onFoot ? 0.4 : 1.05; const lx = U.clamp(pl.vx * lead, -vw / S * 0.32, vw / S * 0.32), ly = U.clamp(pl.vy * lead, -vh / S * 0.32, vh / S * 0.32);
     const k = 1 - Math.exp(-4 * (Game.frameDt || 0.016));
-    Game.cam.x += (pl.x + lx - Game.cam.x) * k; Game.cam.y += (pl.y + ly - Game.cam.y) * k;
-    if (Math.hypot(pl.x - Game.cam.x, pl.y - Game.cam.y) > 150) { Game.cam.x = pl.x; Game.cam.y = pl.y; }
+    const foc = VH.RB && VH.RB.camFocus(); // Round B hook: mini-games and the midnight show frame their own shot
+    const fx0 = foc ? foc.x : pl.x + lx, fy0 = foc ? foc.y : pl.y + ly;
+    Game.cam.x += (fx0 - Game.cam.x) * k; Game.cam.y += (fy0 - Game.cam.y) * k;
+    if (Math.hypot(fx0 - Game.cam.x, fy0 - Game.cam.y) > 150) { Game.cam.x = fx0; Game.cam.y = fy0; }
     const dz = pl.dizzyT > 0 ? U.clamp(pl.dizzyT / (pl.dizzyMax || 1), 0, 1) : 0; // a little wobble while you're dizzy
     let left = Game.cam.x - vw / 2 / S + FX.shakeX / S + Math.sin(Game.t * 4.3) * dz * 0.8, top = Game.cam.y - vh / 2 / S + FX.shakeY / S + Math.cos(Game.t * 3.7) * dz * 0.6;
     left = Math.round(left * S) / S; top = Math.round(top * S) / S;
@@ -675,8 +685,10 @@
     });
     for (const w of Game.whales) w.draw(ctx, left, top, S);
     VH.Yards.draw(ctx, left, top, S); // lawns, patios and decks, garden beds (and any backyard party)
+    VH.RB && VH.RB.drawSurface(ctx, left, top, S); // Round B hook: swell, wakes, buoys, ramps
     VH.Props.draw(ctx, left, top, S, vw, vh);
     VH.Acts.drawGround(ctx, left, top, S); VH.Street.drawGround(ctx, left, top, S); VH.Shops.draw(ctx, left, top, S);
+    VH.RB && VH.RB.drawWorld(ctx, left, top, S); // Round B hook: skate park, dirt jumps, courts, the rink, stash boxes, launch racks
     for (const h of Game.helipads) { const sx = Math.round((h.x - left) * S), sy = Math.round((h.y - top) * S); if (sx < -60 || sy < -60 || sx > ctx.canvas.width + 60 || sy > ctx.canvas.height + 60) continue; ctx.strokeStyle = '#f2f2f0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx, sy, 7 * S, 0, U.TAU); ctx.stroke(); ctx.fillStyle = h.kind === 'rescue' ? '#d6302a' : '#ffd23a'; U.text(ctx, 'H', sx - 5 * S / 4, sy - 7 * S / 4 * 1.4, { scale: Math.max(1, S / 2 | 0), color: h.kind === 'rescue' ? '#ff6a5a' : '#ffd23a', shadow: false }); }
     VH.Police.drawGround(ctx, left, top, S);
     VH.Lockup.draw(ctx, left, top, S, t);
@@ -689,8 +701,9 @@
     vis.sort((a, b) => (a.rail ? 1 : 0) - (b.rail ? 1 : 0) + (a.z || 0) * 0.01 - (b.z || 0) * 0.01);
     for (const v of vis) v.draw(ctx, left, top, S, night);
     // gopher riders (heads)
-    for (const v of vis) if (v.def && (v.def.gopher && (v.ai || v.driver || v.watch) || v.def.bike && v.driver)) { const sx = (v.x - left) * S, sy = (v.y - top) * S; const isP = v.driver === 'player'; const c = isP ? VH.Shops.look(Game.char) : null; VH.drawRot(ctx, SP.person(c ? c.shirt : '#c9b48a', c ? c.hair : '#e8e8e8', 0, { hat: c ? c.hat : 'bucket', sunnies: c && c.sunnies }), sx - Math.cos(v.ang) * 1, sy - Math.sin(v.ang) * 1, v.ang, 1, false, 0.7); }
+    for (const v of vis) if (v.def && (v.def.gopher && (v.ai || v.driver || v.watch) || v.def.bike && v.driver && !v.trick && !v.def.motor)) { /* Round B hook: a bike mid-trick, and a motorbike, draw their own rider */ const sx = (v.x - left) * S, sy = (v.y - top) * S; const isP = v.driver === 'player'; const c = isP ? VH.Shops.look(Game.char) : null; VH.drawRot(ctx, SP.person(c ? c.shirt : '#c9b48a', c ? c.hair : '#e8e8e8', 0, { hat: c ? c.hat : 'bucket', sunnies: c && c.sunnies }), sx - Math.cos(v.ang) * 1, sy - Math.sin(v.ang) * 1, v.ang, 1, false, 0.7); }
     for (const g of Game.gulls) g.draw(ctx, left, top, S);
+    VH.RB && VH.RB.drawTop(ctx, left, top, S); // Round B hook: hoops and the ball, Kev hopping aboard
     FX.draw(ctx, left, top, S, 'low');
     // midnight on the Bluff: the ghost whale swims through the air
     const midnight = hour >= 23.6 || hour < 0.9; const bluffD = Math.hypot(pl.x - Game.places.bluff.x, pl.y - Game.places.bluff.y);
@@ -705,8 +718,9 @@
     VH.Police.drawAir(ctx, left, top, S, night);
     const fogSpecial = (midnight && bluffD < 700 ? 0.85 : 0) + (Game.forceGhost ? 0.6 : 0);
     const nearSea = U.clamp(1 - Math.max(0, W.seaDist(Game.cam.x, Game.cam.y)) / 500, 0.25, 1);
-    L.fog(ctx, left, top, S, L.fogLevel(hour, fogSpecial) * nearSea, t, midnight ? '#3a6a7a' : null);
+    L.fog(ctx, left, top, S, L.fogLevel(hour, fogSpecial) * nearSea * (VH.Fireworks && VH.Fireworks.fogScale ? VH.Fireworks.fogScale() : 1), t, midnight ? '#3a6a7a' : null); // (Round B hook: the fog lifts for the fireworks)
     if ((midnight && bluffD < 500) || Game.forceGhost) { ctx.globalCompositeOperation = 'lighter'; Game.ghostWhale.draw(ctx, left, top, S); ctx.globalCompositeOperation = 'source-over'; }
+    VH.RB && VH.RB.drawAir(ctx, left, top, S); // Round B hook: fireworks, above the lighting and the fog
     // mission markers and floating text sit above the lighting
     VH.Shops.drawMarkers(ctx, left, top, S); VH.Missions.drawWorld(ctx, left, top, S, scale);
     const ct = VH.Missions.chaseTarget && VH.Missions.chaseTarget(); if (ct && !ct.rail && !ct.removed) Game.drawDamageBar(ctx, ct, left, top, S);
@@ -812,6 +826,7 @@
     for (const p of Game.peds) if (p.glow && p.x > left && p.x < x1 && p.y > top && p.y < y1) glows.push({ x: p.x, y: p.y, r: 1, col: '#9bff8a', a: 0.7 });
     const pl = Game.player; if (pl.onFoot && !pl.hidden) sources.push({ x: pl.x, y: pl.y, r: 5, col: '#a0b0d0', a: 0.35 });
     // spooky lights on the Bluff around midnight
+    VH.RB && VH.RB.lights(sources, glows); // Round B hook
     if (hour >= 23.5 || hour < 1) { const b = Game.places.bluffTop; for (let i = 0; i < 4; i++) { const a = Game.t * 0.4 + i * 1.7; const x = b.x + Math.cos(a) * 30 + Math.sin(Game.t * 1.3 + i) * 5, y = b.y + Math.sin(a * 0.7) * 25; sources.push({ x, y, r: 9, col: '#80fff0', a: 0.7 }); glows.push({ x, y, r: 1.6, col: '#c0fff8', a: 0.9 }); } }
     return { sources, glows };
   };

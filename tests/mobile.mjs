@@ -3,7 +3,7 @@
 // only reads state: the game's own hooks (VH.UI.lastMenu, lastRects, mapClose, hudRects, VH.Input.buttons) say where
 // things are, and ?check=layout makes the HUD log every text and panel it drew in the last frame (window.__layout).
 //
-//   cd game && python3 -m http.server 8765 &
+//   cd game && python3 -m http.server 4433 &
 //   node tests/mobile.mjs                 # every check on every phone
 //   node tests/mobile.mjs tap-once map    # just those checks
 //   SHOTS=/tmp/m node tests/mobile.mjs    # with a screenshot per step
@@ -13,7 +13,7 @@
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { chromium, devices } = require('playwright');
-const BASE = process.env.BASE || 'http://localhost:8765/index.html';
+const BASE = process.env.BASE || 'http://localhost:4433/index.html';
 const SHOTS = process.env.SHOTS || '';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -368,6 +368,26 @@ const CHECKS = {
       await s.tapRect(act, 700); act = await s.ev(() => ({ ...VH.Input.buttons.find(b => b.act) }));
       check(T + ': out beside it, ACT says GET IN', (await s.ev(() => VH.Game.player.onFoot)) && act.label === 'GET IN', act.label);
       await s.tapRect(act, 700); check(T + ': and gets in', await s.ev(() => !VH.Game.player.onFoot));
+    } finally { await s.close(); }
+  },
+  // Round B: a minigame on screen (hoops on a court). ACT offers the court, then PICK in the menu, then SHOOT; never more
+  // than three action buttons; the left-hand panels (with the game's own) stay clear of the buttons and the screen edge
+  async minigame(ph) {
+    const T = ph.id + ' minigame';
+    const s = await phone(ph, 'play=roam&hour=21&at=4935,2300'); await sleep(500);
+    try {
+      const round = () => s.ev(() => VH.Input.buttons.filter(b => b.round && b.id !== 'more').map(b => ({ ...b })));
+      let B = await round(), act = B.find(b => b.act); check(`${T}: on the court, ACT offers the hoops`, !!act && act.label === 'HOOPS', act && act.label);
+      if (act) await s.tapRect(act, 500);
+      B = await round(); act = B.find(b => b.act); check(`${T}: the court menu: ACT picks`, (await s.ev(() => !!VH.Sports.menu)) && !!act && act.label === 'PICK', act && act.label);
+      if (act) await s.tapRect(act, 600);
+      check(`${T}: the hoops game starts`, await s.ev(() => !!VH.Sports.mini && VH.Sports.mini.kind === 'hoops'));
+      B = await round(); act = B.find(b => b.act); await s.shot('minigame-hoops');
+      check(`${T}: at most 3 action buttons in the game`, B.length >= 1 && B.length <= 3, B.map(b => b.label || b.id).join(', '));
+      check(`${T}: the big button shoots`, !!act && act.label === 'SHOOT', act && act.label);
+      const L = await s.layout(); const hr = await s.ev(() => VH.UI.hudRects && VH.UI.hudRects.left);
+      check(`${T}: no text off the edge`, !offEdge(L).length, offEdge(L).slice(0, 3).join(' | '));
+      check(`${T}: the left-hand panels clear of the buttons`, !!hr && !B.some(b => overlap(hr, b)), B.filter(b => hr && overlap(hr, b)).map(b => b.label).join(','));
     } finally { await s.close(); }
   },
   async 'help-names'(ph) {

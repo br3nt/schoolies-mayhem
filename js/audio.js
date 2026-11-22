@@ -329,6 +329,20 @@
     var n = [784, 988, 1175, 1568];
     for (var i = 0; i < n.length; i++) T('square', n[i], 0, i * 0.05, 0.08, 0.14, { lp: 5000 });
   };
+  // Round B: fireworks (a deep boom, a crackle) and the town clock striking twelve
+  S.boom = function () {
+    N('lowpass', 900, 60, 0, 1.4, 0.75, { a: 0.005 });
+    T('sine', 90, 32, 0, 0.9, 0.5);
+    N('bandpass', 2600, 600, 0.02, 0.5, 0.18, { q: 0.8 });
+  };
+  S.crackle = function () {
+    N('lowpass', 700, 80, 0, 0.8, 0.45, { a: 0.005 });
+    for (var i = 0; i < 14; i++) N('highpass', rnd(3000, 6000), 0, 0.25 + i * 0.05 + rnd(0, 0.04), 0.03, 0.22);
+  };
+  S.chime = function () {
+    var f0 = 196, r = [1, 2, 2.4, 3, 4.2];
+    for (var i = 0; i < r.length; i++) T('sine', f0 * r[i], 0, 0, 1.6 - i * 0.2, 0.32 / (i + 1), { a: 0.004 });
+  };
 
   var LIMIT = { clang: 12, click: 15, thud: 14, shot: 12, ping: 10 };
 
@@ -367,7 +381,10 @@
     ute:    { b: 44, m: 3.0, t1: 'sawtooth', t2: 'square',   r2: 0.5,  lp: 340, lps: 1300, vol: 0.16 },
     police: { b: 58, m: 3.4, t1: 'sawtooth', t2: 'square',   r2: 0.5,  lp: 420, lps: 1700, vol: 0.15 },
     truck:  { b: 34, m: 2.4, t1: 'sawtooth', t2: 'sawtooth', r2: 1.01, lp: 260, lps: 800,  vol: 0.2, wob: 9 },
-    gopher: { b: 300, m: 2.4, t1: 'triangle', t2: 'sine',    r2: 2.0,  lp: 2500, lps: 3000, vol: 0.08 }
+    gopher: { b: 300, m: 2.4, t1: 'triangle', t2: 'sine',    r2: 2.0,  lp: 2500, lps: 3000, vol: 0.08 },
+    boat:   { b: 40, m: 2.8, t1: 'sawtooth', t2: 'sawtooth', r2: 1.02, lp: 300, lps: 1100, vol: 0.17, wob: 5 },
+    moto:   { b: 70, m: 4.2, t1: 'sawtooth', t2: 'square',   r2: 2.0,  lp: 900, lps: 3200, vol: 0.12, wob: 14 },
+    jetski: { b: 95, m: 3.4, t1: 'sawtooth', t2: 'square',   r2: 1.5,  lp: 700, lps: 2600, vol: 0.12, wob: 11 }
   };
 
   function buildTonal(cfg, outG) {

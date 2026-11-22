@@ -10,7 +10,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const JS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../js');
-const FILES = ['missions.js', 'activities.js', 'streetlife.js', 'shops.js', 'escort.js', 'lockup.js', 'yards.js'];
+const FILES = ['missions.js', 'activities.js', 'streetlife.js', 'shops.js', 'escort.js', 'lockup.js', 'yards.js',
+  'sports.js', 'watercraft.js', 'fireworks.js', 'motorbikes.js']; // (the last four: Round B)
 const RULES = [
   [/new VH\.(Ped|Vehicle)\(\s*[^,()]+,\s*-?\d/, 'a person or vehicle at a literal position'],
   [/Props\.add\(\s*[^,()]+,\s*-?\d/, 'a prop at a literal position'],

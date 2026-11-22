@@ -65,6 +65,8 @@
     W.doors = map.doors.map(d => ({ x: d[0] / 10, y: d[1] / 10, lx: d[2] / 10, ly: d[3] / 10, lit: 0 }));
     W.slotsRaw = map.slots || null; // typed spawn slots (tools/bake_slots.mjs); VH.Spawn reads them
     W.shore = dm(map.shore);
+    // Round B hook: boat ramps, jetties, the skate park, courts and bowls greens (tools/build_features.mjs)
+    try { W.features = await (await fetch('data/features.json', { cache: 'no-cache' })).json(); } catch (e) { W.features = null; }
     W.propsRaw = map.props;
     // collision walls (building edges) in a grid
     W.wallGrid = new U.Grid(8);

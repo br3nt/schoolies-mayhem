@@ -46,10 +46,14 @@ window.VH = window.VH || {};
   U.fmtMoney = v => '$' + Math.round(v);
   // saves live under 'schoolies-mayhem:'; anything left from the game's old name ('schoolies-siege:') is copied across once
   const PREFIX = 'schoolies-mayhem:', OLD = 'schoolies-siege:';
+  // test hooks in the URL (?play= with &night=, &from=, &atPlace= or &brief=): saves and records (not settings) are kept
+  // in memory for that page only, so nothing done there (by a test, or a curious visitor) unlocks nights or sets records
+  U.TEST_HOOKS = typeof location !== 'undefined' && /[?&]play=/.test(location.search) && /[?&](night|from|atPlace|brief)=/.test(location.search);
+  const mem = new Map(); const SETTING = k => /^(muted|zoom|walk|hints|tip:)/.test(k); // (settings like the zoom still save)
   U.store = {
-    get(k, d) { try { const v = localStorage.getItem(PREFIX + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-    set(k, v) { try { localStorage.setItem(PREFIX + k, JSON.stringify(v)); } catch (e) { /* private mode */ } },
-    del(k) { try { localStorage.removeItem(PREFIX + k); } catch (e) { /* private mode */ } },
+    get(k, d) { if (mem.has(k)) { const v = mem.get(k); return v == null ? d : JSON.parse(v); } try { const v = localStorage.getItem(PREFIX + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { if (U.TEST_HOOKS && !SETTING(k)) { mem.set(k, JSON.stringify(v)); return; } try { localStorage.setItem(PREFIX + k, JSON.stringify(v)); } catch (e) { /* private mode */ } },
+    del(k) { if (U.TEST_HOOKS && !SETTING(k)) { mem.set(k, null); return; } try { localStorage.removeItem(PREFIX + k); } catch (e) { /* private mode */ } },
     migrate() {
       try {
         const keys = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(OLD)) keys.push(k); }

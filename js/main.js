@@ -51,7 +51,7 @@
     // about 50 m on foot and 80 m driving fast, so a phone sees about what a desktop does for its size
     if (I.touchMode && Math.min(innerWidth, innerHeight) < 500) { const sm = Math.min(cw, ch) / R.S; close = Math.max(1, Math.round(sm / 50)); far = Math.max(1, Math.round(sm / (inHeli ? 100 : 80))); mid = Math.max(far, Math.round((close + far) / 2)); Game.camMetres = { foot: sm / close, mid: sm / mid, fast: sm / far }; }
     // the player's zoom choice is an integer offset on top
-    const base = camLvl === 0 ? close : camLvl === 1 ? mid : far;
+    const base = live && VH.RB && VH.RB.zoomWant() ? far : camLvl === 0 ? close : camLvl === 1 ? mid : far; // Round B hook: the fireworks show pulls the camera out
     const ws0 = live ? U.clamp(base + (Game.zoomOff || 0), 1, Math.max(scale * 2 + 3, close + 3)) : base;
     const want = ws0 / scale;
     zoom += (want - zoom) * Math.min(1, (Game.frameDt || 0.016) * 2.5); if (Math.abs(want - zoom) < 0.02) zoom = want;
@@ -133,7 +133,7 @@
     } catch (e) { console.error(e); Game.lastError = String(e && e.stack || e); }
     // the watchdog: a screen that has lasted over 20 seconds always offers Esc back to the game
     if (stuck && Game.state === st) {
-      U.text(bctx, 'ESC: BACK TO THE GAME', bb.width - 6 * ts, 4 * ts, { align: 'right', color: '#ffd23a', scale: ts });
+      { const hw = U.textWidth('ESC: BACK TO THE GAME', ts); bctx.fillStyle = 'rgba(18,12,36,0.92)'; bctx.fillRect(bb.width - 9 * ts - hw, 0, hw + 9 * ts, 10 * ts); U.text(bctx, 'ESC: BACK TO THE GAME', bb.width - 5 * ts, 1.5 * ts, { align: 'right', color: '#ffd23a', scale: ts }); } // (on its own plate in the top strip, clear of a message card)
       if (I.consume('pause') || I.consume('back')) { VH.Missions.settle(); if (st === 'ride') { VH.Lockup.ride = null; Game.afterBust(); } else if (st === 'lockedUp') Game.afterBust(); else if (st === 'nightEnd' || st === 'sunrise' || st === 'win') Game.openWeek(Game.char, Game.night); else Game.state = 'play'; }
     }
     if (layoutCheck) { window.__layout = { state: Game.state, W: bb.width, H: bb.height, ...U.layoutLog }; U.layoutLog = null; } // what the HUD drew this frame, for tests/mobile.mjs
@@ -190,13 +190,17 @@
       await new Promise(r => setTimeout(r, 0));
       Game.toTitle();
       // test hooks: ?play=schoolie|grump|cop|roam&hour=21.5&at=x,y&night=2&job=1 (job: play just that job, as a replay)
+      // &from=2: start on that job of the night and carry on through the rest; &brief=1: wait on the job brief, so a test presses Enter like a player (Round B test hooks)
       const q = new URLSearchParams(location.search);
       if (q.get('play')) {
         const night = +(q.get('night') || 1);
         if (q.get('play') === 'roam') Game.beginRun('roam'); else Game.playNight(q.get('play'), night, { fromStart: true, ...(night > 1 ? { cash: 50, upgrades: { turbo: q.get('play') === 'grump' } } : {}), ...(q.get('job') ? { only: +q.get('job') } : {}) });
-        M.startJob(); Game.state = 'play'; Game.briefNight = false;
+        if (q.get('from')) M.toNight(night, Math.max(0, +q.get('from') - 1));
+        if (q.get('brief')) { Game.state = 'brief'; Game.stateT = 0; Game.briefNight = false; Game.reviewBrief = false; }
+        else { M.startJob(); Game.state = 'play'; Game.briefNight = false; }
         if (q.get('hour')) Game.hour = +q.get('hour');
-        if (q.get('at')) { const [x, y] = q.get('at').split(',').map(Number); const pl = Game.player; if (pl.vehicle) { pl.vehicle.x = x; pl.vehicle.y = y; } pl.x = x; pl.y = y; Game.cam.x = x; Game.cam.y = y; R.prefetch(x, y, 110); Game.populate(true); }
+        const atP = q.get('atPlace') && VH.RB && VH.RB.startAt(q.get('atPlace')); // Round B test hook: &atPlace=dirt|skate|bighouse|town starts beside that track's pad (from its baked slot)
+        if (q.get('at') || atP) { const [x, y] = atP ? [atP.x, atP.y] : q.get('at').split(',').map(Number); const pl = Game.player; if (pl.vehicle) { pl.vehicle.x = x; pl.vehicle.y = y; } pl.x = x; pl.y = y; Game.cam.x = x; Game.cam.y = y; R.prefetch(x, y, 110); Game.populate(true); }
       }
       // ?check=walkers: the walking self-check (nobody inside a building or in the water); the result is logged and kept on window.__check
       if (q.get('check') === 'slots') { const r = VH.Spawn.selfCheck(+(q.get('n') || 200)); window.__check = r; console[r.bad.length ? 'error' : 'log']('slot check: ' + r.checked + ' slots, ' + r.bad.length + ' unreachable' + (r.bad.length ? ': ' + r.bad.slice(0, 10).join(' ') : '')); }

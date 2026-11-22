@@ -13,6 +13,7 @@ Read this before changing anything. It applies to every AI coding agent and ever
 - `js/missions.js`: the jobs and nights (`M.defineJob`, `M.addNight`, `M.addJob`), saves per job, the dead-end check (`requires()`).
 - `js/police.js`: the police response (one car per gossip level, a roadblock at four, the chopper only at five after a long chase; Merv on his gopher gets one car and a lecture).
 - `js/escort.js`: Kev's prisoners, from the cuffs to the desk.
+- Round B: `js/sports.js` (`VH.RB` glue and its hooks, the skate park, dirt jumps, hoops, bowls), `js/watercraft.js` (`VH.Water`: boats, the water race, the water police, Kev's boarding), `js/motorbikes.js`, `js/fireworks.js` (Jaz's fourth night); tests in `tests/scenarios.cjs` with the sailing bot `tests/bot.cjs` (run by `tests/playthrough.cjs`, and by `playthrough.mjs` for night 4 through `tests/roundb.cjs`).
 - `js/ui.js`: the HUD, menus, map, credits (`VH.UI.CREDITS`: the credit, small print and links in one block).
 - `js/update.js`: the new-version banner for published builds.
 
@@ -20,6 +21,7 @@ Read this before changing anything. It applies to every AI coding agent and ever
 1. **One movement path.** Every walker moves through `VH.Nav` (`N.move`, or `N.update` with an intent); vehicles move through their own physics in `js/vehicles.js`, driven by `VH.AI` or the player. Mission and activity code sets goals and states only (`p.state = 'goto'`, `p.gx`, `p.gy`, an intent); it never writes positions directly.
 2. **Spawns only from validated slots.** Use `VH.Spawn.pick(kind, { near, minDist, maxDist, access, clearance, main, offscreen, unoccupied, claim, nearest, optional })` or `VH.Spawn.many(kind, n, { ..., spacing })`, and place with `VH.Spawn.vehicle(type, slot)`, `VH.Spawn.ped(kind, slot, opts, { d, a })` and `VH.Spawn.drive(v, kerbSlot)`.
    - Kinds: `door`, `frontyard`, `backyard`, `kerb`, `carpark`, `footpath`, `beach`, `park_open`, `jetty_end`, `shopfront`, `roof_access` (always empty), `mooring`, `open_water`.
+   - Round B's kinds (baked by `tools/bake_slots_rb.mjs`, called from `bake_slots.mjs`, from `data/features.json` and named places): `slipway`, `skatepark`, `court`, `bowls_green`, `bowls_club`, `dirt_track`, `launch_site`, `stash`, `race_start`, `race_mark` (in order, every leg on the water), `ramp_buoy`; and extra `mooring` slots alongside the jetties. `VH.RB.pick(kind, opts)` and `VH.RB.one(kind, extra)` are thin wrappers over `VH.Spawn`.
    - Never place people, vehicles or props at literal coordinates. Moving traffic (passing cars, patrols, Neighbourhood Watch) is the only exception: it joins the road graph at a point on a drivable edge.
    - With nothing that fits, `pick` throws in development (localhost or `?dev`) and returns null when published. Pass `optional: true` only where the caller simply skips; never fall back to a guessed position.
    - New kinds of spot go into `tools/bake_slots.mjs`. It validates every slot (outside buildings, on land or water as appropriate, a clear radius, reachable by the access modes it declares) and fails the build otherwise.
@@ -35,7 +37,7 @@ Read this before changing anything. It applies to every AI coding agent and ever
 
 ## Before you open a PR
 - `node tests/lint_spawns.mjs` must pass (no raw spawns in mission code).
-- With the game served on port 8765 (`python3 -m http.server 8765`), run the input-only bot on the jobs you touched: `node tests/playthrough.mjs cop:2` (a night), `node tests/playthrough.mjs cop:2:1` (one job), `node tests/playthrough.mjs jobs` (every job on its own) or `node tests/playthrough.mjs scenario:NAME`. It plays by key presses only, fails a job whose targets can't be reached from the street, and limits each job in game seconds. It's a second net, not a guarantee, and some jobs are hard for it; don't make your jobs worse.
+- With the game served on port 4433 (`python3 -m http.server 4433`), run the input-only bot on the jobs you touched: `node tests/playthrough.mjs cop:2` (a night), `node tests/playthrough.mjs cop:2:1` (one job), `node tests/playthrough.mjs jobs` (every job on its own) or `node tests/playthrough.mjs scenario:NAME`. It plays by key presses only, fails a job whose targets can't be reached from the street, and limits each job in game seconds. It's a second net, not a guarantee, and some jobs are hard for it; don't make your jobs worse.
 - If you touched the HUD, menus or input, run `node tests/mobile.mjs` too (touch only, on emulated phones).
 - `?check=walkers` and `?check=slots` log the walking and slot self-checks in the browser console; `node tools/e2e_escort.mjs` checks Kev's prisoner deliveries.
 - Play your change in a browser at desktop and phone sizes, and attach a screenshot or short clip.

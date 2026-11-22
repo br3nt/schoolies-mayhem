@@ -59,6 +59,7 @@
       // airborne off a ramp or a bunny-hop: no grip, no steering, gravity until we land
       if (this.z > 0 || this.vz > 0) {
         this.air += dt; this.vz -= 22 * dt; this.z = Math.max(0, this.z + this.vz * dt); this.x += this.vx * dt; this.y += this.vy * dt; this.ang += this.av * dt * 0.5;
+        if (this.airHook) this.airHook(dt); // Round B hook: BMX air tricks (sports.js)
         if (this.z <= 0) { const air = this.air; this.z = 0; this.vz = 0; this.air = 0; if (air > 0.25) { FX.dust(this.x, this.y, '#c8bfa0', 6); sfx('thud', { vol: Math.min(1, air), pitch: d.bike ? 1.6 : 0.8 }); FX.kick(Math.min(0.4, air * 0.3)); } VH.Game && VH.Game.onLand && VH.Game.onLand(this, air); }
         this.x = U.clamp(this.x, 2, W.width - 2); this.y = U.clamp(this.y, 2, W.height - 2);
         return;
@@ -69,18 +70,18 @@
       const thr = dead || this.cough > 0 ? 0 : this.throttle, brk = this.brake, hb = d.bike ? 0 : this.handbrake;
       const sandy = surf === W.SURF[W.GC.SAND];
       // bikes fly along footpaths and the foreshore path, and wobble on sand; flat tyres drag and pull
-      const surfBoost = d.bike ? (surf.grip > 0.9 ? 1.15 : sandy ? 0.6 : 0.85) : 1;
+      const surfBoost = d.offroad ? 1 : d.bike ? (surf.grip > 0.9 ? 1.15 : sandy ? 0.6 : 0.85) : 1; /* Round B hook: a dirt bike is happy anywhere */
       if (this.boostT > 0) this.boostT -= dt;
       const boosted = this.boost || this.boostT > 0;
       const limp = this.damage >= 0.75; const maxV = d.maxV * (boosted ? (d.gopher && this.boostT > 0 ? 2.3 : 1.6) : 1) * (limp ? 0.5 : 1 - this.damage * 0.25) * surfBoost * (this.flat ? 0.55 : 1);
       if (d.gopher && this.boostT > 0 && this.speed > 4) { if (Math.random() < 0.6) FX.sparks(this.x - Math.cos(this.ang) * 0.8, this.y - Math.sin(this.ang) * 0.8, 1, this.ang + Math.PI); this.wheelie = Math.min(1, (this.wheelie || 0) + dt * 4); } else this.wheelie = Math.max(0, (this.wheelie || 0) - dt * 3);
-      if (d.bike && sandy && this.speed > 1) this.av += Math.sin(performance.now() / 90 + this.id) * dt * 6;
+      if (d.bike && !d.offroad && sandy && this.speed > 1) this.av += Math.sin(performance.now() / 90 + this.id) * dt * 6;
       if (this.flat && this.speed > 2) { this.av += (this.id % 2 ? 1 : -1) * dt * 0.5; if (surf.grip > 0.9 && Math.random() < 0.25) FX.sparks(this.x - Math.cos(this.ang) * d.L / 2, this.y - Math.sin(this.ang) * d.L / 2, 1); }
       // engine and brakes: punchy off the line, strong brakes
       if (thr > 0 || (d.gopher && this.boostT > 0 && this.driver === 'player' && !(brk > 0))) { if (vF < maxV) vF += d.accel * (thr || 1) * (this.boostT > 0 ? 1.8 : 1) * dt * (1 - Math.max(0, vF) / maxV * 0.8); }
       if (brk > 0) { if (vF > 0.3) vF -= d.brake * brk * dt; else if (!dead && vF > -maxV * 0.3) vF -= d.accel * 0.5 * brk * dt; }
       // rolling drag + surface drag (light on bitumen so the speed holds)
-      vF -= vF * (0.04 + surf.drag * (d.gopher ? 0.3 : 0.5)) * dt;
+      vF -= vF * (0.04 + surf.drag * (d.gopher ? 0.3 : d.offroad ? 0.12 : 0.5)) * dt; /* Round B hook: offroad */
       if (!thr && !brk) vF -= Math.sign(vF) * Math.min(Math.abs(vF), 1.6 * dt);
       if (hb) vF -= Math.sign(vF) * Math.min(Math.abs(vF), (thr > 0 ? 2.5 : 8) * dt);
       // the handbrake kicks the tail out; grip comes back gradually, so a drift can be held with throttle and countersteer
@@ -213,6 +214,7 @@
     }
     draw(ctx, left, top, S, night) {
       if (this.removed) return;
+      if (this.drawHook && this.drawHook(ctx, left, top, S, night)) return; // Round B hook: a bike mid-trick (sports.js)
       const sx = (this.x - left) * S, sy = (this.y - top) * S;
       if (this.def.heli) {
         // the higher it flies, the further the shadow falls and the bigger it looks
@@ -343,6 +345,7 @@
     for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
       const a = list[i], b = list[j]; if (a.removed || b.removed || a.sinking || b.sinking || a.scripted || b.scripted || a.z > 0.6 || b.z > 0.6) continue;
       if (a.rail && b.rail) continue;
+      if ((a.rail && b.boat) || (b.rail && a.boat)) continue; // Round B hook: boats slip under the causeway, past the tram
       const rr = (a.rail ? 40 : a.radius + 13) + (b.rail ? 40 : b.radius + 13);
       if (Math.abs(a.x - b.x) > rr || Math.abs(a.y - b.y) > rr) continue;
       let worst = null;

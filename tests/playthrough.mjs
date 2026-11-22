@@ -6,7 +6,7 @@
 // If the bot needs to know something the screen doesn't show, that's a missing prompt: fix the game, not the bot.
 // The exceptions are labelled: mayhem-ramp and merv-gentle are engine checks that set the meter directly.
 //
-//   cd game && python3 -m http.server 8765 &
+//   cd game && python3 -m http.server 4433 &
 //   node tests/playthrough.mjs                  # every night of every character
 //   node tests/playthrough.mjs cop:2 grump:1     # just those nights
 //   node tests/playthrough.mjs scenario:escort-foot   # one of the scenarios at the bottom
@@ -15,7 +15,9 @@
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
-const BASE = process.env.BASE || 'http://localhost:8765/index.html';
+// Round B: Jaz's fireworks night is played by the sailing bot (roundb.cjs, bot.cjs, playwright-core), loaded only when asked for
+const RB = { NIGHTS: { schoolie: { 4: 4 } }, has: (c, n) => !!(RB.NIGHTS[c] || {})[n], count: c => Math.max(0, ...Object.keys(RB.NIGHTS[c] || {}).map(Number)), jobs: (c, n) => RB.NIGHTS[c][n], playNight: (...a) => require('./roundb.cjs').playNight(...a) };
+const BASE = process.env.BASE || 'http://localhost:4433/index.html';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const TICK = 70;
 
@@ -226,6 +228,7 @@ async function escortOr(bot, s, otherwise) {
 
 // ---------- one run: play a character's night through to its end card ----------
 async function playNight(char, night, opts = {}) {
+  if (RB.has(char, night)) return RB.playNight(char, night, opts); // (Round B hook)
   const browser = await chromium.launch(); const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   const errors = []; page.on('pageerror', e => errors.push(e.message)); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
   await page.goto(`${BASE}?play=${char}&night=${night}&hour=19.5${opts.job != null ? '&job=' + opts.job : ''}`); await page.waitForFunction(() => window.__ready === true, null, { timeout: 60000 });
@@ -490,12 +493,12 @@ async function runScenario(name) {
   return r;
 }
 
-const all = { schoolie: 3, grump: 3, cop: 3 };
+const all = { schoolie: 3, grump: 3, cop: 3 }; for (const c of Object.keys(all)) all[c] = Math.max(all[c], RB.count(c)); // (Round B hook: Jaz's fourth night)
 const args = process.argv.slice(2);
 const scenarios = args.filter(a => a.startsWith('scenario:')).map(a => a.slice(9)).flatMap(n => n === 'all' ? Object.keys(SCEN) : [n]);
 const want = args.filter(a => !a.startsWith('scenario:'));
 // char:night plays the night through; char:night:job plays one job on its own; 'jobs' plays every job of every night on its own
-const JOBS = { schoolie: [2, 2, 2], grump: [2, 2, 1], cop: [2, 3, 2] };
+const JOBS = { schoolie: [2, 2, 2], grump: [2, 2, 1], cop: [2, 3, 2] }; for (const c of Object.keys(JOBS)) for (let n = JOBS[c].length + 1; n <= RB.count(c); n++) JOBS[c][n - 1] = RB.has(c, n) ? RB.jobs(c, n) : 0; // (Round B hook)
 const runs = want.includes('jobs') ? Object.entries(JOBS).flatMap(([c, ns]) => ns.flatMap((k, i) => Array.from({ length: k }, (_, j) => [c, i + 1, j]))) : want.length ? want.map(a => a.split(':')).map(([c, n, j]) => [c, +n, j == null ? null : +j - 1]) : scenarios.length ? [] : Object.entries(all).flatMap(([c, n]) => Array.from({ length: n }, (_, i) => [c, i + 1]));
 let bad = 0; const rows = [];
 for (const name of scenarios) { const t0 = Date.now(); const r = await runScenario(name); rows.push(`scenario | ${name} | ${r.ok ? 'PASS' : 'FAIL'} | ${Math.round((Date.now() - t0) / 1000)}s | ${r.note}`); console.log(rows[rows.length - 1]); if (!r.ok) bad++; }

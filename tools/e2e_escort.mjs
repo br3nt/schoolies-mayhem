@@ -3,12 +3,12 @@
 //   2. cuff, E at the police car's rear door, drive to the station, E to take them out, E at the desk
 //   3. cuff, lose the police car, radio for a spare (B), then as 2
 // Needs Playwright (npm i -D playwright, or NODE_PATH pointing at an install) and the game served on a port:
-//   cd game && python3 -m http.server 8765 &   node tools/e2e_escort.mjs [http://localhost:8765/index.html]
+//   cd game && python3 -m http.server 4433 &   node tools/e2e_escort.mjs [http://localhost:4433/index.html]
 // Exits non-zero if any path doesn't finish the job, or the page logs an error.
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
-const BASE = process.argv[2] || 'http://localhost:8765/index.html';
+const BASE = process.argv[2] || 'http://localhost:4433/index.html';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 async function run(name, steps) {

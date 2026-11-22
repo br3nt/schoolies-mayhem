@@ -15,9 +15,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
+import { RB_KINDS, RB_WATER, bakeRoundB } from './bake_slots_rb.mjs'; // Round B: water and sports kinds
 
 export const ACCESS = { foot: 1, gopher: 2, car: 4, boat: 8, main: 16 };
-export const KINDS = ['door', 'frontyard', 'backyard', 'kerb', 'carpark', 'footpath', 'beach', 'jetty_end', 'park_open', 'shopfront', 'roof_access', 'mooring', 'open_water'];
+export const KINDS = ['door', 'frontyard', 'backyard', 'kerb', 'carpark', 'footpath', 'beach', 'jetty_end', 'park_open', 'shopfront', 'roof_access', 'mooring', 'open_water', ...RB_KINDS];
 
 // ---------- PNG (RGB, 8-bit) decoding, standard library only ----------
 function decodePng(buf) {
@@ -107,7 +108,7 @@ export function bakeSlots(map, dataDir, log = console.log) {
   // ---------- the check every slot must pass (also run, independently, over the finished table) ----------
   const FOOT_KINDS = new Set(['door', 'frontyard', 'backyard', 'footpath', 'beach', 'jetty_end', 'park_open', 'shopfront']);
   const CAR_KINDS = new Set(['kerb', 'carpark']);
-  const WATER_KINDS = new Set(['mooring', 'open_water']);
+  const WATER_KINDS = new Set(['mooring', 'open_water', ...RB_WATER]);
   function check(kind, x, y, r, acc) {
     const k = cellOf(x, y); if (k < 0) return 'outside the world';
     if (WATER_KINDS.has(kind)) {
@@ -241,6 +242,8 @@ export function bakeSlots(map, dataDir, log = console.log) {
     if (!check('open_water', x, y, 12, ACCESS.boat)) add('open_water', x, y, 0, 12, ACCESS.boat); else rej.open_water++;
   }
   // roof_access: none (nothing is ever placed on a roof)
+  // Round B: ramps, the skate park, courts, bowls, the scrub jumps, fireworks sites and stashes, the water race (bake_slots_rb.mjs)
+  bakeRoundB({ map, dataDir, slots, add, check, clearance, cellOf, ground, seaD, GC, CELL, GW, GH, ACCESS, inBuilding, waterOk, waterNet, footNet, driveNet, nearestEdge, log });
 
   // ---------- the final, independent pass: every slot in the table must pass, or the build fails ----------
   const bad = [];
