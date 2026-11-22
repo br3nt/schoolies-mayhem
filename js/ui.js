@@ -426,7 +426,7 @@
     const jobsOf = k => (M().STORY[k] || []).map((n, i) => `${i + 1}: ` + n.map(j => j.title).join(' · '));
     const L = 9 * ts; const titleY = 8 * ts; const footY = h - 12 * ts;
     const premise = fitLines(PREMISE, w - 16 * ts, ts);
-    const top0 = titleY + 18 * ts + premise.length * L + 3 * ts, avail = footY - 6 * ts - top0;
+    const top0 = titleY + 23 * ts + premise.length * L + 3 * ts, avail = footY - 6 * ts - top0;
     const cols = w >= 420 * ts;
     if (cols) {
       const cw = Math.min(175 * ts, (w - 28 * ts) / 3); const n = Math.floor((cw - 12 * ts) / (6 * ts));
@@ -468,8 +468,9 @@
         y += rh + 4 * ts;
       });
     }
-    T(ctx, 'PICK YOUR PLAYER', w / 2, titleY, { align: 'center', color: C.hi, scale: ts * 2 });
-    premise.forEach((l, i) => T(ctx, l, w / 2, titleY + 18 * ts + i * L, { align: 'center', color: C.teal, scale: ts }));
+    const pickSc = U.textWidth('PICK YOUR PLAYER', ts * 2) <= w - 16 * ts ? ts * 2 : Math.max(ts, Math.floor(ts * 1.5));
+    T(ctx, 'PICK YOUR PLAYER', w / 2, titleY, { align: 'center', color: C.hi, scale: pickSc });
+    premise.forEach((l, i) => T(ctx, l, w / 2, titleY + 23 * ts + i * L, { align: 'center', color: C.teal, scale: ts }));
     const ti = tappedIndex(rects);
     if (ti >= 0 && ti === UI.selIdx || confirm()) { sfx('menu'); g.beginRun(keys[UI.selIdx]); }
     else if (ti >= 0) { UI.selIdx = ti; sfx('click'); }
