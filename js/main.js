@@ -82,6 +82,7 @@
     if (frame.lastW !== innerWidth || frame.lastH !== innerHeight) { frame.lastW = innerWidth; frame.lastH = innerHeight; resize(); }
     const st = Game.state; I.inStep = false;
     if (layoutCheck) U.layoutLog = { text: [], panels: [] };
+    UI.backdrops.length = 0;
     // the touch buttons belong to the HUD: on any other screen (the map, the pause menu, the controls) a finger where
     // one was drawn is just a finger, so it pans, pinches or taps that screen instead of pressing MAP or PAUSE
     if (st !== 'play' && st !== 'chat') { if (I.buttons.length) I.setButtons([]); I.stickZone = 0; }
@@ -135,6 +136,8 @@
     if (layoutCheck) { window.__layout = { state: Game.state, W: bb.width, H: bb.height, ...U.layoutLog }; U.layoutLog = null; } // what the HUD drew this frame, for tests/mobile.mjs
     ctx.imageSmoothingEnabled = false;
     if (st !== 'loading' && wb) ctx.drawImage(wb, 0, 0, wb.width * lastWs, wb.height * lastWs);
+    // full-screen backdrops go on the whole canvas, edge to edge; the UI layer (inset by the safe area) goes on top
+    for (const f of UI.backdrops) { if (typeof f === 'string') { ctx.fillStyle = f; ctx.fillRect(0, 0, cw, ch); } else f(ctx, cw, ch, y => insT + y * scale); }
     ctx.drawImage(bb, insL, insT, bb.width * scale, bb.height * scale);
     // a press waits in the step store until a simulation step has seen it, and in the frame store for one frame;
     // screens without steps, and a change of screen, drop both

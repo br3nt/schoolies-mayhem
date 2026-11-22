@@ -234,6 +234,32 @@ const CHECKS = {
     }
   },
   // help on a touch device names the touch buttons, not keys or "thumb"
+  // full-screen backdrops (the title's gradient, the pause dim, the map) reach the screen edges, even where the HUD is
+  // inset (a notch, or the margin a framed build keeps): the band outside the inset is as dim as just inside it
+  async backdrop(ph) {
+    if (ph.id !== 'iphone-port' && ph.id !== 'iphone-notch') return; // one framed phone, one with a notch
+    const extra = ph.id === 'iphone-port' ? 'framed' : '';
+    const ratio = s => s.ev(() => {
+      const c = document.getElementById('game'), x = c.getContext('2d'), io = VH.UI.inset; const lum = (px, py) => { const d = x.getImageData(px, py, 1, 1).data; return 0.3 * d[0] + 0.59 * d[1] + 0.11 * d[2] + 1; };
+      const edge = io.l > 4 ? 'l' : 't'; const out = [], inn = [];
+      // pairs of pixels 3 px either side of the inset line: the world under them is all but the same, so any step in
+      // brightness is a backdrop that stops at the inset (sampled away from the middle, where menus and text sit)
+      for (let k = 0; k < 24; k++) { const f = k < 12 ? 0.03 + k * 0.012 : 0.83 + (k - 12) * 0.012;
+        if (edge === 'l') { const y = Math.round(c.height * f); out.push(lum(io.l - 3, y)); inn.push(lum(io.l + 3, y)); }
+        else { const xx = Math.round(c.width * f); out.push(lum(xx, io.t - 3)); inn.push(lum(xx, io.t + 3)); }
+      }
+      const med = a => a.sort((p, q) => p - q)[a.length >> 1]; return { r: med(out.map((o, i) => o / inn[i])), edge, inset: io.l || io.t };
+    });
+    const T = ph.id + ' backdrop' + (extra ? ' (framed)' : ' (inset)');
+    for (const scr of ['title', 'pause', 'map']) {
+      const s = scr === 'title' ? await phone(ph, extra) : await play(ph, 'schoolie', extra);
+      try {
+        if (scr === 'pause') await s.tapRect(await s.button('pause')); if (scr === 'map') await s.tapRect(await s.button('map'));
+        await sleep(300); const r = await ratio(s); await s.shot('backdrop-' + scr + (extra ? '-framed' : ''));
+        check(`${T}: the ${scr} screen's dim reaches the screen edge`, (await s.state()) === scr && r.inset > 0 && r.r < 1.3, `${await s.state()}, edge/inside brightness ${r.r.toFixed(2)} (${r.edge} inset ${r.inset})`);
+      } finally { await s.close(); }
+    }
+  },
   async 'help-names'(ph) {
     for (const char of ['schoolie', 'cop']) await helpNames(ph, char);
   },

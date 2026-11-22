@@ -16,6 +16,12 @@
     if (opts.accent) { ctx.fillStyle = opts.accent; ctx.fillRect(x, y, w, 2); }
   }
   UI.panel = panel;
+  // a full-screen backdrop (a dim, a gradient, letterbox bars): painted by main.js on the whole canvas under the UI
+  // layer, so it reaches the screen edges even where the HUD is inset (a notch, a framed build's margin). A colour, or
+  // fn(ctx, W, H, y) painting in canvas pixels, where y(n) turns a UI-layer y into a canvas y.
+  UI.backdrops = [];
+  const backdrop = (ctx, fill) => { if (ctx.canvas.__ui) UI.backdrops.push(fill); else if (typeof fill === 'string') { ctx.fillStyle = fill; ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height); } else fill(ctx, ctx.canvas.width, ctx.canvas.height, n => n); };
+  UI.backdrop = backdrop;
   const T = (ctx, s, x, y, o) => U.text(ctx, s, x, y, o);
   // cut text to fit a width (ending in a full stop when it had to be cut)
   const fit = (s, maxW, sc) => { s = String(s); if (U.textWidth(s, sc) <= maxW) return s; const n = Math.max(1, Math.floor((maxW + sc) / (6 * sc)) - 1); return s.slice(0, n).replace(/[ ·:,]+$/, '') + '.'; };
@@ -385,7 +391,7 @@
   };
   UI.fullMap = function (ctx, ts) {
     const g = G(), pl = g.player, w = ctx.canvas.width, h = ctx.canvas.height; const ov = R.overview; const sc = R.overviewScale; const S = UI.search;
-    ctx.fillStyle = 'rgba(10,8,24,0.85)'; ctx.fillRect(0, 0, w, h);
+    backdrop(ctx, 'rgba(10,8,24,0.85)');
     // zoom (wheel, +/-, pinch) and pan (arrows / WASD / drag) the full map; 0 recentres
     const mz = UI.mapZ || (UI.mapZ = { z: 1, cx: pl.x, cy: pl.y });
     if (!S.focus) { if (I.consume('zoomIn')) mz.z = Math.min(8, mz.z * 1.5); if (I.consume('zoomOut')) mz.z = Math.max(1, mz.z / 1.5); if (I.consume('zoomReset')) { mz.z = 1; mz.cx = pl.x; mz.cy = pl.y; } }
@@ -610,7 +616,7 @@
   UI.menuLinks = () => UI.CREDITS.links.filter(l => l.url && (l.where || []).includes('menu'));
   UI.openLink = l => { try { window.open(l.url, '_blank', 'noopener'); } catch (e) { /* a sandboxed frame may refuse */ } };
   UI.credits = function (ctx, ts) {
-    const w = ctx.canvas.width, h = ctx.canvas.height, g = G(); ctx.fillStyle = 'rgba(18,12,36,0.94)'; ctx.fillRect(0, 0, w, h);
+    const w = ctx.canvas.width, h = ctx.canvas.height, g = G(); backdrop(ctx, 'rgba(18,12,36,0.94)');
     T(ctx, 'CREDITS', w / 2, 8 * ts, { align: 'center', color: C.hi, scale: ts * 2 });
     const n = Math.max(12, Math.floor((w - 16 * ts) / (6 * ts))), C0 = UI.CREDITS;
     const rows = [];
@@ -655,7 +661,7 @@
   };
   UI.title = function (ctx, ts) {
     const w = ctx.canvas.width, h = ctx.canvas.height; const g = G(); const t = g.t;
-    const grad = ctx.createLinearGradient(0, 0, 0, h); grad.addColorStop(0, 'rgba(18,12,36,0.75)'); grad.addColorStop(0.5, 'rgba(18,12,36,0.25)'); grad.addColorStop(1, 'rgba(18,12,36,0.8)'); ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
+    backdrop(ctx, (c, W, H) => { const grad = c.createLinearGradient(0, 0, 0, H); grad.addColorStop(0, 'rgba(18,12,36,0.75)'); grad.addColorStop(0.5, 'rgba(18,12,36,0.25)'); grad.addColorStop(1, 'rgba(18,12,36,0.8)'); c.fillStyle = grad; c.fillRect(0, 0, W, H); });
     const s = Math.max(2, Math.floor(Math.min(w / 100, h / 60)));
     const ly = Math.round(h * 0.07);
     logo(ctx, w / 2, ly, s, t);
@@ -683,7 +689,7 @@
   };
   // the controls card (title screen and pause menu): every section, two columns when there's room
   UI.help = function (ctx, ts) {
-    const w = ctx.canvas.width, h = ctx.canvas.height; ctx.fillStyle = 'rgba(18,12,36,0.9)'; ctx.fillRect(0, 0, w, h);
+    const w = ctx.canvas.width, h = ctx.canvas.height; backdrop(ctx, 'rgba(18,12,36,0.9)');
     T(ctx, 'CONTROLS', w / 2, 8 * ts, { align: 'center', color: C.hi, scale: ts * 2 });
     const all = [CONTROLS.foot, CONTROLS.car, CONTROLS.rail, CONTROLS.heli, CONTROLS.kev, CONTROLS.evade, CONTROLS.any, CONTROLS.icons];
     const two = w >= 420 * ts; const colW = two ? Math.min(250 * ts, (w - 30 * ts) / 2) : Math.min(w - 16 * ts, 300 * ts);
@@ -718,7 +724,7 @@
   }
   UI.select = function (ctx, ts) {
     const w = ctx.canvas.width, h = ctx.canvas.height; const g = G();
-    ctx.fillStyle = 'rgba(18,12,36,0.72)'; ctx.fillRect(0, 0, w, h);
+    backdrop(ctx, 'rgba(18,12,36,0.72)');
     const keys = ['schoolie', 'grump', 'cop'];
     if (I.consume('left') || I.consume('up')) { UI.selIdx = (UI.selIdx + 2) % 3; sfx('click'); } if (I.consume('right') || I.consume('down')) { UI.selIdx = (UI.selIdx + 1) % 3; sfx('click'); }
     const rects = []; const wins = Object.fromEntries(keys.map(k => [k, M().allDone(k)]));
@@ -787,7 +793,7 @@
   UI.week = function (ctx, ts) {
     if (UI.weekPick) { const k0 = UI.weekChar || 'schoolie'; return UI.weekNightMenu(ctx, ts, k0); }
     const w = ctx.canvas.width, h = ctx.canvas.height; const g = G(), m = M(); const k = UI.weekChar || 'schoolie'; const c = g.CHARS[k];
-    ctx.fillStyle = 'rgba(18,12,36,0.8)'; ctx.fillRect(0, 0, w, h);
+    backdrop(ctx, 'rgba(18,12,36,0.8)');
     const items = [...m.nights(k).map((nt, i) => ({ n: i + 1, nt })), { roam: true }]; const N = items.length;
     UI.weekIdx = U.clamp(UI.weekIdx || 0, 0, N - 1);
     if (I.consume('left') || I.consume('up')) { UI.weekIdx = (UI.weekIdx + N - 1) % N; sfx('click'); }
@@ -861,7 +867,7 @@
     const g = G(), m = M(), n = UI.weekPick, nt = m.nightOf(k, n); const w = ctx.canvas.width, h = ctx.canvas.height; const at = m.resumeAt(k, n);
     const opts = [...(at > 0 ? [{ lab: `CARRY ON: JOB ${at + 1}, ${nt.jobs[at].title}`, go: () => g.playNight(k, n) }] : []), { lab: 'THE WHOLE NIGHT FROM THE START', go: () => g.playNight(k, n, { fromStart: true }) },
       ...nt.jobs.map((j, ji) => ({ j, ji })).filter(o => m.jobDone(k, n, o.ji)).map(o => ({ lab: 'REPLAY JUST ' + o.j.title, go: () => g.playNight(k, n, { only: o.ji }) })), { lab: 'BACK', go: () => { UI.weekPick = null; } }];
-    ctx.fillStyle = 'rgba(18,12,36,0.86)'; ctx.fillRect(0, 0, w, h); const tsz = Math.min(ts * 2, Math.max(ts, Math.floor((w - 10) / ((`NIGHT ${n}: ${m.dayName(n, k)}`).length * 6))));
+    backdrop(ctx, 'rgba(18,12,36,0.86)'); const tsz = Math.min(ts * 2, Math.max(ts, Math.floor((w - 10) / ((`NIGHT ${n}: ${m.dayName(n, k)}`).length * 6))));
     T(ctx, `NIGHT ${n}: ${m.dayName(n, k)}`, w / 2, h * 0.16, { align: 'center', color: C.hi, scale: tsz });
     const labs = opts.map(o => UI.fit(o.lab, w - 30 * ts, ts * 2) === o.lab ? o.lab : UI.fit(o.lab, w - 30 * ts, ts * 2));
     UI.endIdx = Math.min(UI.endIdx || 0, opts.length - 1); navigate(opts.length, 'endIdx');
@@ -872,7 +878,7 @@
   // the phone-style job brief
   UI.brief = function (ctx, ts) {
     const w = ctx.canvas.width, h = ctx.canvas.height; const g = G(); const j = M().job;
-    ctx.fillStyle = 'rgba(18,12,36,0.55)'; ctx.fillRect(0, 0, w, h);
+    backdrop(ctx, 'rgba(18,12,36,0.55)');
     const pw = Math.min(w - 16 * ts, 230 * ts);
     const txt = j ? (I.touchMode ? j.brief.replace(/SPACE/g, 'ACT').replace(/\(H\)/g, '(HORN)').replace(/SHIFT/g, 'BOOST') : j.brief) : '';
     const lines = j ? U.wrap(txt, Math.floor((pw - 24 * ts) / (6 * ts))) : [];
@@ -903,7 +909,7 @@
   };
   UI.pause = function (ctx, ts) {
     const w = ctx.canvas.width, h = ctx.canvas.height; const g = G();
-    ctx.fillStyle = 'rgba(18,12,36,0.7)'; ctx.fillRect(0, 0, w, h);
+    backdrop(ctx, 'rgba(18,12,36,0.7)');
     const resume = () => { g.state = 'play'; g.autoPaused = false; UI.pauseAsk = null; };
     // paused because the game lost focus (another tab, a click outside the frame): any click or tap carries on
     if (g.autoPaused) {
@@ -939,7 +945,7 @@
     }
   };
   function card(ctx, ts, title, col, lines, foot) {
-    const w = ctx.canvas.width, h = ctx.canvas.height; ctx.fillStyle = 'rgba(18,12,36,0.78)'; ctx.fillRect(0, 0, w, h);
+    const w = ctx.canvas.width, h = ctx.canvas.height; backdrop(ctx, 'rgba(18,12,36,0.78)');
     const tsz = Math.max(ts * 2, Math.min(ts * 3, Math.floor((w - 10) / (title.length * 6))));
     T(ctx, title, w / 2, h * 0.16, { align: 'center', color: col, scale: tsz });
     lines.forEach((l, i) => T(ctx, l, w / 2, h * 0.16 + 32 * ts + i * 11 * ts, { align: 'center', color: i === 0 ? C.white : C.dim, scale: ts }));
@@ -950,8 +956,8 @@
   // in the back of the paddy wagon: letterbox bars, a caption, and a skip
   UI.ride = function (ctx, ts) {
     const w = ctx.canvas.width, h = ctx.canvas.height; const r = VH.Lockup.ride; if (!r) return;
-    const bar = Math.round(h * 0.11); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, bar); ctx.fillRect(0, h - bar, w, bar);
-    if (r.fade > 0) { ctx.fillStyle = `rgba(0,0,0,${r.fade})`; ctx.fillRect(0, bar, w, h - bar * 2); }
+    const bar = Math.round(h * 0.11);
+    backdrop(ctx, (c, W, H, y) => { c.fillStyle = '#000'; c.fillRect(0, 0, W, y(bar)); c.fillRect(0, y(h - bar), W, H - y(h - bar)); if (r.fade > 0) { c.fillStyle = `rgba(0,0,0,${r.fade})`; c.fillRect(0, y(bar), W, y(h - bar) - y(bar)); } });
     if (r.phase === 'load') { const s = Math.max(ts * 3, Math.min(ts * 5, Math.floor(w / 60))); T(ctx, 'BUSTED!', w / 2, h * 0.38, { align: 'center', color: '#ff6a5a', scale: s }); T(ctx, 'INTO THE BACK OF THE PADDY WAGON WITH YOU', w / 2, h * 0.38 + 10 * s, { align: 'center', color: C.white, scale: ts }); }
     T(ctx, r.phase === 'arrive' ? 'WELCOME TO ' + VH.Lockup.NAME : 'OFF UP THE HILL TO ' + VH.Lockup.NAME + '...', w / 2, Math.round(bar / 2 - 3 * ts), { align: 'center', color: C.hi, scale: ts });
     T(ctx, I.touchMode ? 'TAP TO SKIP' : 'ENTER: SKIP', w - 6 * ts, h - bar / 2 - 3 * ts, { align: 'right', color: C.dim, scale: ts });
@@ -1006,7 +1012,7 @@
     if (pick === 0) { UI.endIdx = 0; M().restartJob(); } else if (pick === 1) { UI.endIdx = 0; M().restartNight(); } else if (pick === 2) { UI.endIdx = 0; g.state = 'play'; g.toast("FREE PLAY. PAUSE MENU: RESTART JOB OR RESTART NIGHT WHEN YOU'RE READY", '#9fd4ec'); }
   };
   UI.loading = function (ctx, ts, p, msg) {
-    const w = ctx.canvas.width, h = ctx.canvas.height; ctx.fillStyle = '#120c24'; ctx.fillRect(0, 0, w, h);
+    const w = ctx.canvas.width, h = ctx.canvas.height; backdrop(ctx, '#120c24');
     logo(ctx, w / 2, h * 0.2, Math.max(2, Math.floor(Math.min(w / 100, h / 60))), performance.now() / 1000);
     const bw = Math.min(w - 40, 200 * ts); panel(ctx, w / 2 - bw / 2, h * 0.68, bw, 10 * ts); ctx.fillStyle = C.pink; ctx.fillRect(w / 2 - bw / 2 + 2, h * 0.68 + 2, (bw - 4) * p, 10 * ts - 4);
     T(ctx, (msg || '').toUpperCase(), w / 2, h * 0.68 + 16 * ts, { align: 'center', color: C.dim, scale: ts });
