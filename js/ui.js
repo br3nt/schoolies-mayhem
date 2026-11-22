@@ -637,25 +637,29 @@
   }
   // a vertical menu; on a short or narrow screen it drops to the small font and moves up so every item fits above the
   // footer line
+  // menu rows drawn greyed with a padlock (set just before a menuList call, cleared by it)
+  let menuLocked = null;
+  function lockMark(ctx, str, x, yy, s, col) { glyph(ctx, PADLOCK, x + Math.round(U.textWidth(str, s) / 2) + 3 * s, yy, s, col); }
   function menuList(ctx, items, x, y, ts, idx, minY = 4 * ts, foot = 14 * ts) {
-    const taps = []; const W = ctx.canvas.width, H = ctx.canvas.height;
+    const locked = menuLocked || []; menuLocked = null; const taps = []; const W = ctx.canvas.width, H = ctx.canvas.height;
     let s = ts * 2, row = 18 * ts;
     const widest = Math.max(...items.map(it => U.textWidth('> ' + it + ' <', ts * 2)));
     if (y + items.length * row > H - foot || widest > W - 8 * ts) { s = ts; row = 12 * ts; }
-    if (I.touchMode) return touchMenu(ctx, items, x, y, ts, idx, minY, foot, s, row);
+    if (I.touchMode) return touchMenu(ctx, items, x, y, ts, idx, minY, foot, s, row, locked);
     if (y + items.length * row > H - foot) y = Math.max(minY, H - foot - items.length * row);
     if (y + items.length * row > H - foot) row = Math.max(9 * ts, (H - foot - y) / items.length); // squeeze the rows a little rather than run off the screen
     items.forEach((it, i) => {
-      const sel = i === idx; const yy = y + i * row; const wdt = U.textWidth(it, s) + 16 * ts;
-      if (sel) { panel(ctx, x - wdt / 2, yy - (s > ts ? 4 : 2) * ts, wdt, row + (s > ts ? 4 : 1) * ts, { fill: 'rgba(255,79,160,0.25)', edge: C.pink }); }
-      T(ctx, (sel ? '> ' : '') + it + (sel ? ' <' : ''), x, yy, { align: 'center', color: sel ? C.hi : C.white, scale: s });
-      taps.push({ x: x - wdt / 2, y: yy - (s > ts ? 4 : 2) * ts, w: wdt, h: row });
+      const sel = i === idx; const yy = y + i * row; const lk = locked.includes(it); const wdt = U.textWidth(it, s) + 16 * ts + (lk ? 8 * s : 0);
+      if (sel) { panel(ctx, x - wdt / 2 + (lk ? 4 * s : 0), yy - (s > ts ? 4 : 2) * ts, wdt, row + (s > ts ? 4 : 1) * ts, { fill: 'rgba(255,79,160,0.25)', edge: C.pink }); }
+      const str = (sel ? '> ' : '') + it + (sel ? ' <' : ''); const col = lk ? (sel ? '#c9a0d8' : '#8a7fae') : sel ? C.hi : C.white;
+      T(ctx, str, x, yy, { align: 'center', color: col, scale: s }); if (lk) lockMark(ctx, str, x, yy, s, col);
+      taps.push({ x: x - wdt / 2 + (lk ? 4 * s : 0), y: yy - (s > ts ? 4 : 2) * ts, w: wdt, h: row });
     });
     UI.lastMenu = { items, rects: taps }; // read by tests/mobile.mjs
     return taps;
   }
   // the same menu for fingers: every row at least 46 CSS px tall, and when they won't all fit under the heading, columns
-  function touchMenu(ctx, items, x, y, ts, idx, minY, foot, s, row) {
+  function touchMenu(ctx, items, x, y, ts, idx, minY, foot, s, row, locked = []) {
     const W = ctx.canvas.width, H = ctx.canvas.height, n = items.length; const io = UI.inset || { dpr: 1, scale: 1 };
     row = Math.max(row, Math.ceil(46 * io.dpr / io.scale));
     if (y + n * row > H - foot) y = Math.max(minY, H - foot - n * row);
@@ -669,7 +673,8 @@
       if (lines.length > 2) lines = [lines[0], fit(lines.slice(1).join(' '), colW - 8 * ts, s)];
       if (sel) panel(ctx, cell.x + ts, cell.y + ts, cell.w - 2 * ts, cell.h - 2 * ts, { fill: 'rgba(255,79,160,0.25)', edge: C.pink });
       const lh = 9 * s / ts * ts, ty = cell.y + Math.round((row - (lines.length * lh - 2 * s)) / 2);
-      lines.forEach((l, j) => T(ctx, l, cell.x + cell.w / 2, ty + j * lh, { align: 'center', color: sel ? C.hi : C.white, scale: s }));
+      const lk = locked.includes(it), col = lk ? (sel ? '#c9a0d8' : '#8a7fae') : sel ? C.hi : C.white;
+      lines.forEach((l, j) => { T(ctx, l, cell.x + cell.w / 2, ty + j * lh, { align: 'center', color: col, scale: s }); if (lk && j === lines.length - 1) lockMark(ctx, l, cell.x + cell.w / 2, ty + j * lh, s, col); });
       taps.push(cell);
     });
     UI.lastMenu = { items, rects: taps };
@@ -764,18 +769,34 @@
     UI.menuIdx = Math.min(UI.menuIdx, items.length - 1);
     navigate(items.length, 'menuIdx');
     const footH = footer(ctx, ts, [`(C) ${UI.CREDITS.year} ${UI.CREDITS.author} · MAP DATA (C) OPENSTREETMAP CONTRIBUTORS`, UI.CREDITS.footer]); // wrapped, so it fits a phone
+    const roamOk = M().roamUnlocked(); menuLocked = roamOk ? null : ['FREE ROAM'];
     const rects = menuList(ctx, items, w / 2, Math.max(ly + 20 * s + 22 * ts, h * 0.5), ts, UI.menuIdx, ly + 20 * s + 22 * ts, footH + 4 * ts);
     const ti = tappedIndex(rects); if (ti >= 0) UI.menuIdx = ti;
+    UI.roamPanel(ctx, ts, h - footH - 4 * ts, roamOk);
     if (ti >= 0 || confirm()) {
       sfx('menu'); const it = items[UI.menuIdx];
       if (it === 'NEW GAME' || it === 'PLAY') { g.state = 'select'; UI.selIdx = Math.max(0, ['schoolie', 'grump', 'cop'].indexOf(lc)); }
       else if (it.startsWith('CONTINUE')) { if (M().allDone(lc)) g.openWeek(lc); else g.playNight(lc, M().firstUnfinished(lc)); }
-      else if (it === 'FREE ROAM') g.beginRun('roam');
+      else if (it === 'FREE ROAM') { if (roamOk) g.beginRun('roam'); else { sfx('fail'); UI.roamNote = { t: 4 }; } }
       else if (it.startsWith('SOUND')) { SFX.setMuted(!SFX.isMuted()); U.store.set('muted', SFX.isMuted()); }
       else if (it === 'CONTROLS') { g.state = 'help'; }
       else if (it === 'CREDITS') { g.prevState = 'title'; g.state = 'credits'; UI.creditIdx = 0; UI.creditScroll = 0; }
       else { const l = UI.menuLinks().find(q => q.label === it); if (l) UI.openLink(l); }
     }
+  };
+  // the line about Free Roam at the foot of the title screen: what's still to do while it's locked (when Free Roam is
+  // picked), and a one-off "unlocked" note the first time the title shows with all three nights done
+  UI.roamPanel = function (ctx, ts, bottom, ok) {
+    const w = ctx.canvas.width, g = G(); const dt = g.frameDt || 0.016;
+    if (ok && !UI.roamSeen) { UI.roamSeen = true; if (!U.store.get('roamNoted', false)) { U.store.set('roamNoted', true); UI.roamNote = { t: 5, fresh: true }; sfx('win'); } }
+    const n = UI.roamNote; if (!n || n.t <= 0) return; n.t -= dt;
+    const needs = M().roamNeeds(); const lines = [];
+    if (ok) lines.push([{ s: 'FREE ROAM UNLOCKED', col: C.green }]);
+    else { U.wrap('FINISH A NIGHT AS JAZ, MERV AND KEV TO UNLOCK', Math.max(12, Math.floor((w - 24 * ts) / (6 * ts)))).forEach(l => lines.push([{ s: l, col: C.white }])); lines.push(needs.map(q => ({ s: q.name, col: q.done ? C.green : '#6a5f8e', tick: q.done }))); }
+    const gapW = 8 * ts, rowW = r => r.reduce((a, c) => a + U.textWidth(c.s, ts) + (c.tick != null ? 9 * ts : 0), 0) + (r.length - 1) * gapW;
+    const bw = Math.min(w - 8 * ts, Math.max(...lines.map(rowW)) + 16 * ts), bh = lines.length * 10 * ts + 8 * ts, bx = Math.round(w / 2 - bw / 2), by = Math.round(bottom - bh);
+    panel(ctx, bx, by, bw, bh, { accent: ok ? C.green : C.red, fill: 'rgba(28,18,48,0.96)' });
+    lines.forEach((r, i) => { let x = Math.round(w / 2 - rowW(r) / 2); const y = by + 5 * ts + i * 10 * ts; for (const c of r) { if (c.tick) glyph(ctx, TICK, x, y, ts, C.green); if (c.tick != null) x += 9 * ts; T(ctx, c.s, x, y, { color: c.col, scale: ts }); x += U.textWidth(c.s, ts) + gapW; } });
   };
   // the controls card (title screen and pause menu): every section, two columns when there's room
   UI.help = function (ctx, ts) {
@@ -896,7 +917,10 @@
     // what each card says, wrapped to a width
     const content = (it, chars) => {
       const out = []; const add = (s, col, extra = {}) => U.wrap(s, chars).forEach(l => out.push({ s: l, col, ...extra }));
-      if (it.roam) { add('FREE ROAM', C.hi); add('ALWAYS OPEN', C.green); add('NO JOBS, NO CLOCK. T CHANGES THE TIME OF DAY.', C.dim); return out; }
+      if (it.roam) {
+        if (m.roamUnlocked()) { add('FREE ROAM', C.hi); add('OPEN', C.green); add('NO JOBS, NO CLOCK. T CHANGES THE TIME OF DAY.', C.dim); return out; }
+        add('FREE ROAM', C.dim); out.push({ gap: 4 }); m.roamNeeds().forEach(q => out.push({ s: q.name, col: q.done ? C.green : '#6a5f8e', tick: q.done, ind: true })); out.push({ gap: 4 }); out.push({ lock: true }); add('FINISH NIGHT 1 AS JAZ, MERV AND KEV', '#8a7fae'); return out;
+      }
       const rec = m.record(k, it.n) || {}; const open = m.unlocked(k, it.n);
       add('NIGHT ' + it.n, open ? C.hi : C.dim); add(m.dayName(it.n, k) + (it.nt.title ? ': ' + it.nt.title : ''), open ? C.white : '#6a5f8e');
       out.push({ gap: 4 });
@@ -918,7 +942,7 @@
       const blocks = items.map(it => content(it, chars)); const ch = Math.min(avail, Math.max(...blocks.map(blockH)) + 16 * ts);
       const x0 = Math.round(w / 2 - (N * cw + (N - 1) * gap) / 2), y = Math.round(top0 + Math.max(0, (avail - ch) / 2));
       items.forEach((it, i) => {
-        const x = x0 + i * (cw + gap), sel = i === UI.weekIdx, open = it.roam || m.unlocked(k, it.n);
+        const x = x0 + i * (cw + gap), sel = i === UI.weekIdx, open = it.roam ? m.roamUnlocked() : m.unlocked(k, it.n);
         panel(ctx, x, y, cw, ch, { accent: sel ? C.pink : open ? C.teal : C.edge, edge: sel ? C.pink : C.edge, fill: sel ? 'rgba(40,20,70,0.95)' : open ? C.panel : 'rgba(28,24,40,0.9)' });
         ctx.save(); ctx.beginPath(); ctx.rect(x, y, cw, ch - 2); ctx.clip(); drawLines(blocks[i], x + 6 * ts, y + 8 * ts, cw); ctx.restore();
         rects.push({ x, y, w: cw, h: ch });
@@ -933,7 +957,7 @@
       const x = Math.round(w / 2 - rw / 2), y0 = Math.round(top0 + Math.max(0, (avail - total) / 2)) - sc;
       ctx.save(); ctx.beginPath(); ctx.rect(0, top0 - 2 * ts, w, avail + 4 * ts); ctx.clip();
       items.forEach((it, i) => {
-        const y = y0 + ys[i], rh = hs[i], sel = i === UI.weekIdx, open = it.roam || m.unlocked(k, it.n);
+        const y = y0 + ys[i], rh = hs[i], sel = i === UI.weekIdx, open = it.roam ? m.roamUnlocked() : m.unlocked(k, it.n);
         panel(ctx, x, y, rw, rh, { accent: sel ? C.pink : open ? C.teal : C.edge, edge: sel ? C.pink : C.edge, fill: sel ? 'rgba(40,20,70,0.95)' : open ? C.panel : 'rgba(28,24,40,0.9)' });
         drawLines(blocks[i], x + 7 * ts, y + 6 * ts, rw); rects.push({ x, y, w: rw, h: rh });
       });
@@ -947,7 +971,7 @@
     if (confirm()) go = true;
     if (go) {
       const it = items[UI.weekIdx];
-      if (it.roam) { sfx('menu'); g.beginRun('roam'); }
+      if (it.roam) { if (m.roamUnlocked()) { sfx('menu'); g.beginRun('roam'); } else { sfx('fail'); UI.weekMsg = { str: 'LOCKED: FINISH NIGHT 1 AS JAZ, MERV AND KEV', t: 2.5 }; } }
       else if (m.unlocked(k, it.n)) { sfx('menu'); const any = it.nt.jobs.some((j, ji) => m.jobDone(k, it.n, ji)); if (any) { UI.weekPick = it.n; UI.endIdx = 0; } else g.playNight(k, it.n); }
       else { sfx('fail'); UI.weekMsg = { str: 'LOCKED: FINISH NIGHT ' + (it.n - 1) + ' FIRST', t: 2 }; }
     }

@@ -603,6 +603,10 @@
   M.record = (char, n) => M.progress(char).nights[n] || null;
   M.unlocked = (char, n) => n <= 1 || !!(M.record(char, n - 1) || {}).done;
   M.firstUnfinished = char => { const k = M.nightCount(char); for (let n = 1; n <= k; n++) if (!(M.record(char, n) || {}).done) return n; return k; };
+  // Free Roam opens once night 1 has been finished as each of the three characters (their own week records, no separate flag)
+  M.ROAM_NEEDS = [['schoolie', 'JAZ'], ['grump', 'MERV'], ['cop', 'KEV']];
+  M.roamNeeds = () => M.ROAM_NEEDS.map(([c, name]) => ({ char: c, name, done: !!(M.record(c, 1) || {}).done }));
+  M.roamUnlocked = () => M.roamNeeds().every(n => n.done);
   M.allDone = char => { const k = M.nightCount(char); for (let n = 1; n <= k; n++) if (!(M.record(char, n) || {}).done) return false; return k > 0; };
   // saves from before the night select: save = { char, night, cash, upgrades } and wins = { char: true }
   M.migrateOld = function () {
