@@ -16,6 +16,11 @@
   }
   UI.panel = panel;
   const T = (ctx, s, x, y, o) => U.text(ctx, s, x, y, o);
+  // slogans (Brent, 22 Nov 2026): the title-screen tagline and the three-sides premise over the character select
+  const TAGLINE = "SCHOOLIES WEEK IN VICTOR HARBOR. NOBODY'S GETTING ANY SLEEP.";
+  const PREMISE = 'THE SCHOOLIES HAVE ARRIVED READY TO PARTY. THE LOCALS ARE FRUSTRATED. THE POLICE ARE ON HIGH ALERT.';
+  // one line if it fits the width, otherwise word-wrapped
+  const fitLines = (str, maxW, sc) => (U.textWidth(str, sc) <= maxW ? [str] : U.wrap(str, Math.max(8, Math.floor(maxW / (6 * sc)))));
 
   // curtain icon for the gossip meter
   function curtain(ctx, x, y, on, flash, s) {
@@ -352,7 +357,7 @@
     const s = Math.max(2, Math.floor(Math.min(w / 100, h / 60)));
     const ly = Math.round(h * 0.07);
     logo(ctx, w / 2, ly, s, t);
-    T(ctx, 'A VICTOR HARBOR SCHOOLIES WEEK CAPER', w / 2, ly + 20 * s, { align: 'center', color: C.teal, scale: ts });
+    fitLines(TAGLINE, w - 16 * ts, ts).forEach((l, i) => T(ctx, l, w / 2, ly + 20 * s + i * 10 * ts, { align: 'center', color: C.teal, scale: ts }));
     const save = U.store.get('save', null);
     const items = ['NEW GAME', ...(save ? ['CONTINUE NIGHT ' + save.night] : []), 'FREE ROAM', 'SOUND: ' + (window.SFX && SFX.isMuted() ? 'OFF' : 'ON'), 'CONTROLS'];
     UI.menuIdx = Math.min(UI.menuIdx, items.length - 1);
@@ -393,8 +398,8 @@
   // stacked rows otherwise, each row as tall as its wrapped text (with shorter blurbs when space is tight)
   const SEL = {
     schoolie: { plays: 'PLAYS LIKE: ON FOOT AND IN BORROWED CARS. STEALTH, STUNTS, MAYHEM.', veh: 'hatch', col: '#38e0c8', short: 'YEAR 12 IS DONE. BECOME A SCHOOLIES LEGEND.' },
-    grump: { plays: 'PLAYS LIKE: A MOBILITY SCOOTER (TURBO LATER). LETTERBOXES, SPEAKERS, A B-DOUBLE.', veh: 'gopher', col: '#c4372e', short: 'MERV, 81, ONE GOPHER. SHUT DOWN THE PARTY.' },
-    cop: { plays: 'PLAYS LIKE: POLICE CAR AND PADDY WAGON. SIREN, SPIKES, BACKUP. NO GUN.', veh: 'police', col: '#fff', short: 'SENIOR CONSTABLE KEV. HOUND THEM ALL EQUALLY.' },
+    grump: { plays: 'PLAYS LIKE: A MOBILITY SCOOTER (TURBO LATER). COMPLAINT-LETTER DROPS, SHUTTING DOWN DOOFS, PARKING A B-DOUBLE WHERE IT HURTS.', veh: 'gopher', col: '#c4372e', short: 'MERV, 81, ONE GOPHER. SHUT DOWN THE PARTY.' },
+    cop: { plays: 'PLAYS LIKE: POLICE CAR AND PADDY WAGON. SIREN, SPIKES, BACKUP, CUFFS.', veh: 'police', col: '#fff', short: 'SENIOR CONSTABLE KEV. HOUND THEM ALL EQUALLY.' },
   };
   function portrait(ctx, k, cx, cy, ps, t) {
     const c = VH.Shops.look(k); const spr = SP.person(c.shirt, c.hair, 1 + Math.floor(t * 5) % 4, { hat: c.hat, sunnies: c.sunnies });
@@ -411,7 +416,9 @@
     if (I.consume('left') || I.consume('up')) { UI.selIdx = (UI.selIdx + 2) % 3; sfx('click'); } if (I.consume('right') || I.consume('down')) { UI.selIdx = (UI.selIdx + 1) % 3; sfx('click'); }
     const rects = []; const wins = U.store.get('wins', {});
     const jobsOf = k => (M().STORY[k] || []).map((n, i) => `${i + 1}: ` + n.map(j => j.title).join(' · '));
-    const L = 9 * ts; const titleY = 8 * ts; const footY = h - 12 * ts; const top0 = titleY + 18 * ts, avail = footY - 6 * ts - top0;
+    const L = 9 * ts; const titleY = 8 * ts; const footY = h - 12 * ts;
+    const premise = fitLines(PREMISE, w - 16 * ts, ts);
+    const top0 = titleY + 18 * ts + premise.length * L + 3 * ts, avail = footY - 6 * ts - top0;
     const cols = w >= 420 * ts;
     if (cols) {
       const cw = Math.min(175 * ts, (w - 28 * ts) / 3); const n = Math.floor((cw - 12 * ts) / (6 * ts));
@@ -454,6 +461,7 @@
       });
     }
     T(ctx, 'PICK YOUR PLAYER', w / 2, titleY, { align: 'center', color: C.hi, scale: ts * 2 });
+    premise.forEach((l, i) => T(ctx, l, w / 2, titleY + 18 * ts + i * L, { align: 'center', color: C.teal, scale: ts }));
     const ti = tappedIndex(rects);
     if (ti >= 0 && ti === UI.selIdx || confirm()) { sfx('menu'); g.beginRun(keys[UI.selIdx]); }
     else if (ti >= 0) { UI.selIdx = ti; sfx('click'); }
