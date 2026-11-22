@@ -33,13 +33,18 @@
       e.preventDefault(); window.focus(); window.SFX && SFX.init(); canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId);
       if (e.pointerType === 'touch') I.touchMode = true;
       const [x, y] = toArt(e); const p = { x, y, sx: x, sy: y, btn: null, stick: false, t: performance.now() };
-      const b = I.buttons.find(b => x >= b.x && y >= b.y && x <= b.x + b.w && y <= b.y + b.h);
-      // a second finger down (neither on a button) starts a pinch instead of moving
+      // a touch that starts in the screen's edge zone (where the phone's own swipes live: the notification shade, the
+      // home bar, back) never presses a button; it can still drive the stick
+      const edge = e.pointerType === 'touch' && (e.clientX < I.EDGE || e.clientY < I.EDGE || innerWidth - e.clientX < I.EDGE || innerHeight - e.clientY < I.EDGE);
+      const b = edge ? null : I.hit(x, y);
+      // a second finger down (neither on a button) starts a pinch instead of moving, but only when both land together:
+      // a thumb already steering keeps steering, and a near miss beside a button doesn't stop the car
       const free = [...I.pointers.values()].filter(q => !q.btn);
-      if (!b && I.touchMode && free.length === 1) { const o = free[0]; if (o.stick) { I.stick.active = false; I.stick.mag = 0; o.stick = false; } I.pinch = { a: o, d0: Math.hypot(x - o.x, y - o.y) || 1 }; o.pinched = true; }
-      if (b) { p.btn = b.id; I.held[b.id] = true; press(b.id); }
+      if (!b && I.touchMode && free.length === 1 && !edge && (!free[0].stick || p.t - free[0].t < 250)) { const o = free[0]; if (o.stick) { I.stick.active = false; I.stick.mag = 0; o.stick = false; } I.pinch = { a: o, d0: Math.hypot(x - o.x, y - o.y) || 1 }; o.pinched = true; }
+      if (b) { p.btn = b.id; I.held[b.id] = true; press(b.id); I.lastBtn = b.id; }
       else if (I.pinch && !I.pinch.b) { I.pinch.b = p; p.pinched = true; }
-      else if (I.touchMode && I.stickZone && x < I.stickZone) { p.stick = true; I.stick.active = true; I.stick.ox = x; I.stick.oy = y; I.stick.x = I.stick.y = I.stick.mag = 0; }
+      else if (I.touchMode && I.stickZone && x < I.stickZone && !I.stick.active) { p.stick = true; I.stick.active = true; I.stick.ox = x; I.stick.oy = y; I.stick.x = I.stick.y = I.stick.mag = 0; }
+      else if (I.touchMode) I.lastBtn = 'none'; // a finger on the open screen (closes the "..." fan)
       I.pointers.set(e.pointerId, p);
       if (!b) { I.tapped.push({ x, y }); I.stepTaps.push({ x, y }); } // a press on a thumb button is that button, not a tap on the screen
     });
@@ -55,6 +60,9 @@
     canvas.addEventListener('contextmenu', e => e.preventDefault());
     if (matchMedia && matchMedia('(pointer: coarse)').matches) I.touchMode = true;
   };
+  I.EDGE = 16; // CSS px: the edge zone
+  // which button is under a point: round buttons by their circle (a touch generous), the rest by their box
+  I.hit = (x, y) => { let best = null, bd = Infinity; for (const b of I.buttons) { const d = Math.hypot(x - b.x - b.w / 2, y - b.y - b.h / 2); if ((b.round ? d <= b.w / 2 * 1.12 : x >= b.x && y >= b.y && x <= b.x + b.w && y <= b.y + b.h) && d < bd) { best = b; bd = d; } } return best; }; // (the nearest, where two overlap)
   I.down = a => !!(I.keys[a] || I.held[a]);
   I.pressed = a => !!(I.inStep ? I.edge : I.fEdge)[a];
   I.consume = a => { const v = I.pressed(a); if (v) { I.edge[a] = false; I.fEdge[a] = false; } return v; };

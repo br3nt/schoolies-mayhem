@@ -16,6 +16,7 @@
   };
   Game.ENTER_R = 3.2; // how close you need to be to get in
   Game.JOG = 9.5; Game.SPRINT = 14; // on-foot speeds in m/s
+  Game.RUN_AT = 0.7; // touch: the stick runs past this share of its radius
   Game.METER_LABELS = ['NOBODY SAW A THING', 'CURTAINS TWITCHING', 'PHONE TREE ACTIVATED', "IT'S ON THE COMMUNITY PAGE", 'NEIGHBOURHOOD WATCH MOBILISED', 'THE WHOLE TOWN KNOWS'];
   Game.COP_LABELS = ['ALL QUIET', 'A FEW GRUMBLES', 'TALKBACK RADIO CALLS', 'LETTERS TO THE EDITOR', 'COUNCIL IS ASKING QUESTIONS', "SERGEANT'S ON THE PHONE"];
 
@@ -130,8 +131,8 @@
     } else if (!silent && !v.owned) {
       if (v.rail) { Game.addMeter(0.9, v.kind === 'tram' ? 'TRAM BORROWED' : 'TRAIN BORROWED'); sfx(v.kind === 'tram' ? 'bell_tram' : 'whistle_train'); }
       else if (v.type === 'police' && Game.char !== 'cop') Game.addMeter(2.5, "YOU NICKED THE COP CAR?!", 3);
-      else if (v.def.heli && Game.char !== 'cop') { Game.addMeter(v.kind === 'police' ? 4.6 - Game.meter : 3.2, v.kind === 'police' ? 'YOU NICKED THE POLICE CHOPPER?!' : 'YOU NICKED THE RESCUE CHOPPER?!', 4.2); Game.toast('SHIFT: CLIMB   SPACE: DESCEND   W/S: FLY   A/D: TURN', '#38e0c8'); }
-      else if (v.def.heli) Game.toast('SHIFT: CLIMB   SPACE: DESCEND   W/S: FLY   A/D: TURN', '#38e0c8');
+      else if (v.def.heli && Game.char !== 'cop') { Game.addMeter(v.kind === 'police' ? 4.6 - Game.meter : 3.2, v.kind === 'police' ? 'YOU NICKED THE POLICE CHOPPER?!' : 'YOU NICKED THE RESCUE CHOPPER?!', 4.2); Game.toast(I.touchMode ? 'UP: CLIMB   DOWN: DESCEND   DRAG: FLY' : 'SHIFT: CLIMB   SPACE: DESCEND   W/S: FLY   A/D: TURN', '#38e0c8'); }
+      else if (v.def.heli) Game.toast(I.touchMode ? 'UP: CLIMB   DOWN: DESCEND   DRAG: FLY' : 'SHIFT: CLIMB   SPACE: DESCEND   W/S: FLY   A/D: TURN', '#38e0c8');
       else { Game.addMeter(0.6, 'CAR BORROWED'); VH.Police.witness(0.5, 'CAR THEFT, IN FULL VIEW!'); if (v.parked && Math.random() < 0.5) { Game.alarm = { v, t: 2.5 }; } }
     }
     if (!silent && !v.owned) Game.stats.stolen++;
@@ -144,7 +145,7 @@
   Game.exit = function (force) {
     const pl = Game.player, v = pl.vehicle; if (!v) return;
     if (force) { v.vx *= 0.2; v.vy *= 0.2; if (v.rail) v.v = 0; if (v.def && v.def.heli && v.z > 0.3) return; }
-    if (v.def && v.def.heli && v.z > 0.3) { Game.toast('LAND FIRST (HOLD SPACE)'); return; } // the one exception: not out of a helicopter in the air
+    if (v.def && v.def.heli && v.z > 0.3) { Game.toast('LAND FIRST (HOLD ' + (I.touchMode ? 'DOWN' : 'SPACE') + ')'); return; } // the one exception: not out of a helicopter in the air
     // E works at any speed: a step out at walking pace, otherwise a dive and a tuck-and-roll the way you were going
     const spd = v.speed, roll = !force && spd > 3; const spot = Game.exitSpot(v);
     pl.x = spot.x; pl.y = spot.y; pl.onFoot = true; pl.vehicle = null; v.driver = null; v.throttle = v.brake = v.steer = 0; v.siren = false;
@@ -529,7 +530,10 @@
     VH.Missions.event('kick', best);
   };
   Game.updateFoot = function (dt) {
-    const pl = Game.player; const run = I.down('run') || (I.stick.active && I.stick.mag > 0.95);
+    // on a touch screen, pushing the stick past RUN_AT of its radius runs (the outer band of its ring); inside that, the
+    // push sets the pace up to a jog
+    const pl = Game.player; const stickRun = I.stick.active && I.stick.mag > Game.RUN_AT; const run = I.down('run') || stickRun;
+    const pace = I.stick.active ? (stickRun ? 1 : Math.min(1, I.stick.mag / Game.RUN_AT)) : 1;
     let mx, my;
     // mid tuck-and-roll: no control, just the roll (through the same walking code, so never through a wall)
     if (pl.rollT > 0) {
@@ -537,11 +541,11 @@
       if (Math.random() < 0.5) FX.dust(pl.x, pl.y, '#c8bfa0', 1); if (pl.rollT <= 0) { pl.vx *= 0.2; pl.vy *= 0.2; sfx('thud', { vol: 0.4 }); }
       pl.water = Game.waterAt(pl.x, pl.y); pl.frame = 0; return;
     }
-    if (Game.walkMode === 'screen') [mx, my] = I.moveVec();
+    if (Game.walkMode === 'screen') { [mx, my] = I.moveVec(); if (I.stick.active) { const m = Math.hypot(mx, my); if (m > 0) { mx = mx / m * pace; my = my / m * pace; } } }
     else {
       // "like a car" (the default): forward / back along your facing, left / right turn on the spot, snappily
       let fwd = 0;
-      if (I.stick.active && I.stick.mag > 0.15) { const da = U.angDiff(pl.ang, Math.atan2(I.stick.y, I.stick.x)); pl.ang += U.clamp(da, -11 * dt, 11 * dt); fwd = I.stick.mag * (Math.abs(da) > 1.6 ? 0.25 : 1); }
+      if (I.stick.active && I.stick.mag > 0.15) { const da = U.angDiff(pl.ang, Math.atan2(I.stick.y, I.stick.x)); pl.ang += U.clamp(da, -11 * dt, 11 * dt); fwd = pace * (Math.abs(da) > 1.6 ? 0.25 : 1); }
       else { pl.ang += ((I.down('right') ? 1 : 0) - (I.down('left') ? 1 : 0)) * 5.2 * dt; fwd = I.down('up') ? 1 : I.down('down') ? -0.5 : 0; }
       mx = Math.cos(pl.ang) * fwd; my = Math.sin(pl.ang) * fwd;
     }
@@ -561,6 +565,7 @@
     const shopB = pl.inShop && pl.inShop.b;
     VH.Nav.move(pl, pl.vx * dt, pl.vy * dt, 0.4, { swim: true, skipB: shopB }); const bumped = pl.bumped;
     const spd = Math.hypot(pl.vx, pl.vy); if (spd > 0.3) { if (Game.walkMode === 'screen') pl.ang = Math.atan2(pl.vy, pl.vx); pl.anim += spd * dt * 2.2; }
+    pl.running = sprinting && spd > Game.JOG; if (pl.running && stickRun && !wet && Math.random() < dt * 12) FX.dust(pl.x - Math.cos(pl.ang) * 0.4, pl.y - Math.sin(pl.ang) * 0.4, '#c8bfa0', 1); // quick footfalls
     Game.stats.distance += spd * dt; Game.hintMoved = (Game.hintMoved || 0) + spd * dt; if (run && spd > 10) Game.hintSprint = (Game.hintSprint || 0) + dt;
     // walking into a parked vehicle's driver's door (the right-hand side) gets you in, but only on purpose: at a walk
     // (not sprinting), facing the door and pushing into it for 0.4 s. Strolling or running past parked cars just

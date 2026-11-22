@@ -22,7 +22,7 @@
     const m = framed ? 12 : 0; insL = Math.round((sa.l + m) * dpr); insT = Math.round((sa.t + m) * dpr); insR = Math.round((sa.r + m) * dpr); insB = Math.round((sa.b + m) * dpr);
     [bb, bctx] = U.canvas(Math.ceil((cw - insL - insR) / scale), Math.ceil((ch - insT - insB) / scale)); bb.__ui = true;
     ts = Math.max(1, Math.ceil(9 * dpr / (7 * scale) - 0.15));
-    I.scale = scale; I.offX = insL; I.offY = insT; UI.inset = { l: insL, t: insT, scale, dpr }; ctx.imageSmoothingEnabled = false; wbW = 0;
+    I.scale = scale; I.offX = insL; I.offY = insT; UI.inset = { l: insL, t: insT, r: insR, b: insB, scale, dpr }; ctx.imageSmoothingEnabled = false; wbW = 0;
   }
   let insL = 0, insT = 0, insR = 0, insB = 0;
   function safeInsets() {
@@ -46,10 +46,13 @@
       const pull = Math.max(camSpd / 42, alt / 22);
       if (camLvl === 0 && pull > 0.3) camLvl = 1; else if (camLvl === 1 && pull > 0.72) camLvl = 2; else if (camLvl === 2 && pull < 0.6) camLvl = 1; else if (camLvl === 1 && pull < 0.18) camLvl = 0;
     } else camLvl = 1;
-    const inHeli = pl && pl.vehicle && pl.vehicle.def && pl.vehicle.def.heli; const close = footScale(), far = scale >= 3 || inHeli ? Math.max(1, scale - 1) : scale;
+    const inHeli = pl && pl.vehicle && pl.vehicle.def && pl.vehicle.def.heli; let close = footScale(), mid = scale, far = scale >= 3 || inHeli ? Math.max(1, scale - 1) : scale;
+    // on a phone (a touch screen under 500 CSS px across) the levels come from how much world fits across the short side (whatever the pixel density):
+    // about 50 m on foot and 80 m driving fast, so a phone sees about what a desktop does for its size
+    if (I.touchMode && Math.min(innerWidth, innerHeight) < 500) { const sm = Math.min(cw, ch) / R.S; close = Math.max(1, Math.round(sm / 50)); far = Math.max(1, Math.round(sm / (inHeli ? 100 : 80))); mid = Math.max(far, Math.round((close + far) / 2)); Game.camMetres = { foot: sm / close, mid: sm / mid, fast: sm / far }; }
     // the player's zoom choice is an integer offset on top
-    const base = camLvl === 0 ? close : camLvl === 1 ? scale : far;
-    const ws0 = live ? U.clamp(base + (Game.zoomOff || 0), 1, scale * 2 + 3) : base;
+    const base = camLvl === 0 ? close : camLvl === 1 ? mid : far;
+    const ws0 = live ? U.clamp(base + (Game.zoomOff || 0), 1, Math.max(scale * 2 + 3, close + 3)) : base;
     const want = ws0 / scale;
     zoom += (want - zoom) * Math.min(1, (Game.frameDt || 0.016) * 2.5); if (Math.abs(want - zoom) < 0.02) zoom = want;
     const ws = Math.round(scale * zoom * 8) / 8;
@@ -169,7 +172,10 @@
   };
   canvas.tabIndex = 0; canvas.style.outline = 'none';
   canvas.addEventListener('pointerdown', () => { try { canvas.focus({ preventScroll: true }); } catch (e) { /* older browsers */ } });
-  addEventListener('blur', () => Game.autoPause());
+  // a phone loses focus all the time without leaving the game (the notification shade, a control-centre peek, a stray
+  // edge swipe), so on a touch screen only hiding the page pauses; with a keyboard, losing focus still pauses, because
+  // keys stop arriving until the game is clicked again
+  addEventListener('blur', () => { if (I.touchMode) { I.keys = {}; I.held = {}; I.pointers.clear(); I.pinch = null; Object.assign(I.stick, { active: false, mag: 0, x: 0, y: 0 }); } else Game.autoPause(); }); // (fingers lifted while away)
   document.addEventListener('visibilitychange', () => { if (document.hidden) Game.autoPause(); });
   async function boot() {
     I.init(canvas); try { canvas.focus({ preventScroll: true }); } catch (e) { /* ignore */ }

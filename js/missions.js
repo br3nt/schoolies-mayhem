@@ -213,7 +213,7 @@
   });
   J.unplug = (n = 3) => ({
     title: 'TURN THAT DOWN', from: 'MERV (TO HIMSELF)', pay: 30,
-    reward(g) { g.upgrades.turbo = true; VH.Shops.applyGopher(); g.toast('YOUR GRANDSON SOUPED UP THE GOPHER. HOLD SHIFT TO BOOST!', '#38e0c8'); },
+    reward(g) { g.upgrades.turbo = true; VH.Shops.applyGopher(); g.toast('YOUR GRANDSON SOUPED UP THE GOPHER. HOLD ' + (VH.Input.touchMode ? 'TURBO' : 'SHIFT') + ' TO BOOST!', '#38e0c8'); },
     brief: `THREE BACKYARD DOOF-DOOFS. GET CLOSE AND SHOUT (H) TO SCATTER THE KIDS, THEN KNOCK THE SPEAKER OVER.`,
     init() {
       // backyard parties: a backyard slot with room for the lot (speaker, esky, fairy lights, a trampoline if there's

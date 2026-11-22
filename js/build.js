@@ -1,1 +1,1 @@
-window.VH_BUILD = 'cc2573d-202611220925';
+window.VH_BUILD = '78b1dab-202611221002';

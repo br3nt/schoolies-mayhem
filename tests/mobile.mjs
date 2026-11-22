@@ -23,6 +23,7 @@ const PHONES = [
   { id: 'iphone-notch', dev: 'iPhone 13', land: true, inset: '47,0,47,21' }, // a notched phone on its side (simulated safe area)
   { id: 'pixel-port', dev: 'Pixel 7' },
   { id: 'pixel-land', dev: 'Pixel 7', land: true },
+  { id: 'se-port', dev: 'iPhone SE' }, // a small phone
   { id: 'se-land', dev: 'iPhone SE', land: true }, // a small phone on its side: the short layout
 ];
 const MIN_TARGET = 44; // CSS px: the smallest comfortable touch target
@@ -53,6 +54,13 @@ async function phone(ph, query = '') {
     button: id => ev(id => { const b = VH.Input.buttons.find(b => b.id === id); return b ? { ...b } : null; }, id),
     drag: async (x, y, dx, dy, steps = 8, during) => { await touch('touchStart', [{ x, y, id: 1 }]); for (let i = 1; i <= steps; i++) { await touch('touchMove', [{ x: x + dx * i / steps, y: y + dy * i / steps, id: 1 }]); await sleep(25); } await sleep(80); if (during) await during(); await touch('touchEnd', []); await sleep(300); },
     pinch: async (x, y, d0, d1, steps = 8) => { const pts = d => [{ x: x - d / 2, y, id: 1 }, { x: x + d / 2, y, id: 2 }]; await touch('touchStart', pts(d0)); for (let i = 1; i <= steps; i++) { await touch('touchMove', pts(d0 + (d1 - d0) * i / steps)); await sleep(25); } await sleep(80); await touch('touchEnd', []); await sleep(300); },
+    touch,
+    // hold the stick: a finger down on the left half, pushed `frac` of the stick's radius in direction (dx, dy)
+    stickDown: async (frac, dx = 0, dy = -1, x0 = vp.width * 0.25, y0 = vp.height * 0.62) => {
+      const R = await ev(() => { const c = document.getElementById('game'); return VH.Input.stickR * VH.Input.scale * c.getBoundingClientRect().width / c.width; });
+      await touch('touchStart', [{ x: x0, y: y0, id: 1 }]); for (let i = 1; i <= 6; i++) { await touch('touchMove', [{ x: x0 + dx * R * frac * i / 6, y: y0 + dy * R * frac * i / 6, id: 1 }]); await sleep(30); }
+      return { x: x0 + dx * R * frac, y: y0 + dy * R * frac };
+    },
     shot: async name => { if (SHOTS) await page.screenshot({ path: `${SHOTS}/${ph.id}_${name}.png` }); },
     close: async () => { check(`${ph.id}: no console errors`, !errors.length, errors[0]); await ctx.close(); },
   };
@@ -259,6 +267,108 @@ const CHECKS = {
         check(`${T}: the ${scr} screen's dim reaches the screen edge`, (await s.state()) === scr && r.inset > 0 && r.r < 1.3, `${await s.state()}, edge/inside brightness ${r.r.toFixed(2)} (${r.edge} inset ${r.inset})`);
       } finally { await s.close(); }
     }
+  },
+  // run = push the stick further: half way walks (a jog), past about 70% runs; and a second finger on a thumb button
+  // while the stick is held still presses it
+  async run(ph) {
+    const s = await play(ph); const T = s.tag + ' run';
+    try {
+      const sp = () => s.ev(() => Math.hypot(VH.Game.player.vx, VH.Game.player.vy));
+      const peak = async () => { let m = 0; for (let i = 0; i < 8; i++) { await sleep(90); m = Math.max(m, await sp()); } return m; };
+      await s.stickDown(0.5); const walk = await peak(); await s.shot('stick-half'); await s.touch('touchEnd', []); await sleep(500);
+      const p = await s.stickDown(0.85); const run = await peak(); await s.shot('stick-run'); const lab = (await s.layout()).text.some(t => t.s === 'RUN');
+      // a second finger on empty screen while walking (well after the first): no pinch, the stick keeps going
+      await s.touch('touchStart', [{ x: p.x, y: p.y, id: 1 }, { x: s.vp.width * 0.6, y: s.vp.height * 0.35, id: 2 }]); await sleep(150);
+      const mid = await s.ev(() => ({ stick: VH.Input.stick.active, pinch: !!VH.Input.pinch }));
+      check(T + ': a stray second finger while walking doesn\'t start a pinch or drop the stick', mid.stick && !mid.pinch, JSON.stringify(mid));
+      await s.touch('touchEnd', []);
+      const J = await s.ev(() => VH.Game.JOG), S = await s.ev(() => VH.Game.SPRINT);
+      check(T + ': half a push walks', walk > 2 && walk < J * 1.02, `${walk.toFixed(1)} m/s (jog ${J})`);
+      check(T + ': a push past 70% runs', run > J * 1.15, `${run.toFixed(1)} m/s (sprint ${S})`);
+      check(T + ': RUN shows under the stick while running', lab);
+      const B = await s.ev(() => VH.Input.buttons.map(b => b.id)); check(T + ': no BOOST button on foot', !B.includes('run'), B.join(','));
+    } finally { await s.close(); }
+    const k = await play(ph, 'cop'); const K = ph.id + ' run (Kev in his car)';
+    try {
+      await sleep(300); const s0 = await k.ev(() => !!VH.Game.player.vehicle.siren); const p = await k.stickDown(0.9);
+      const b = await k.button('horn'); const c = await k.css(b);
+      await k.touch('touchStart', [{ x: p.x, y: p.y, id: 1 }, { x: c.x + c.w / 2, y: c.y + c.h / 2, id: 2 }]); await sleep(150);
+      await k.touch('touchMove', [{ x: p.x, y: p.y, id: 1 }]); await sleep(300); // (finger 2 lifts: it's left out of the touch list)
+      const s1 = await k.ev(() => !!VH.Game.player.vehicle.siren), held = await k.ev(() => VH.Input.stick.active);
+      check(K + ': a second finger on SIREN while steering switches the siren', s1 !== s0, `siren ${s0} -> ${s1}`);
+      check(K + ': and the stick stays held', held);
+      // and SIREN stays in its place after it's switched (a thumb tapping the same spot switches it back)
+      const before = await k.ev(() => VH.Input.buttons.find(b => b.id === 'horn')); const c2 = await k.css(before);
+      await k.touch('touchStart', [{ x: p.x, y: p.y, id: 1 }, { x: c2.x + c2.w / 2, y: c2.y + c2.h / 2, id: 2 }]); await sleep(120); await k.touch('touchMove', [{ x: p.x, y: p.y, id: 1 }]); await sleep(300);
+      const after = await k.ev(() => VH.Input.buttons.find(b => b.id === 'horn'));
+      check(K + ': SIREN keeps its place when it switches', !!after && after.x === before.x && after.y === before.y, JSON.stringify([before && [before.x, before.y], after && [after.x, after.y]]));
+      await k.touch('touchEnd', []);
+    } finally { await k.close(); }
+  },
+  // no accidental pauses: swipes from the edges and across the screen, the stick dragged anywhere, every thumb button,
+  // and the window losing focus (a notification, the control centre) never pause; only the PAUSE button does
+  async 'no-pause'(ph) {
+    const s = await play(ph); const T = s.tag + ' no-pause'; const { width: W, height: H } = s.vp;
+    try {
+      const old = [[W * 0.85, H * 0.25], [W * 0.75, H * 0.3], [W * 0.9, H * 0.85], [W * 0.7, H * 0.9]]; // where MAP / PAUSE / JOB / ? and the cluster sat
+      for (const [x, y] of old) await s.drag(x, y, -W * 0.3, H * 0.1);
+      for (const [x, y, dx, dy] of [[W - 3, H * 0.5, -W * 0.4, 0], [3, H * 0.5, W * 0.4, 0], [W * 0.5, 3, 0, H * 0.4], [W * 0.8, 3, 0, H * 0.3], [W * 0.5, H - 3, 0, -H * 0.3]]) await s.drag(x, y, dx, dy); // edge swipes
+      check(T + ': drags and edge swipes never pause', (await s.state()) === 'play', await s.state());
+      await s.stickDown(1, 1, -1); await s.touch('touchMove', [{ x: W * 0.9, y: H * 0.1, id: 1 }]); await sleep(200); await s.touch('touchMove', [{ x: W * 0.95, y: H * 0.05, id: 1 }]); await sleep(200); await s.touch('touchEnd', []); await sleep(300);
+      check(T + ': the stick dragged up to the top right never pauses', (await s.state()) === 'play', await s.state());
+      // taps along the edges (the OS gesture zones) press nothing
+      const hits = []; for (let i = 1; i < 10; i++) for (const [x, y] of [[W * i / 10, 4], [W * i / 10, H - 4], [4, H * i / 10], [W - 4, H * i / 10]]) { await s.page.touchscreen.tap(x, y); await sleep(40); if ((await s.state()) !== 'play') { hits.push(`${Math.round(x)},${Math.round(y)}:${await s.state()}`); break; } }
+      check(T + ': taps in the edge zones press nothing', !hits.length, hits.join(' '));
+      await s.touch('touchStart', [{ x: 4, y: H * 0.6, id: 1 }]); await s.touch('touchMove', [{ x: 40, y: H * 0.5, id: 1 }]); await sleep(150);
+      check(T + ': a touch from the left edge still drives the stick', await s.ev(() => VH.Input.stick.active)); await s.touch('touchEnd', []); await sleep(200);
+      for (const b of await s.ev(() => VH.Input.buttons.filter(b => b.round).map(b => ({ ...b })))) { await s.tapRect(b, 250); if ((await s.state()) !== 'play') { check(T + ': thumb button ' + b.id + ' doesn\'t pause', false, await s.state()); break; } }
+      check(T + ': no thumb button pauses', (await s.state()) === 'play', await s.state());
+      await s.ev(() => { window.dispatchEvent(new Event('blur')); return 1; }); await sleep(300); // (the one scripted event: the OS taking focus away)
+      check(T + ': losing focus (blur) doesn\'t pause', (await s.state()) === 'play', await s.state());
+      await s.tapRect(await s.button('pause')); check(T + ': the PAUSE button pauses', (await s.state()) === 'pause', await s.state());
+      const pr = await s.ev(() => VH.UI.stripRects && { ...VH.UI.stripRects.pause }); const pb = pr && await s.css(pr);
+      check(T + ': PAUSE is up in the top strip, away from the thumbs', !!pb && pb.y + pb.h < H * 0.25 && pb.w >= MIN_TARGET - 0.5 && pb.h >= MIN_TARGET - 0.5, JSON.stringify(pb));
+    } finally { await s.close(); }
+  },
+  // a closer camera on phones: about 45-55 m across the short side on foot, about 80 m driving fast; pinch is remembered
+  async camera(ph) {
+    const s = await play(ph); const T = s.tag + ' camera';
+    try {
+      await sleep(1500); const m = await s.ev(() => { const c = document.getElementById('game'); return Math.min(c.width, c.height) / (VH.Game.view.k * VH.Input.scale) / VH.MapRender.S; });
+      check(T + ': on foot, 45-55 m across the short side', m >= 45 && m <= 56, m.toFixed(1) + ' m');
+      const far = await s.ev(() => VH.Game.camMetres && VH.Game.camMetres.fast); check(T + ': driving fast, about 80 m', far >= 68 && far <= 95, String(far && far.toFixed(1)));
+      const { width: W, height: H } = s.vp; await s.pinch(W * 0.6, H * 0.45, 40, 200); const z = await s.ev(() => VH.Game.zoomOff);
+      await s.page.reload(); await s.page.waitForFunction(() => window.__ready === true, null, { timeout: 60000 }); await sleep(500);
+      check(T + ': pinch zooms the world and is remembered', z !== 0 && (await s.ev(() => VH.Game.zoomOff)) === z, `zoomOff ${z} after pinch, ${await s.ev(() => VH.Game.zoomOff)} after reload`);
+      const L = await s.layout(); check(T + ': compact HUD: no "NOBODY SAW A THING" line on a phone', !L.text.some(t => t.s === 'NOBODY SAW A THING'));
+    } finally { await s.close(); }
+  },
+  // at most three action buttons, chosen by context; ACT says what it will do; the rest sit in a "..." fan
+  async buttons(ph) {
+    const T = ph.id + ' buttons';
+    for (const [char, what, extra] of [['schoolie', 'Jaz on foot', ''], ['cop', 'Kev in his car', ''], ['grump', 'Merv on his gopher', ''], ['cop', 'Kev in a chase', 'night=2&job=1&at=4740,2790']]) {
+      const s = await phone(ph, `play=${char}&hour=21&` + (extra || 'night=1')); await sleep(500);
+      try {
+        const B = await s.ev(() => VH.Input.buttons.filter(b => b.round && b.id !== 'more').map(b => ({ ...b }))); await s.shot('buttons-' + what.replace(/ /g, '-'));
+        check(`${T}: at most 3 action buttons (${what})`, B.length >= 1 && B.length <= 3, B.map(b => b.label || b.id).join(', '));
+        const act = B.find(b => b.act); check(`${T}: one big ACT button that says what it does (${what})`, !!act && !!act.label && act.w >= Math.max(...B.map(b => b.w)), act ? act.label : 'none');
+        if (char === 'schoolie') check(`${T}: on foot with nothing else to do, ACT kicks (${what})`, !!act && act.id === 'kick' && act.label === 'KICK', act && act.id + ' ' + act.label);
+        if (what === 'Kev in a chase') check(`${T}: SPIKES or BACKUP in reach during a chase`, B.some(b => b.id === 'spikes' || b.id === 'backup'), B.map(b => b.id).join(','));
+        if (what === 'Kev in his car') {
+          const more = await s.button('more'); check(`${T}: a "..." button holds the rest (${what})`, !!more);
+          if (more) { await s.tapRect(more); const F = await s.ev(() => VH.Input.buttons.filter(b => b.fan).map(b => ({ ...b }))); check(`${T}: "..." opens the rest (${what})`, F.length >= 1, F.map(b => b.label).join(', '));
+            const sp = F.find(b => b.id === 'spikes'); check(`${T}: SPIKES waits in the fan (${what})`, !!sp); if (sp) { const n0 = await s.ev(() => VH.Police.spikesLeft); await s.tapRect(sp); check(`${T}: a fan item works and the fan closes (${what})`, (await s.ev(() => VH.Police.spikesLeft)) === n0 - 1 && !(await s.ev(() => VH.Input.buttons.some(b => b.fan))), `spikes ${n0} -> ${await s.ev(() => VH.Police.spikesLeft)}`); } }
+        }
+        check(`${T}: context actions are a registry (${what})`, await s.ev(() => Array.isArray(VH.UI.contextActions) && VH.UI.contextActions.length > 0 && VH.UI.contextActions.every(f => typeof f === 'function')));
+      } finally { await s.close(); }
+    }
+    // Kev in his car: ACT says GET OUT; out beside it, ACT says GET IN and gets back in
+    const s = await play(ph, 'cop'); try {
+      await sleep(400); let act = await s.ev(() => ({ ...VH.Input.buttons.find(b => b.act) })); check(T + ': in a car, ACT says GET OUT', act.label === 'GET OUT', act.label);
+      await s.tapRect(act, 700); act = await s.ev(() => ({ ...VH.Input.buttons.find(b => b.act) }));
+      check(T + ': out beside it, ACT says GET IN', (await s.ev(() => VH.Game.player.onFoot)) && act.label === 'GET IN', act.label);
+      await s.tapRect(act, 700); check(T + ': and gets in', await s.ev(() => !VH.Game.player.onFoot));
+    } finally { await s.close(); }
   },
   async 'help-names'(ph) {
     for (const char of ['schoolie', 'cop']) await helpNames(ph, char);

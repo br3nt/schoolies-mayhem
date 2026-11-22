@@ -54,19 +54,19 @@
   // ---------- controls: one table drives the "?" overlay, the controls card and the hints ----------
   const K = (key, touch) => () => (I.touchMode ? touch : key);
   const CONTROLS = {
-    foot: { title: 'ON FOOT', get rows() { return [...(I.touchMode ? [['DRAG', G().walkMode === 'screen' ? 'WALK: DRAG ON THE LEFT HALF THE WAY YOU WANT TO GO; FURTHER TO RUN' : 'WALK: DRAG ON THE LEFT HALF; YOU TURN AND WALK TOWARD YOUR FINGER, FURTHER TO RUN']] : G().walkMode === 'screen' ? [['WASD / ARROWS', 'WALK (SCREEN DIRECTION)']] : [['W / UP', 'WALK FORWARD'], ['S / DOWN', 'STEP BACK'], ['A D / LEFT RIGHT', 'TURN']]), ...this.rest]; }, rest: [[K('SHIFT', 'BOOST'), 'SPRINT'], [K('E', 'GET IN'), 'GET IN / BORROW (WALK UP TO IT)'], [K('F', 'KICK'), 'KICK BINS, CONES, BALLS'], [K('SPACE', 'ACT'), 'USE, RING DOORBELLS, STAND BINS UP'], [K('H', 'SHOUT'), 'SHOUT'], ['DOORS', K('WALK INTO A SHOP DOOR TO GO IN; E AT THE COUNTER TO CHAT', 'WALK INTO A SHOP DOOR TO GO IN; ACT AT THE COUNTER TO CHAT')], [K('HOLD SPACE', 'HOLD'), K('TACKLED? KEEP THE MARK IN THE GREEN; ARROW (OR TAP) THE WAY IT SAYS WHEN IT FLASHES SLIP', 'TACKLED? HOLD THE HOLD BUTTON TO KEEP THE MARK IN THE GREEN; TAP THE SIDE IT SAYS WHEN IT FLASHES SLIP')]] },
-    car: { title: 'DRIVING AND RIDING', get rows() { return [...(I.touchMode ? [['DRAG', 'DRIVE: DRAG ON THE LEFT HALF; THE VEHICLE STEERS AND SPEEDS TOWARD YOUR FINGER'], ['DRAG BEHIND', 'BRAKE, THEN REVERSE']] : [['W / UP', 'ACCELERATE'], ['S / DOWN', 'BRAKE, REVERSE'], ['A D / LEFT RIGHT', 'STEER']]), ...this.rest]; }, rest: [[K('SPACE', 'SKID'), 'HANDBRAKE (DRIFT); BUNNY-HOP ON A BIKE'], [K('H', 'HORN'), 'HORN'], [K('SHIFT', 'BOOST'), 'TURBO GOPHER'], [K('E', 'GET OUT'), 'GET OUT']] },
-    rail: { title: 'TRAM AND TRAIN', get rows() { return [...(I.touchMode ? [['DRAG', 'DRAG THE WAY IT FACES TO GO, THE OTHER WAY TO BRAKE AND BACK UP']] : [['W / UP', 'FORWARD'], ['S / DOWN', 'BRAKE, BACK UP']]), ...this.rest]; }, rest: [[K('SHIFT', 'BOOST'), 'GIDDY UP / MORE STEAM'], [K('H', 'HORN'), 'BELL / WHISTLE'], [K('E', 'GET OUT'), 'GET OFF (WHEN STOPPED)']] },
-    heli: { title: 'HELICOPTER', get rows() { return [...(I.touchMode ? [['DRAG', 'FLY: DRAG ON THE LEFT HALF; THE CHOPPER TURNS AND FLIES TOWARD YOUR FINGER']] : [['W / S', 'FLY FORWARD / BACK'], ['A D / LEFT RIGHT', 'TURN']]), ...this.rest]; }, rest: [[K('SHIFT', 'UP'), 'CLIMB'], [K('SPACE', 'DOWN'), 'DESCEND AND LAND (HELIPADS ARE GENTLEST)'], [K('E', 'GET OUT'), 'GET OUT (ONCE LANDED)']] },
-    kev: { title: 'CONSTABLE KEV', rows: [[K('H', 'SIREN'), 'SIREN (IN A POLICE CAR, OR ANY CAR WITH THE ROOF LIGHT)'], [K('H', 'MEGA'), 'ON FOOT: MEGAPHONE, RUNNERS WITHIN 30M FREEZE FOR 2.5 S; NEAR A GOPHER, CALL IT OVER'], [K('E', 'ACT'), 'NEXT TO A FROZEN OR CORNERED RUNNER: CUFF THEM'], ['TACKLE', K('RUN INTO A RUNNER: A TACKLE, THEN HOLD SPACE TO KEEP HOLD', 'RUN INTO A RUNNER: A TACKLE, THEN THE HOLD BUTTON TO KEEP HOLD')], [K('L', 'LIGHT'), 'COMMANDEERED CAR: MAGNETIC FLASHING LIGHT ON THE ROOF'], [K('X', 'SPIKES'), 'DROP A SPIKE STRIP BEHIND YOU'], [K('B', 'BACKUP'), 'CALL BACKUP; NO WORKING COP CAR: A SPARE IS DROPPED OFF'], ['RAM', 'NUDGE A REAR CORNER TO SPIN THEM (PIT); CARS TAKE SEVERAL SOLID HITS']] },
+    foot: { title: 'ON FOOT', get rows() { return [...(I.touchMode ? [['DRAG', G().walkMode === 'screen' ? 'WALK: DRAG ON THE LEFT HALF THE WAY YOU WANT TO GO; PUSH FURTHER (THE OUTER RING) TO RUN' : 'WALK: DRAG ON THE LEFT HALF; YOU TURN AND WALK TOWARD YOUR FINGER; PUSH FURTHER (THE OUTER RING) TO RUN']] : G().walkMode === 'screen' ? [['WASD / ARROWS', 'WALK (SCREEN DIRECTION)']] : [['W / UP', 'WALK FORWARD'], ['S / DOWN', 'STEP BACK'], ['A D / LEFT RIGHT', 'TURN']]), ...this.rest]; }, rest: [[K('SHIFT', 'PUSH FURTHER'), 'SPRINT'], [K('E', 'ACT'), 'GET IN / BORROW (WALK UP TO IT)'], [K('F', 'ACT / ...'), 'KICK BINS, CONES, BALLS'], [K('SPACE', 'ACT / ...'), 'USE, RING DOORBELLS, STAND BINS UP'], [K('H', 'SHOUT / ...'), 'SHOUT'], ['DOORS', K('WALK INTO A SHOP DOOR TO GO IN; E AT THE COUNTER TO CHAT', 'WALK INTO A SHOP DOOR TO GO IN; ACT AT THE COUNTER TO CHAT')], [K('HOLD SPACE', 'HOLD'), K('TACKLED? KEEP THE MARK IN THE GREEN; ARROW (OR TAP) THE WAY IT SAYS WHEN IT FLASHES SLIP', 'TACKLED? HOLD THE HOLD BUTTON TO KEEP THE MARK IN THE GREEN; TAP THE SIDE IT SAYS WHEN IT FLASHES SLIP')]] },
+    car: { title: 'DRIVING AND RIDING', get rows() { return [...(I.touchMode ? [['DRAG', 'DRIVE: DRAG ON THE LEFT HALF; THE VEHICLE STEERS AND SPEEDS TOWARD YOUR FINGER'], ['DRAG BEHIND', 'BRAKE, THEN REVERSE']] : [['W / UP', 'ACCELERATE'], ['S / DOWN', 'BRAKE, REVERSE'], ['A D / LEFT RIGHT', 'STEER']]), ...this.rest]; }, rest: [[K('SPACE', 'DRIFT'), 'HANDBRAKE (DRIFT); BUNNY-HOP ON A BIKE'], [K('H', 'HORN / ...'), 'HORN'], [K('SHIFT', 'TURBO'), 'TURBO GOPHER'], [K('E', 'ACT'), 'GET OUT']] },
+    rail: { title: 'TRAM AND TRAIN', get rows() { return [...(I.touchMode ? [['DRAG', 'DRAG THE WAY IT FACES TO GO, THE OTHER WAY TO BRAKE AND BACK UP']] : [['W / UP', 'FORWARD'], ['S / DOWN', 'BRAKE, BACK UP']]), ...this.rest]; }, rest: [[K('SHIFT', 'FASTER'), 'GIDDY UP / MORE STEAM'], [K('H', 'BELL'), 'BELL / WHISTLE'], [K('E', 'ACT'), 'GET OFF (WHEN STOPPED)']] },
+    heli: { title: 'HELICOPTER', get rows() { return [...(I.touchMode ? [['DRAG', 'FLY: DRAG ON THE LEFT HALF; THE CHOPPER TURNS AND FLIES TOWARD YOUR FINGER']] : [['W / S', 'FLY FORWARD / BACK'], ['A D / LEFT RIGHT', 'TURN']]), ...this.rest]; }, rest: [[K('SHIFT', 'UP'), 'CLIMB'], [K('SPACE', 'DOWN'), 'DESCEND AND LAND (HELIPADS ARE GENTLEST)'], [K('E', 'ACT'), 'GET OUT (ONCE LANDED)']] },
+    kev: { title: 'CONSTABLE KEV', rows: [[K('H', 'SIREN'), 'SIREN (IN A POLICE CAR, OR ANY CAR WITH THE ROOF LIGHT)'], [K('H', 'MEGA'), 'ON FOOT: MEGAPHONE, RUNNERS WITHIN 30M FREEZE FOR 2.5 S; NEAR A GOPHER, CALL IT OVER'], [K('E', 'ACT'), 'NEXT TO A FROZEN OR CORNERED RUNNER: CUFF THEM'], ['TACKLE', K('RUN INTO A RUNNER: A TACKLE, THEN HOLD SPACE TO KEEP HOLD', 'RUN INTO A RUNNER: A TACKLE, THEN THE HOLD BUTTON TO KEEP HOLD')], [K('L', 'LIGHT / ...'), 'COMMANDEERED CAR: MAGNETIC FLASHING LIGHT ON THE ROOF'], [K('X', 'SPIKES / ...'), 'DROP A SPIKE STRIP BEHIND YOU'], [K('B', 'BACKUP / ...'), 'CALL BACKUP; NO WORKING COP CAR: A SPARE IS DROPPED OFF'], ['RAM', 'NUDGE A REAR CORNER TO SPIN THEM (PIT); CARS TAKE SEVERAL SOLID HITS']] },
     evade: { title: 'LOSING THE POLICE', rows: [['LEVELS', 'ONE CAR PER CURTAIN (FOUR AT MOST); A ROADBLOCK AT FOUR; THE CHOPPER ONLY AT FIVE, AFTER A LONG CHASE'], ['COOLING', 'THE LINE UNDER THE CURTAINS SAYS WHAT\'S COOLING THINGS RIGHT NOW; THE THIN BAR DRAINS AS IT DOES'], ['SIGHT', 'BREAK LINE OF SIGHT AND STAY OUT OF VIEW TILL THE HEAT COOLS'], ['HIDE', 'BUSHES, CAR PARKS, THE GOLF COURSE, THE CAR WASH, UNDER THE JETTY (GOSSIP COOLS FASTER)'], ['SWAP', 'CHANGE CARS (OR GET OUT) WHERE THEY CAN\'T SEE YOU'], ['RESPRAY', 'RESPRAY SHOPS (SPRAY-CAN ICON ON THE MAP, $25) WIPE YOUR CAR\'S DESCRIPTION'], ['CLOTHES', 'A NEW SHIRT, HAT OR SUNNIES OUT OF SIGHT (CLOTHES SHOP, OP SHOP) DOES THE SAME FOR YOU'], ['ROADBLOCK', 'THERE\'S ALWAYS A GAP, OR THE FOOTPATH'], ['OFFICERS', 'DRIVE OFF, SHOVE THROUGH (THEY JUMP OUT OF THE WAY) OR OUTRUN THEM. IF THEY CATCH YOU, THEY TACKLE AND CUFF'], ['LOCK-UP', 'LET OUT AT THE GATE: THE GOSSIP IS WIPED, NOBODY WATCHES THE GATE FOR A WHILE, AND YOUR BIKE\'S THERE'], ['MERV', 'ON THE GOPHER: ONE CAR TAILS YOU WITH A MEGAPHONE LECTURE; STOP AND THEY BOOK YOU']] },
-    any: { title: 'ANY TIME', rows: [['CLOCK', 'THE TIME OF NIGHT (BY THE MOON) RUNS FAST: ONE GAME MINUTE A SECOND. FINISH BEFORE SUNRISE. TIMED JOBS HAVE THEIR OWN BOXED TIME LEFT'], [K('WHEEL / + -', 'PINCH'), K('ZOOM IN AND OUT (0 RESETS)', 'ZOOM IN AND OUT')], [K('M / TAB', 'MAP'), 'MAP'], [K('J', 'JOB'), 'CURRENT JOB BRIEF'], [K('?', '?'), 'THIS HELP'], [K('P / ESC', 'PAUSE'), 'PAUSE'], [K('N', 'PAUSE MENU'), 'MUTE']] },
+    any: { title: 'ANY TIME', get rows() { return [...(I.touchMode ? [['ACT', 'THE BIG BUTTON DOES THE MOST USEFUL THING RIGHT NOW AND SAYS WHAT: GET IN, KICK, CUFF, CHAT...'], ['...', 'THE OTHER ACTIONS THAT APPLY (UP TO TWO MORE SIT BESIDE ACT)']] : []), ...this.rest]; }, rest: [['CLOCK', 'THE TIME OF NIGHT (BY THE MOON) RUNS FAST: ONE GAME MINUTE A SECOND. FINISH BEFORE SUNRISE. TIMED JOBS HAVE THEIR OWN BOXED TIME LEFT'], [K('WHEEL / + -', 'PINCH'), K('ZOOM IN AND OUT (0 RESETS)', 'ZOOM IN AND OUT')], [K('M / TAB', 'MAP (TOP)'), 'MAP'], [K('J', '! (TOP)'), 'CURRENT JOB BRIEF'], [K('?', '? (TOP)'), 'THIS HELP'], [K('P / ESC', 'II (TOP)'), 'PAUSE'], [K('N', 'PAUSE MENU'), 'MUTE']] },
   };
   CONTROLS.icons = { title: 'MAP ICONS', rows: [['YELLOW', 'JOB TARGETS (EACH WITH ITS OWN ARROW)'], ['LIGHT BLUE', 'YOUR LAST VEHICLE; KEV: THE COP CAR'], ['WHITE PIN', K('YOUR WAYPOINT (CLICK OR TAP THE MAP; FIND A STREET WITH ENTER)', 'YOUR WAYPOINT (TAP THE MAP; TAP THE SEARCH BOX TO FIND A STREET)')], ['ORANGE', 'KEV: A PRISONER'], ['SPRAY CAN', 'RESPRAY SHOP: $25 FOR A NEW COLOUR'], ['TYRE', 'TYRE PLACE: A FLAT FIXED FOR $10'], ['TEAL SQUARE', 'A SHOP YOU CAN WALK INTO'], ['M R G B T S H', 'MAYHEM MINUTE, RAMP, RACES, HELIPAD']] };
   UI.CONTROLS = CONTROLS;
   // the jobs' own help rows name keys; on a touch screen they name the buttons instead
   const TOUCH_KEY = { 'SPACE': 'ACT', 'HOLD SPACE': 'HOLD', 'H IN A POLICE CAR': 'SIREN', 'H ON FOOT': 'MEGA', 'H (MEGAPHONE)': 'MEGA', 'L': 'LIGHT', 'B': 'SPARE', 'E / ACT': 'ACT', 'E ALONGSIDE': 'GET IN ALONGSIDE', 'S': 'DRAG BEHIND' };
-  const touchText = str => String(str).replace(/\bHOLD SPACE\b/g, 'HOLD THE HOLD BUTTON').replace(/\bARROW (\(OR TAP\) )?THE WAY IT SAYS\b/g, 'TAP THE SIDE IT SAYS').replace(/\bTHEN H FOR THE SIREN\b/g, 'THEN SIREN').replace(/\bSPACE\b/g, 'ACT').replace(/\bSHIFT\b/g, 'BOOST');
+  const touchText = str => String(str).replace(/\bHOLD SPACE\b/g, 'HOLD THE HOLD BUTTON').replace(/\bARROW (\(OR TAP\) )?THE WAY IT SAYS\b/g, 'TAP THE SIDE IT SAYS').replace(/\bTHEN H FOR THE SIREN\b/g, 'THEN SIREN').replace(/\bSPACE\b/g, 'ACT').replace(/\bSHIFT\b/g, 'FASTER');
   UI.touchText = touchText;
   const keyText = k => typeof k === 'function' ? k() : k;
   UI.context = function () {
@@ -111,10 +111,10 @@
   // ---------- first-time hints: a short sequence that teaches the basics, once per browser ----------
   const HINTS = [
     { txt: () => I.touchMode ? 'DRAG ON THE LEFT HALF TO MOVE' : G().walkMode === 'screen' ? 'WASD OR ARROW KEYS: MOVE' : 'W: WALK  S: BACK  A/D: TURN (LIKE A CAR)', done: g => g.hintMoved > 8, foot: true },
-    { txt: () => I.touchMode ? 'HOLD BOOST TO SPRINT' : 'HOLD SHIFT TO SPRINT', done: g => g.hintSprint > 0.8, foot: true },
-    { txt: () => I.touchMode ? 'WALK UP TO A CAR, TAP GET IN TO BORROW IT' : 'WALK UP TO A CAR AND PRESS E TO BORROW IT', done: g => !g.player.onFoot, foot: true },
-    { txt: () => I.touchMode ? 'SKID: HANDBRAKE  HORN: HORN  GET OUT: GET OUT' : 'SPACE: HANDBRAKE   H: HORN   E: GET OUT', done: g => g.hintT > 9 },
-    { txt: () => I.touchMode ? 'MAP, JOB AND ? ARE TOP RIGHT' : 'M: MAP   J: JOB BRIEF   ?: CONTROLS', done: g => g.hintT > 9 },
+    { txt: () => I.touchMode ? 'PUSH FURTHER TO RUN' : 'HOLD SHIFT TO SPRINT', done: g => g.hintSprint > 0.8, foot: true },
+    { txt: () => I.touchMode ? 'WALK UP TO A CAR: THE BIG BUTTON SAYS GET IN' : 'WALK UP TO A CAR AND PRESS E TO BORROW IT', done: g => !g.player.onFoot, foot: true },
+    { txt: () => I.touchMode ? 'DRIFT: HANDBRAKE   THE BIG BUTTON: GET OUT   ...: THE REST' : 'SPACE: HANDBRAKE   H: HORN   E: GET OUT', done: g => g.hintT > 9 },
+    { txt: () => I.touchMode ? 'PAUSE, MAP, JOB AND ? ARE ALONG THE TOP' : 'M: MAP   J: JOB BRIEF   ?: CONTROLS', done: g => g.hintT > 9 },
   ];
   UI.hints = function (ctx, ts, bottomY, cx = ctx.canvas.width / 2, W0 = ctx.canvas.width) {
     const g = G();
@@ -141,32 +141,35 @@
     const PO = VH.Police; const lvl = g.meter; const flash = PO.units.length && PO.seenT < 0.5 && Math.floor(g.t * 4) % 2;
     // --- top-left: who, cash, meter; as wide as it needs (within reason), so the name and the cash never meet
     const kc = g.char === 'cop' ? PO.kevCar() : null; const nPris = VH.Escort.list.length;
+    const TL = I.touchMode && !VH.Tackle.on ? UI.touchLayout(w, h, ts) : null; // where the thumb buttons and the top strip go
+    const compact = I.touchMode && Math.min(w, h) < 380 * ts; const lpH = compact ? 31 * ts : 40 * ts; // a phone: fewer words, smaller panels
     const kevLines = g.char === 'cop' ? [kc ? `BACKUP (B): ${PO.backupT > 0 ? Math.ceil(PO.backupT) + 'S' : 'READY'}` : PO.spare ? 'SPARE CAR: ON ITS WAY' : `SPARE CAR (B) · ${Math.max(0, Math.ceil(PO.recoverT || 0))}S`, `SPIKES (X): ${PO.spikesLeft} LEFT`, ...(nPris ? [`PRISONERS: ${nPris}` + (VH.Escort.paddy ? ' · WAGON COMING' : '')] : [])] : [];
+    if (I.touchMode) kevLines.forEach((l, k) => { kevLines[k] = l.replace(/ \([BX]\)/, ''); }); // (no key letters on a phone)
     const cashS = '$' + Math.round(g.cash), cashW = U.textWidth(cashS, ts * 2);
-    const maxPw = narrow ? Math.max(120 * ts, w - 92 * ts - 3 * pad) : 190 * ts;
+    const maxPw = TL ? Math.max(100 * ts, Math.min(190 * ts, TL.stripBox.x - 2 * pad)) : narrow ? Math.max(120 * ts, w - 92 * ts - 3 * pad) : 190 * ts;
     let name = c.name; if (U.textWidth(name, ts) + cashW + 2 * ip + 6 * ts > maxPw) name = name.replace('CONSTABLE ', '');
-    const pw = Math.round(Math.min(maxPw, Math.max(128 * ts, U.textWidth(name, ts) + cashW + 2 * ip + 6 * ts, ...kevLines.map(l => U.textWidth(l, ts) + 2 * ip))));
+    const pw = Math.round(Math.min(maxPw, Math.max(compact ? 100 * ts : 128 * ts, U.textWidth(name, ts) + cashW + 2 * ip + 6 * ts, ...kevLines.map(l => U.textWidth(l, ts) + 2 * ip))));
     UI.leftW = pw;
-    panel(ctx, pad, pad, pw, 40 * ts, { accent: C.pink });
+    panel(ctx, pad, pad, pw, lpH, { accent: C.pink });
     T(ctx, fit(name, pw - cashW - 2 * ip - 6 * ts, ts), pad + ip, pad + 5 * ts, { color: C.dim, scale: ts });
     T(ctx, cashS, pad + pw - ip, pad + 4 * ts, { color: C.green, scale: ts * 2, align: 'right' });
     for (let i = 0; i < 5; i++) curtain(ctx, pad + 5 * ts + i * 11 * ts, pad + 19 * ts, lvl >= i + 1 || (lvl > i && lvl - i > 0.5 && Math.floor(g.t * 3) % 2), flash, ts);
     { const bw = 54 * ts, bx = pad + 5 * ts, by = pad + 28 * ts; const cooling = PO.decay && PO.decay() > 0 && lvl > 0; ctx.fillStyle = 'rgba(10,8,25,0.8)'; ctx.fillRect(bx, by, bw, ts); ctx.fillStyle = cooling ? C.green : C.hi; ctx.fillRect(bx, by, Math.round(bw * Math.min(1, lvl / 5)), ts); } // the level, draining when it cools
     const lab = (g.char === 'cop' ? g.COP_LABELS : g.METER_LABELS)[Math.min(5, Math.floor(lvl))];
     T(ctx, c.meter, pad + 62 * ts, pad + 20 * ts, { color: g.char === 'cop' ? C.teal : C.hi, scale: ts });
-    T(ctx, fit(lab, pw - 2 * ip, ts), pad + ip, pad + 31 * ts, { color: C.dim, scale: ts });
+    if (!compact) T(ctx, fit(lab, pw - 2 * ip, ts), pad + ip, pad + 31 * ts, { color: C.dim, scale: ts }); // (the meter's words: not on a phone)
     // --- top-centre: night + clock + job timer
     const hh = Math.floor(g.hour), mm = Math.floor((g.hour - hh) * 60);
     const clock = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
     // the time of night (a moon by it; one game minute a second), kept apart from the job's boxed countdown
-    const nightTxt = g.char === 'roam' ? 'FREE ROAM · TIME OF DAY' : `NIGHT ${g.night} · ${M().dayName(g.night)}`;
+    const nightTxt = g.char === 'roam' ? (compact ? 'FREE ROAM' : 'FREE ROAM · TIME OF DAY') : compact ? `NIGHT ${g.night}` : `NIGHT ${g.night} · ${M().dayName(g.night)}`;
     const tw = Math.max(U.textWidth(nightTxt, ts), U.textWidth(clock, ts * 2) + 14 * ts) + 2 * ip + 2 * ts;
     const short = h < 260 * ts; UI.short = short;
-    const mmS = short && I.touchMode ? 64 * ts : 92 * ts; UI.mmS = mmS;
-    const TL = I.touchMode && !VH.Tackle.on ? UI.touchLayout(w, h, ts) : null; // where the thumb buttons will go
-    const rightEdge = w - pad - 96 * ts - (TL ? TL.blockW : 0); // the minimap (and on a phone on its side, MAP, PAUSE, JOB and ?)
-    let cxp = narrow ? pad + tw / 2 : w / 2, cyp = narrow ? pad + 44 * ts : pad;
-    if (!narrow && (cxp - tw / 2 < pad + pw + 4 * ts || cxp + tw / 2 > rightEdge)) { cxp = Math.max(pad + pw + 4 * ts + tw / 2, Math.min(cxp, rightEdge - tw / 2)); if (cxp + tw / 2 > rightEdge) { cxp = pad + tw / 2; cyp = pad + 44 * ts; } } // never over the left panel or the minimap
+    const mmS = I.touchMode ? (short ? 56 : 72) * ts : 92 * ts; UI.mmS = mmS;
+    const mmY = TL ? TL.stripBox.y + TL.stripBox.h + 3 * ts : pad; // on a touch screen the minimap sits under the top strip
+    const rightEdge = TL ? TL.stripBox.x - 4 * ts : w - pad - 96 * ts; // the minimap (on a touch screen, the top strip)
+    let cxp = narrow ? pad + tw / 2 : w / 2, cyp = narrow ? pad + lpH + 4 * ts : pad;
+    if (!narrow && (cxp - tw / 2 < pad + pw + 4 * ts || cxp + tw / 2 > rightEdge)) { cxp = Math.max(pad + pw + 4 * ts + tw / 2, Math.min(cxp, rightEdge - tw / 2)); if (cxp + tw / 2 > rightEdge) { cxp = pad + tw / 2; cyp = pad + lpH + 4 * ts; } } // never over the left panel or the minimap
     panel(ctx, cxp - tw / 2, cyp, tw, 28 * ts, { accent: C.teal });
     T(ctx, nightTxt, cxp, cyp + 4 * ts, { align: 'center', color: C.dim, scale: ts });
     T(ctx, clock, cxp + 7 * ts, cyp + 13 * ts, { align: 'center', color: C.white, scale: ts * 2 });
@@ -174,7 +177,7 @@
     ctx.fillStyle = '#f2e6a0'; ctx.beginPath(); ctx.arc(mx0 + 5 * ts, my0 + 5 * ts, 5 * ts, 0, U.TAU); ctx.fill(); ctx.fillStyle = '#1a1230'; ctx.beginPath(); ctx.arc(mx0 + 7.5 * ts, my0 + 3.5 * ts, 4.4 * ts, 0, U.TAU); ctx.fill();
 
     // --- police status under the money panel
-    let py = pad + 44 * ts; if (narrow) py = pad + 76 * ts;
+    let py = pad + lpH + 4 * ts; if (narrow) py = pad + lpH + 36 * ts;
     const near = g.char !== 'cop' && !PO.units.length && (PO.patrols.some(v => Math.hypot(v.x - pl.x, v.y - pl.y) < 90) || g.meter >= 0.05 || PO.inGrace());
     // the line (or two) under the police status says what's cooling things down right now
     const nChars = Math.max(8, Math.floor((pw - 2 * ip) / (6 * ts))); let polH = 0;
@@ -204,7 +207,7 @@
     // --- toasts: at most three short status lines, wrapped so they never run off the edge
     // on narrow screens the status lines go below the left-hand panels (and the touch buttons), so nothing overlaps
     // between the left-hand panels and the minimap when there's room, otherwise below them
-    const side = Math.max(pw, 92 * ts + (TL ? TL.blockW : 0)) + 2 * pad, mid = w - 2 * side; const under = narrow || mid < 170 * ts;
+    const side = Math.max(pw, TL ? w - TL.stripBox.x : 92 * ts) + 2 * pad, mid = w - 2 * side; const under = narrow || mid < 170 * ts;
     let ty = under && short ? Math.max(UI.leftBottom + 4 * ts, pad + 44 * ts) : under ? Math.max(pad + 102 * ts, UI.leftBottom + 4 * ts, I.touchMode ? pad + 168 * ts : 0) : pad + 34 * ts; const tn = Math.max(12, Math.floor(((under ? w - 2 * pad : mid) - 4 * ts) / (6 * ts)));
     if (short && !under) ty = Math.max(ty, cyp + 32 * ts);
     for (const m of (short ? g.msgs.slice(-1) : g.msgs)) { const a = Math.min(1, m.t * 2); ctx.globalAlpha = a; for (const l of U.wrap(m.str, tn)) { T(ctx, l, w / 2, ty, { align: 'center', color: m.col, scale: ts }); ty += 10 * ts; } ctx.globalAlpha = 1; }
@@ -218,7 +221,7 @@
       lines.forEach((l, i) => T(ctx, l, w / 2, cy + i * 9 * big, { align: 'center', color: co.col, scale: big })); ctx.globalAlpha = 1;
     }
     // --- minimap
-    UI.minimap(ctx, w - pad - mmS, pad, mmS, mmS, ts); hr.minimap = { x: w - pad - mmS, y: pad, w: mmS, h: mmS };
+    UI.minimap(ctx, w - pad - mmS, mmY, mmS, mmS, ts); hr.minimap = { x: w - pad - mmS, y: mmY, w: mmS, h: mmS };
     // --- bottom: street + objective
     const street = UI.streetCache(pl.x, pl.y);
     // (on a touch screen it goes under the left-hand panels, cut to their width)
@@ -249,7 +252,7 @@
     // vehicle readout
     if (!pl.onFoot && pl.vehicle && !(short && I.touchMode)) { // (no room for it beside the thumb buttons on a phone on its side)
       const v = pl.vehicle; const kmh = Math.round(v.speed * 3.6);
-      const vx = w - pad - 92 * ts, vy = pad + 96 * ts;
+      const vx = w - pad - 92 * ts, vy = mmY + mmS + 4 * ts;
       panel(ctx, vx, vy, 92 * ts, 24 * ts); hr.speedo = { x: vx, y: vy, w: 92 * ts, h: 24 * ts };
       T(ctx, fit((v.rail ? v.name : v.def.name).toUpperCase(), 84 * ts, ts), vx + 4 * ts, vy + 4 * ts, { color: C.dim, scale: ts });
       T(ctx, kmh + ' KM/H', vx + 4 * ts, vy + 13 * ts, { color: C.white, scale: ts });
@@ -261,14 +264,15 @@
     let prompt = '';
     const jp = M().job && M().job.started && M().job.prompt ? M().job.prompt() : '';
     const ep = VH.Escort.prompt();
-    if (ep) prompt = ep;
-    else if (jp) prompt = jp;
-    else if (pl.inShop) prompt = VH.Shops.prompt();
-    else if (pl.onFoot && !VH.Tackle.on) { const v = g.nearestVehicle(pl.x, pl.y, g.ENTER_R); if (v) prompt = UI.enterPrompt(v); }
+    let src = '';
+    if (ep) { prompt = ep; src = 'escort'; }
+    else if (jp) { prompt = jp; src = 'job'; }
+    else if (pl.inShop) { prompt = VH.Shops.prompt(); src = 'shop'; }
+    else if (pl.onFoot && !VH.Tackle.on) { const v = g.nearestVehicle(pl.x, pl.y, g.ENTER_R); if (v) { prompt = UI.enterPrompt(v); src = 'enter'; } }
     else if (pl.vehicle && (pl.vehicle.type === 'police' || pl.vehicle.roofLight) && !pl.vehicle.siren && g.char === 'cop') prompt = (I.touchMode ? 'SIREN BUTTON' : 'H') + ': SIREN ON';
     else if (pl.vehicle && g.char === 'cop' && !pl.vehicle.rail && !pl.vehicle.def.heli && !pl.vehicle.def.bike && !pl.vehicle.def.gopher && pl.vehicle.type !== 'police' && pl.vehicle.type !== 'paddy' && !pl.vehicle.roofLight) prompt = (I.touchMode ? 'LIGHT' : 'L') + ': MAGNETIC LIGHT ON THE ROOF';
     // the bottom prompt sits just above the objective, and first-time tips above that
-    UI.lastPrompt = prompt; let aboveY = UI.objTop || h - pad - 22 * ts;
+    UI.lastPrompt = prompt; UI.lastPromptSrc = src; let aboveY = UI.objTop || h - pad - 22 * ts;
     // (on a phone on its side, both stay left of the thumb buttons, like the objective)
     const colW = beside ? TL.left - 4 * ts : w, colX = colW / 2;
     if (prompt) { const pt = fit(prompt, colW - 2 * pad - 8 * ts, ts), pw2 = U.textWidth(pt, ts) + 2 * ip; panel(ctx, colX - pw2 / 2, aboveY - 15 * ts, pw2, 13 * ts, { fill: 'rgba(18,12,36,0.8)' }); T(ctx, pt, colX, aboveY - 12 * ts, { align: 'center', color: C.white, scale: ts }); hr.prompt = { x: colX - pw2 / 2, y: aboveY - 15 * ts, w: pw2, h: 13 * ts }; aboveY -= 17 * ts; }
@@ -279,7 +283,7 @@
     const offs = [...wpt, ...g.myMarkers(), ...M().targets().filter(tg => !tg.small).sort((a, b) => Math.hypot(a.x - pl.x, a.y - pl.y) - Math.hypot(b.x - pl.x, b.y - pl.y)).slice(0, 8)];
     const placed = [];
     if (vw && !VH.Tackle.on) for (const tg of offs) {
-      const kz = vw.k || 1, io = UI.inset || { l: 0, t: 0, scale: 1 }; const sx = (tg.x - vw.left) * vw.S * kz - io.l / io.scale, sy = (tg.y - vw.top) * vw.S * kz - io.t / io.scale; const m = 14 * ts, mt = Math.max(narrow ? Math.max(Math.min(104 * ts, h * 0.3), (UI.leftBottom || 0) + 16 * ts) : Math.min(104 * ts, h * 0.3), TL && TL.wide ? TL.small[3].y + TL.small[3].h + 12 * ts : 0), mb = Math.max(64 * ts, h - Math.min(UI.objTop || h, UI.tipTop || h) + 16 * ts);
+      const kz = vw.k || 1, io = UI.inset || { l: 0, t: 0, scale: 1 }; const sx = (tg.x - vw.left) * vw.S * kz - io.l / io.scale, sy = (tg.y - vw.top) * vw.S * kz - io.t / io.scale; const m = 14 * ts, mt = Math.max(narrow ? Math.max(Math.min(104 * ts, h * 0.3), (UI.leftBottom || 0) + 16 * ts) : Math.min(104 * ts, h * 0.3), TL ? mmY + mmS + 8 * ts : 0), mb = Math.max(64 * ts, h - Math.min(UI.objTop || h, UI.tipTop || h) + 16 * ts);
       if (sx > m && sy > m && sx < w - m && sy < h - m) continue;
       const cx = w / 2, cy = h / 2 + (mt - mb) / 2; const a = Math.atan2(sy - cy, sx - cx);
       const k = Math.min((w / 2 - m - 10 * ts) / Math.abs(Math.cos(a) || 1e-6), ((h - mt - mb) / 2) / Math.abs(Math.sin(a) || 1e-6));
@@ -291,7 +295,7 @@
       const side = Math.abs(Math.cos(a)) * (w / 2) > Math.abs(Math.sin(a)) * (h / 2); // on the left or right edge: shuffle up and down
       const hit = (x, y) => placed.some(r => Math.abs(r.x - x) < (r.w + lw) / 2 + 4 * ts && Math.abs(r.y - y) < 14 * ts);
       for (let i = 1, x0 = lx, y0 = ly; i < 12 && hit(lx, ly); i++) { const s = (i % 2 ? 1 : -1) * Math.ceil(i / 2); if (side) ly = U.clamp(y0 + s * 14 * ts, mt, h - mb); else lx = U.clamp(x0 + s * (lw + 8 * ts), lw / 2 + 4 * ts, w - lw / 2 - 4 * ts); }
-      if (TL && lx + lw / 2 + 3 * ts > TL.left && ly + 10 * ts > TL.top) ly = Math.max(mt, TL.top - 12 * ts); // not over the thumb buttons
+      if (TL && lx + lw / 2 + 3 * ts > TL.left && ly + 10 * ts > TL.top) { if (TL.top - 12 * ts >= mt) ly = TL.top - 12 * ts; else lx = Math.max(lw / 2 + 4 * ts, TL.left - lw / 2 - 4 * ts); } // not over the thumb buttons
       placed.push({ x: lx, y: ly, w: lw });
       panel(ctx, lx - lw / 2 - 3 * ts, ly - 3 * ts, lw + 6 * ts, 13 * ts, { fill: 'rgba(18,12,36,0.8)', edge: tg.col || C.edge });
       T(ctx, lab, lx, ly, { align: 'center', color: col, scale: ts });
@@ -480,54 +484,134 @@
   UI.pin = (ctx, x, y, s = 1) => { x = Math.round(x); y = Math.round(y); ctx.fillStyle = '#120c24'; ctx.fillRect(x - 2 * s - 1, y - 6 * s - 1, 4 * s + 2, 4 * s + 2); ctx.fillRect(x - 1, y - 2 * s, 2 + (s > 1 ? 1 : 0), 2 * s + 1); ctx.fillStyle = '#ffffff'; ctx.fillRect(x - 2 * s, y - 6 * s, 4 * s, 4 * s); ctx.fillRect(x, y - 2 * s, 1, 2 * s); };
 
   // ---------- touch controls ----------
-  // Where the thumb buttons go. One size for every round button: big enough for a thumb (46 CSS px across) and for
-  // its longest label, a word a line. Upright phones stack them in a tall cluster above the bottom-right corner; a
-  // phone on its side spreads them wider and lower, with MAP, PAUSE, JOB and ? left of the minimap instead of under it.
-  const TALL = { action: [0, 0], enter: [2.4, -0.7], horn: [0.2, 2.4], run: [2.4, 1.8], kick: [0, 4.6], spikes: [0, 4.6], backup: [2.4, 4.2], light: [4.8, -0.7] };
-  const WIDE = { action: [0, 0], enter: [2.4, -0.7], horn: [0, 2.3], run: [2.4, 1.7], kick: [4.8, 1.7], spikes: [4.8, 1.7], backup: [4.8, -0.7], light: [7.2, -0.7] };
+  // Three thumb buttons at most, chosen by what's going on: one big ACT button that does the most relevant thing (and
+  // says what: GET IN, KICK, CUFF, CHAT...), and up to two smaller ones when they matter (DRIFT while driving, SIREN in a
+  // police car, SPIKES and BACKUP in a chase). Anything else that applies sits behind a small "..." button.
+  // Each entry of UI.contextActions is a function (game, player) returning { id, label, priority } (or a list of them,
+  // or null). The id is the input it presses (the keyboard's action names: 'enter', 'action', 'kick', 'horn', 'run',
+  // 'spikes', 'backup', 'light', or a new one a minigame reads with VH.Input.consume / down). The highest priority is
+  // ACT, the next two are the context buttons, the rest go in the "..." fan. Minigames push their own (WHEELIE, PLANT...)
+  // with a high priority while they're on, and return null otherwise.
+  const actionOf = prompt => { // the HUD's prompt line ("ACT · CUFF", "SHOUT · SHOUT TO SCATTER...") as an action
+    const m = /^(.+?)(?: · |: )(.+)$/.exec(prompt || ''); if (!m) return null;
+    const key = m[1].trim(), what = m[2].trim(); const words = what.split(/[ ,.(]/); let verb = words[0];
+    if (/^(PUT|TAKE|HAND|STAND|CALL)$/.test(verb) && words[1] && (verb + ' ' + words[1]).length <= 9) verb += ' ' + words[1]; // HAND OVER, PUT IN, TAKE OUT
+    if (/^(SHOUT|MEGA|HORN|SIREN|SIREN BUTTON)$/.test(key)) return !G().player.onFoot && /^(SHOUT|MEGA)$/.test(key) ? null : { id: 'horn', label: key === 'SIREN BUTTON' ? 'SIREN' : verb.length <= 7 ? verb : key }; // (in a vehicle the horn only honks)
+    if (key === 'LIGHT') return { id: 'light', label: 'LIGHT' };
+    if (key === 'GET IN') return { id: 'enter', label: verb.length <= 7 ? verb : 'GET IN' };
+    if (key === 'ACT') return { id: /^(CUFF|LEAP|BOARD|GRAB|PUT|TAKE|HAND|TALK|CHAT|WALK|LEAD)$/.test(words[0]) ? 'enter' : 'action', label: verb.length <= 9 ? verb : 'ACT' };
+    return null;
+  };
+  UI.contextActions = [
+    // whatever the prompt line asks for (a job, a prisoner, a shop counter)
+    () => { const a = /^(job|escort|shop)$/.test(UI.lastPromptSrc || '') && actionOf(UI.lastPrompt); return a ? { ...a, priority: 90 } : null; },
+    // in and out of vehicles
+    (g, pl) => {
+      const v = pl.vehicle;
+      if (pl.onFoot) { const n = !(pl.stunT > 0) && !pl.inShop && g.nearestVehicle(pl.x, pl.y, g.ENTER_R); return n && !(n.rail && n.driver) ? { id: 'enter', label: n.rail || (n.def && (n.def.bike || n.def.gopher)) ? 'GET ON' : 'GET IN', priority: 80 } : null; }
+      const off = v.rail || v.def.bike || v.def.gopher; const j = M().job, run = g.char === 'cop' && j && j.started && j.chase && j.chase(); // (behind SPIKES and BACKUP only while the runaway is still driving)
+      return { id: 'enter', label: off ? 'GET OFF' : 'GET OUT', priority: run && run.speed > 3 ? 30 : 60 };
+    },
+    // on foot: kick when nothing else applies, shout (Kev's megaphone), tag a wall, Kev's spare car
+    (g, pl) => {
+      if (!pl.onFoot) return null; const near = M().targets().some(t => Math.hypot(t.x - pl.x, t.y - pl.y) < 40);
+      return [{ id: 'kick', label: 'KICK', priority: 30 }, { id: 'horn', label: g.char === 'cop' ? 'MEGA' : 'SHOUT', priority: g.char === 'cop' ? 50 : near ? 45 : 15 }, { id: 'action', label: 'TAG', priority: 10 },
+        ...(g.char === 'cop' && !VH.Police.kevCar() ? [{ id: 'backup', label: 'SPARE', priority: 40 }] : [])];
+    },
+    // driving and riding
+    (g, pl) => {
+      const v = pl.vehicle; if (pl.onFoot || !v) return null; const heli = v.def && v.def.heli, bike = v.def && v.def.bike, out = [];
+      if (v.rail) out.push({ id: 'run', label: 'FASTER', priority: 56 }, { id: 'horn', label: v.kind === 'tram' ? 'BELL' : 'WHISTLE', priority: 40 });
+      else {
+        out.push({ id: 'action', label: heli ? 'DOWN' : bike ? 'HOP' : 'DRIFT', priority: heli ? 70 : bike ? 55 : 50 });
+        if (heli) out.push({ id: 'run', label: 'UP', priority: 72 });
+        if (v.def.gopher && g.upgrades.turbo) out.push({ id: 'run', label: 'TURBO', priority: 52 });
+        const loud = v.type === 'police' || v.type === 'paddy' || v.roofLight;
+        out.push({ id: 'horn', label: loud ? 'SIREN' : 'HORN', priority: loud ? 56 : 20 }); // (one priority, so it doesn't swap places with DRIFT when it goes on)
+      }
+      if (g.char === 'cop' && !v.rail && !heli) { const ch = kevChase(g); out.push({ id: 'spikes', label: 'SPIKES', priority: ch ? 75 : 12 }, { id: 'backup', label: 'BACKUP', priority: ch ? 73 : 11 });
+        if (!bike && !v.def.gopher && v.type !== 'police' && v.type !== 'paddy' && !v.roofLight) out.push({ id: 'light', label: 'LIGHT', priority: 54 }); }
+      return out;
+    },
+  ];
+  // Kev is in a chase: a job's runaway is fleeing (the hoon), or the police radio has one on
+  const kevChase = g => { const j = M().job, pl = g.player; return !!(j && j.started && j.chase && (j.chase() || M().targets().some(t => Math.hypot(t.x - pl.x, t.y - pl.y) < 150))); };
+  UI.pickActions = function () {
+    const g = G(), pl = g.player; const seen = new Map();
+    for (const f of UI.contextActions) { let r; try { r = f(g, pl); } catch (e) { r = null; } for (const a of [].concat(r || [])) if (a && a.id && (!seen.has(a.id) || seen.get(a.id).priority < a.priority)) seen.set(a.id, a); }
+    const all = [...seen.values()].sort((a, b) => b.priority - a.priority); let ctx = all.slice(1, 3);
+    // a context button that stays keeps its place, so a thumb that just pressed it finds it there again
+    const prev = UI.ctxPrev || []; if (ctx.length === 2 && (prev[0] === ctx[1].id || prev[1] === ctx[0].id)) ctx = [ctx[1], ctx[0]];
+    UI.ctxPrev = ctx.map(a => a.id);
+    return { act: all[0] || null, ctx, more: all.slice(3) };
+  };
+  // where the thumb buttons and the top strip go (sizes in CSS px, so they're the same size on every phone)
   UI.touchLayout = function (w, h, ts) {
-    const g = G(), pl = g.player, v = pl.vehicle; const heli = v && v.def && v.def.heli, bike = v && v.def && v.def.bike;
-    const io = UI.inset || { dpr: 1, scale: 1 }; const css = n => Math.ceil(n * io.dpr / io.scale); // CSS px in art px
-    const wide = w > h, sh = UI.short;
-    const list = [
-      { id: 'action', label: pl.onFoot ? 'ACT' : heli ? 'DOWN' : bike ? 'HOP' : 'SKID', col: C.pink },
-      { id: 'enter', label: pl.onFoot ? 'GET IN' : 'GET OUT', col: C.teal },
-      { id: 'horn', label: pl.onFoot ? (g.char === 'cop' ? 'MEGA' : 'SHOUT') : (v && (v.type === 'police' || v.type === 'paddy' || v.roofLight)) ? 'SIREN' : 'HORN', col: C.hi },
-      { id: 'run', label: heli ? 'UP' : 'BOOST', col: '#7c5cff' },
-    ];
-    if (pl.onFoot) list.push({ id: 'kick', label: 'KICK', col: '#ff9a30' });
-    if (g.char === 'cop' && v && !v.rail && !heli) list.push({ id: 'spikes', label: 'SPIKES', col: '#ff9a30' }, { id: 'backup', label: 'BACKUP', col: '#7fa6ff' });
-    if (g.char === 'cop' && v && !v.rail && !heli && !bike && !v.def.gopher && v.type !== 'police' && v.type !== 'paddy') list.push({ id: 'light', label: 'LIGHT', col: '#9fd4ec' });
-    if (g.char === 'cop' && pl.onFoot && !VH.Police.kevCar()) list.push({ id: 'backup', label: 'SPARE', col: '#7fa6ff' });
-    for (const b of list) b.lines = b.label.split(' ');
-    const need = Math.max(...list.map(b => Math.hypot(Math.max(...b.lines.map(l => U.textWidth(l, ts))) / 2, (b.lines.length * 9 - 2) * ts / 2) + 2 * ts));
-    const r = Math.ceil(Math.max((sh ? 13 : 15) * ts, need, css(23)));
-    const at = wide ? WIDE : TALL; const ax = w - r - 6 * ts, ay = h - 1.7 * r - 6 * ts; // the action button's centre
-    for (const b of list) { b.cx = Math.round(ax - at[b.id][0] * r); b.cy = Math.round(ay - at[b.id][1] * r); }
-    // MAP, PAUSE, JOB and ?: a 2 x 2 block
-    const cw = Math.max(css(46), U.textWidth(wide ? 'JOB' : 'PAUSE', ts) + 8 * ts), chh = Math.max(16 * ts, css(46)), gap = 4 * ts;
-    const mmS = UI.mmS || 92 * ts, bw = 2 * cw + gap, bh = 2 * chh + gap;
-    const x0 = wide ? w - 4 * ts - mmS - 4 * ts - bw : w - 4 * ts - bw, y0 = wide ? 4 * ts : 4 * ts + 124 * ts;
-    const small = [['map', 'MAP'], ['pause', cw >= U.textWidth('PAUSE', ts) + 8 * ts ? 'PAUSE' : 'II'], ['job', 'JOB'], ['help', '?']].map(([id, lab], i) => ({ id, lab, x: x0 + (i % 2) * (cw + gap), y: y0 + (i >> 1) * (chh + gap), w: cw, h: chh }));
-    const left = Math.min(...list.map(b => b.cx - r)), top = Math.min(...list.map(b => b.cy - r));
-    return { r, btns: list, small, left, top, blockW: wide ? bw + 4 * ts : 0, wide };
+    const io = UI.inset || { dpr: 1, scale: 1, t: 0, r: 0, b: 0 }; const css = n => Math.ceil(n * io.dpr / io.scale); // CSS px in art px
+    const need = (word, s = ts) => Math.hypot(U.textWidth(word, s) / 2, 3.5 * s) + 2 * ts;
+    const RA = Math.max(css(38), need('WHISTLE')), RC = Math.max(css(26), need('WHISTLE')), RM = css(22), gap = 3 * ts;
+    // clear of the screen's edge zone (where a touch presses nothing), counting the safe area the HUD already keeps
+    const clear = insetPx => Math.max(4 * ts, css(I.EDGE) - insetPx / io.scale);
+    const mR = clear(io.r || 0) + 3 * ts, mB = clear(io.b || 0) + 3 * ts, sR = clear(io.r || 0), sT = clear(io.t || 0);
+    const ax = w - mR - RA, ay = h - mB - RA;
+    const slots = [{ cx: ax, cy: ay, r: RA }, { cx: ax - RA - gap - RC, cy: ay + RA - RC, r: RC }, { cx: ax + RA - RC, cy: ay - RA - gap - RC, r: RC }];
+    const more = { cx: ax - RA - gap - RC + RC - RM, cy: ay - RA - gap - RC + RC - RM, r: RM };
+    // the top strip: PAUSE, MAP, JOB and ?, small icons on 46 CSS px targets, in a row at the top right (two rows of two
+    // when a narrow phone's left-hand panel leaves no room for four)
+    const cell = css(46), sg = 2 * ts; const row = w - 2 * 4 * ts - 128 * ts >= 4 * cell + 3 * sg + 8 * ts; const cols = row ? 4 : 2;
+    const sx0 = w - sR - cols * cell - (cols - 1) * sg, sy0 = sT;
+    const strip = ['pause', 'map', 'job', 'help'].map((id, i) => ({ id, x: Math.round(sx0 + (i % cols) * (cell + sg)), y: Math.round(sy0 + Math.floor(i / cols) * (cell + sg)), w: cell, h: cell }));
+    const stripBox = { x: strip[0].x, y: strip[0].y, w: cols * cell + (cols - 1) * sg, h: (4 / cols) * cell + (4 / cols - 1) * sg };
+    const all = [...slots, more]; const left = Math.min(...all.map(b => b.cx - b.r)), top = Math.min(...all.map(b => b.cy - b.r));
+    return { RA, RC, RM, slots, more, strip, stripBox, left, top, wide: w > h };
+  };
+  // the little icons on the top strip
+  const stripIcon = (ctx, id, cx, cy, ts, col) => {
+    ctx.fillStyle = col; const s = ts; cx = Math.round(cx); cy = Math.round(cy);
+    if (id === 'pause') { ctx.fillRect(cx - 3 * s, cy - 4 * s, 2 * s, 8 * s); ctx.fillRect(cx + s, cy - 4 * s, 2 * s, 8 * s); }
+    else if (id === 'map') { for (let i = 0; i < 3; i++) ctx.fillRect(cx - 5 * s + i * 3.5 * s, cy - 4 * s + (i % 2) * s, 3 * s, 7 * s); }
+    else T(ctx, id === 'job' ? '!' : '?', cx - 2 * s, cy - 3.5 * s, { color: col, scale: s });
   };
   UI.touch = function (ctx, ts, TL) {
-    const w = ctx.canvas.width, h = ctx.canvas.height;
-    const L = TL || UI.touchLayout(w, h, ts), r = L.r;
-    const rects = [...L.btns.map(b => ({ id: b.id, x: b.cx - r, y: b.cy - r, w: r * 2, h: r * 2, round: true })), ...L.small.map(b => ({ id: b.id, x: b.x, y: b.y, w: b.w, h: b.h }))];
-    I.setButtons(rects); I.stickZone = w * 0.5; I.stickR = 26 * ts;
-    for (const b of L.btns) {
-      const held = I.held[b.id];
-      ctx.globalAlpha = held ? 0.9 : 0.55; ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(b.cx, b.cy, r, 0, U.TAU); ctx.fill();
-      ctx.strokeStyle = b.col; ctx.lineWidth = Math.max(1, ts); ctx.beginPath(); ctx.arc(b.cx, b.cy, r - 1, 0, U.TAU); ctx.stroke(); ctx.globalAlpha = 1;
-      b.lines.forEach((l, i) => T(ctx, l, b.cx, Math.round(b.cy - (b.lines.length * 9 - 2) * ts / 2 + i * 9 * ts), { align: 'center', color: b.col, scale: ts }));
+    const w = ctx.canvas.width, h = ctx.canvas.height; const g = G();
+    const L = TL || UI.touchLayout(w, h, ts); const P = UI.pickActions();
+    // the "..." fan: open until a button in it (or anything else) is pressed, or the situation changes
+    const ctxKey = (g.player.onFoot ? 'foot' : 'veh') + (g.player.vehicle ? g.player.vehicle.type : '');
+    if (UI.fanOpen && (UI.fanKey !== ctxKey || !P.more.length)) UI.fanOpen = false;
+    if (I.consume('more')) { UI.fanOpen = !UI.fanOpen && P.more.length > 0; UI.fanKey = ctxKey; I.lastBtn = null; }
+    else if (UI.fanOpen && I.lastBtn && I.lastBtn !== 'more') UI.fanOpen = false;
+    I.lastBtn = null;
+    const rects = []; const shown = [P.act, ...P.ctx];
+    shown.forEach((a, i) => { if (!a) return; const s = L.slots[i]; rects.push({ id: a.id, x: s.cx - s.r, y: s.cy - s.r, w: s.r * 2, h: s.r * 2, round: true, act: i === 0, ctx: i > 0, label: a.label }); });
+    if (P.more.length) rects.push({ id: 'more', x: L.more.cx - L.more.r, y: L.more.cy - L.more.r, w: L.more.r * 2, h: L.more.r * 2, round: true, label: '...' });
+    const fan = [];
+    if (UI.fanOpen) { const fh = Math.ceil(46 * (UI.inset ? UI.inset.dpr / UI.inset.scale : 1)), fw = Math.max(fh * 1.6, ...P.more.map(a => U.textWidth(a.label, ts) + 14 * ts)); P.more.forEach((a, i) => fan.push({ id: a.id, x: Math.round(L.more.cx + L.more.r - fw), y: Math.round(L.more.cy - L.more.r - 3 * ts - (i + 1) * (fh + 2 * ts)), w: Math.round(fw), h: fh, fan: true, label: a.label })); }
+    UI.stripRects = Object.fromEntries(L.strip.map(b => [b.id, b]));
+    I.setButtons([...fan, ...rects, ...L.strip.map(b => ({ ...b, strip: true }))]); I.stickZone = w * 0.5; I.stickR = 26 * ts;
+    const colOf = id => ({ enter: C.teal, action: C.pink, kick: '#ff9a30', horn: C.hi, run: '#7c5cff', spikes: '#ff9a30', backup: '#7fa6ff', light: '#9fd4ec' })[id] || C.white;
+    for (const b of rects) {
+      const cx = b.x + b.w / 2, cy = b.y + b.h / 2, r = b.w / 2, col = b.id === 'more' ? C.dim : colOf(b.id), held = I.held[b.id];
+      ctx.globalAlpha = held ? 0.92 : b.act ? 0.7 : 0.55; ctx.fillStyle = C.ink; ctx.beginPath(); ctx.arc(cx, cy, r, 0, U.TAU); ctx.fill();
+      ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, b.act ? 2 * ts : ts); ctx.beginPath(); ctx.arc(cx, cy, r - ctx.lineWidth / 2, 0, U.TAU); ctx.stroke(); ctx.globalAlpha = 1;
+      const lines = b.label.split(' '); const sc = b.act && lines.every(l => Math.hypot(U.textWidth(l, ts * 2) / 2, lines.length * 4.5 * ts * 2) < r - 2 * ts) ? ts * 2 : ts;
+      lines.forEach((l, i) => T(ctx, l, cx, Math.round(cy - (lines.length * 9 - 2) * sc / 2 + i * 9 * sc), { align: 'center', color: col, scale: sc }));
     }
-    for (const b of L.small) { panel(ctx, b.x, b.y, b.w, b.h, { edge: b.id === 'help' && G().helpOpen ? C.teal : C.edge }); T(ctx, b.lab, b.x + b.w / 2, Math.round(b.y + b.h / 2 - 3.5 * ts), { align: 'center', scale: ts, color: b.id === 'help' ? C.teal : C.white }); }
+    for (const b of fan) { panel(ctx, b.x, b.y, b.w, b.h, { fill: 'rgba(18,12,36,0.92)', edge: colOf(b.id) }); T(ctx, b.label, b.x + b.w / 2, Math.round(b.y + b.h / 2 - 3.5 * ts), { align: 'center', color: colOf(b.id), scale: ts }); }
+    // the strip: small icons, quiet, on full-size targets
+    for (const b of L.strip) {
+      const cx = b.x + b.w / 2, cy = b.y + b.h / 2, on = b.id === 'help' && g.helpOpen, rr = Math.round(Math.min(b.w, b.h) * 0.36);
+      ctx.globalAlpha = 0.8; ctx.fillStyle = C.ink; ctx.fillRect(Math.round(cx - rr), Math.round(cy - rr), rr * 2, rr * 2); ctx.globalAlpha = 1;
+      ctx.fillStyle = on ? C.teal : C.edge; ctx.fillRect(Math.round(cx - rr), Math.round(cy + rr - ts), rr * 2, ts);
+      stripIcon(ctx, b.id, cx, cy, ts, b.id === 'help' ? C.teal : C.white);
+    }
+    // the stick: its ring, with the outer "run" band; it lights up (and says RUN) once you push into it
     if (I.stick.active) {
-      ctx.globalAlpha = 0.5; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(I.stick.ox, I.stick.oy, I.stickR, 0, U.TAU); ctx.stroke();
-      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(I.stick.ox + I.stick.x * I.stickR, I.stick.oy + I.stick.y * I.stickR, 8 * ts, 0, U.TAU); ctx.fill(); ctx.globalAlpha = 1;
-    } else { ctx.globalAlpha = 0.25; T(ctx, 'DRAG HERE TO MOVE', w * 0.2, h - 20 * ts, { align: 'center', scale: ts }); ctx.globalAlpha = 1; }
+      const R = I.stickR, ox = I.stick.ox, oy = I.stick.oy, run = g.player.onFoot && I.stick.mag > g.RUN_AT;
+      ctx.globalAlpha = run ? 0.55 : 0.3; ctx.strokeStyle = run ? C.hi : '#fff'; ctx.lineWidth = Math.max(1, Math.round(R * (1 - g.RUN_AT))); ctx.beginPath(); ctx.arc(ox, oy, R * (1 + g.RUN_AT) / 2, 0, U.TAU); ctx.stroke();
+      ctx.globalAlpha = 0.5; ctx.lineWidth = 1; ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.arc(ox, oy, R, 0, U.TAU); ctx.stroke();
+      ctx.fillStyle = run ? C.hi : '#fff'; ctx.beginPath(); ctx.arc(ox + I.stick.x * R, oy + I.stick.y * R, 8 * ts, 0, U.TAU); ctx.fill(); ctx.globalAlpha = 1;
+      if (run) T(ctx, 'RUN', ox, oy + R + 4 * ts, { align: 'center', color: C.hi, scale: ts });
+    } else { ctx.globalAlpha = 0.25; T(ctx, 'DRAG HERE TO MOVE', Math.max(w * 0.2, U.textWidth('DRAG HERE TO MOVE', ts) / 2 + 4 * ts), h - 20 * ts, { align: 'center', scale: ts }); ctx.globalAlpha = 1; }
   };
 
   // ---------- menus ----------
@@ -880,7 +964,7 @@
     const w = ctx.canvas.width, h = ctx.canvas.height; const g = G(); const j = M().job;
     backdrop(ctx, 'rgba(18,12,36,0.55)');
     const pw = Math.min(w - 16 * ts, 230 * ts);
-    const txt = j ? (I.touchMode ? j.brief.replace(/SPACE/g, 'ACT').replace(/\(H\)/g, '(HORN)').replace(/SHIFT/g, 'BOOST') : j.brief) : '';
+    const txt = j ? (I.touchMode ? j.brief.replace(/SPACE/g, 'ACT').replace(/\(H\)/g, '(HORN)').replace(/SHIFT/g, 'FASTER') : j.brief) : '';
     const lines = j ? U.wrap(txt, Math.floor((pw - 24 * ts) / (6 * ts))) : [];
     // the night's header over the phone: big when it fits, otherwise small and wrapped to the screen
     const nt = g.briefNight && M().nightOf(g.char, g.night); const hd = !g.briefNight ? '' : g.char === 'roam' ? 'FREE ROAM' : `NIGHT ${g.night}: ${M().dayName(g.night)}` + (nt && nt.title ? ' · ' + nt.title : '');
