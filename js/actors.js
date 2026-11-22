@@ -123,6 +123,7 @@
     return VH.walkFrame(o);
   };
   VH.walkFrame = o => (o.gspd || 0) < 0.35 ? 0 : (o.gspd > 6.5 ? 5 : 1) + (Math.floor(o.stepPh || 0) % 4);
+  const N = () => VH.Nav;
   class Ped {
     constructor(kind, x, y, opts = {}) {
       this.kind = kind; this.x = x; this.y = y; this.ang = U.rand(0, U.TAU); this.z = 0; this.vz = 0;
@@ -133,7 +134,11 @@
       this.tag = opts.tag || null; this.bubbleT = 0; this.bubble = '';
     }
     say(str, t = 1.8) { this.bubble = str; this.bubbleT = t; }
-    update(dt, vehicles) { this.step(dt, vehicles); this.frame = this.state === 'sit' || this.state === 'dive' ? 0 : VH.stride(this, dt); }
+    update(dt, vehicles) {
+      // a new state starts afresh: no old route, and a flee heads the way it was pointed
+      if (this.state !== this._st) { this._st = this.state; this.fleeWant = this.ang; this.path = null; this.goal = null; this.intent = null; this.cornered = false; }
+      this.step(dt, vehicles); this.frame = this.state === 'sit' || this.state === 'dive' ? 0 : VH.stride(this, dt);
+    }
     step(dt, vehicles) {
       this.t += dt; if (this.bubbleT > 0) this.bubbleT -= dt;
 
@@ -154,24 +159,37 @@
           }
         }
       }
+      // every state below just sets an intent; VH.Nav.update does the moving (walls, water, trees, cars, routes)
+      const nav = N(); const x0 = this.x, y0 = this.y; let want = 0;
       if (this.state === 'dive') {
-        this.x += this.dvx * dt; this.y += this.dvy * dt; this.dvx *= Math.exp(-3 * dt); this.dvy *= Math.exp(-3 * dt);
-        this.vz -= 18 * dt; this.z = Math.max(0, this.z + this.vz * dt); this.ang += dt * 12;
-        this.pushOut();
+        if (!this.intent || this.intent.kind !== 'push') this.intent = { kind: 'push', vx: this.dvx, vy: this.dvy };
+        nav.update(this, dt); this.vz -= 18 * dt; this.z = Math.max(0, this.z + this.vz * dt); this.ang += dt * 12;
         if (this.t > 0.55 && this.z === 0) { this.state = 'sit'; this.t = 0; this.say(U.pick(LINES[this.kind] || LINES.local)); FX.dust(this.x, this.y, '#c8bfa0', 3); }
         return;
       }
-      if (this.state === 'ride') return;
-      if (this.frozen > 0) { this.frozen -= dt; this.anim = 0; return; } // Kev's megaphone: frozen to the spot (but still jumps clear of cars)
-      if (this.state === 'sit') { if (this.t > 1.4) { this.state = this.kind === 'schoolie' && this.home ? 'dance' : 'walk'; this.ai = null; } return; }
+      if (this.state === 'ride') return; // on board a vehicle: it carries them
+      if (this.frozen > 0) { this.frozen -= dt; this.intent = null; return; } // Kev's megaphone: frozen to the spot (but still jumps clear of cars)
+      if (this.state === 'sit') { this.intent = null; if (this.t > 1.4 && !this.stay) { this.state = this.kind === 'schoolie' && this.home ? 'dance' : 'walk'; this.ai = null; } return; }
+      if (this.state === 'idle') { this.intent = null; return; }
       if (this.state === 'dance') {
         if (!this.home) { this.state = 'walk'; return; }
-        const hx = this.home.x + Math.cos(this.t * 0.6 + this.anim) * 2.5, hy = this.home.y + Math.sin(this.t * 0.8 + this.anim) * 2.5;
-        this.moveTo(hx, hy, 1.2, dt); this.ang += Math.sin(this.t * 6) * 0.2; return;
+        this.intent = { kind: 'chase', target: { x: this.home.x + Math.cos(this.t * 0.6 + this.anim) * 2.5, y: this.home.y + Math.sin(this.t * 0.8 + this.anim) * 2.5 }, speed: 1.2, near: 0.05 };
+        nav.update(this, dt); this.ang += Math.sin(this.t * 6) * 0.2; return;
       }
-      if (this.state === 'flee') { this.x += Math.cos(this.ang) * 4.2 * dt; this.y += Math.sin(this.ang) * 4.2 * dt; this.anim += dt * 10; this.pushOut(); if (this.t > 3) { this.state = 'walk'; this.ai = null; } return; }
-      if (this.state === 'idle') { this.anim = 0; return; }
-      if (this.state === 'goto') { if (this.moveTo(this.gx, this.gy, this.speed * 2.6, dt)) { this.state = 'idle'; } return; }
+      if (this.state === 'flee') { // scatter: the clearest way that's mostly away
+        if (!this.intent || this.intent.kind !== 'scatter') this.intent = { kind: 'scatter', ang: this.fleeWant, speed: this.fleeSpeed || 4.2 };
+        nav.update(this, dt); if (this.t > 3) { this.state = 'walk'; this.ai = null; } return;
+      }
+      if (this.state === 'run') { // running from someone (a ditcher or the hoon from Kev): a route that keeps clear of them
+        this.intent = { kind: 'flee', from: this.threat || G().player, speed: this.runSpeed || 7.5 }; nav.update(this, dt); return;
+      }
+      if (this.state === 'chase') { // after someone
+        this.intent = { kind: 'chase', target: this.target || G().player, speed: this.runSpeed || 7.5, near: this.near || 0.8 }; if (nav.update(this, dt) === 'done') this.reached = true; return;
+      }
+      if (this.state === 'goto') {
+        if (!this.intent || this.intent.kind !== 'goto' || this.intent.x !== this.gx || this.intent.y !== this.gy) this.intent = { kind: 'goto', x: this.gx, y: this.gy, speed: this.gotoSpeed || this.speed * 2.6 };
+        if (nav.update(this, dt) === 'done') { this.state = 'idle'; this.intent = null; } return;
+      }
       // walk along the footpath next to the road graph
       if (!this.ai) {
         const n = W.nearestEdge(this.x, this.y, 40); if (!n) { this.state = 'idle'; return; }
@@ -182,21 +200,18 @@
         const node = ai.dir === 1 ? ai.e.b : ai.e.a; const opts = (W.gOutAll[node] || []).filter(o => o.e !== ai.e);
         const pick = opts.length ? U.pick(opts) : { e: ai.e, dir: -ai.dir }; ai.e = pick.e; ai.dir = pick.dir; ai.s = 0;
       }
-      const [px, py, pa] = edgePt(ai.e, ai.dir, ai.s); const off = ai.e.w / 2 + 1.3;
-      const tx = px + Math.sin(pa) * off, ty = py - Math.cos(pa) * off;
-      this.moveTo(tx, ty, this.speed * 1.6, dt);
+      const [px, py, pa] = edgePt(ai.e, ai.dir, ai.s);
+      // the footpath beside the road; where there isn't one (a wall, a cliff, the sea) the kerb, or the other side
+      let tx = 0, ty = 0; for (const off of [ai.e.w / 2 + 1.3, ai.e.w / 2 - 0.4, -(ai.e.w / 2 + 1.3)]) { tx = px + Math.sin(pa) * off; ty = py - Math.cos(pa) * off; if (nav.walkable(tx, ty)) break; }
+      want = Math.min(Math.hypot(tx - x0, ty - y0), this.speed * 1.6 * dt);
+      this.intent = { kind: 'chase', target: { x: tx, y: ty }, speed: this.speed * 1.6, near: 0.05 }; nav.update(this, dt);
+      this.blockedT = Math.hypot(this.x - x0, this.y - y0) < want * 0.3 ? (this.blockedT || 0) + dt : 0;
+      if (this.blockedT > 1.2) { this.blockedT = 0; ai.dir = -ai.dir; ai.s = Math.max(0, ai.e.len - ai.s); } // turn round
     }
-    moveTo(tx, ty, spd, dt) {
-      const dx = tx - this.x, dy = ty - this.y, d = Math.hypot(dx, dy); if (d < 0.05) return true;
-      const st = Math.min(d, spd * dt); this.x += dx / d * st; this.y += dy / d * st; this.ang = Math.atan2(dy, dx); this.anim += st * 3; return d < 0.3;
-    }
-    pushOut() {
-      W.wallGrid.query(this.x - 0.5, this.y - 0.5, this.x + 0.5, this.y + 0.5, s => { const [d, qx, qy] = U.segPointDist(this.x, this.y, s.ax, s.ay, s.bx, s.by); if (d < 0.4 && d > 1e-6) { this.x = qx + (this.x - qx) / d * 0.4; this.y = qy + (this.y - qy) / d * 0.4; } });
-      if (W.isWet(this.x, this.y) && W.seaDist(this.x, this.y) < -0.5) { this.dvx = (this.dvx || 0) * -1; this.dvy = (this.dvy || 0) * -1; }
-    }
+    pushOut() { N().pushOut(this); }
     draw(ctx, left, top, S, night) {
       const sx = Math.round((this.x - left) * S), sy = Math.round((this.y - top) * S - this.z * S);
-      if (sx < -10 || sy < -10 || sx > ctx.canvas.width + 10 || sy > ctx.canvas.height + 10) return;
+      if (sx < -10 || sy < -10 || sx > ctx.canvas.width + 10 || sy > ctx.canvas.height + 10 || (this.prisoner && this.prisoner.stage === 'car')) return;
       const frame = this.state === 'sit' ? 0 : this.frame || 0;
       ctx.fillStyle = 'rgba(20,20,45,0.35)'; ctx.fillRect(sx - 3 + 1, Math.round((this.y - top) * S) - 3 + 1, 7, 7);
       VH.drawRot(ctx, SP.person(this.shirt, this.hair, frame, { hat: this.hat }), sx, sy, this.state === 'sit' ? this.ang + 1.6 : this.ang);
@@ -319,7 +334,9 @@
       if (o === v || o.removed) continue; const dx = o.x - v.x, dy = o.y - v.y; if (Math.abs(dx) > 30 || Math.abs(dy) > 30) continue;
       const along = dx * fx + dy * fy, lat = Math.abs(-dx * fy + dy * fx); if (along > 0 && along < 22 && lat < 2.4) gap = Math.min(gap, along - (o.def ? o.def.L / 2 : 1));
     }
-    const pl = G() && G().player; if (pl && pl.onFoot) { const dx = pl.x - v.x, dy = pl.y - v.y; const along = dx * fx + dy * fy, lat = Math.abs(-dx * fy + dy * fx); if (along > 0 && along < 12 && lat < 1.8) gap = Math.min(gap, along); }
+    const pl = G() && G().player; if (pl && pl.onFoot) { const dx = pl.x - v.x, dy = pl.y - v.y; const along = dx * fx + dy * fy, lat = Math.abs(-dx * fy + dy * fx); if (along > 0 && along < 12 && lat < 1.8) { gap = Math.min(gap, along); if (Math.abs(spd) < 1.5 && !ai.flee) ai.flagT = 4; }
+      // flagged down: a car that stopped for you waits a few seconds while you walk up to it (E at the door borrows it)
+      if (ai.flagT > 0) { ai.flagT -= dt; if (Math.hypot(dx, dy) < 9) { gap = 0; if (!ai.flagSaid && Math.hypot(dx, dy) < 7) { ai.flagSaid = true; VH.FX.text(v.x, v.y - 4, U.pick(['WHAT?!', 'YOU RIGHT, MATE?', 'GET OFF THE ROAD!', 'NEED A LIFT?']), '#fff'); } } } }
     if (G() && G().sirenPullover && G().sirenPullover(v)) { vt = 0; ai.pullT = 2; }
     if (gap < 99) vt = Math.min(vt, Math.max(ai.flee ? 6 : 0, (gap - (v.def.L / 2 + 2.5)) * 0.9));
     if (gap < 6 && Math.abs(spd) < 0.5) { ai.blocked += dt; } else ai.blocked = Math.max(0, ai.blocked - dt);

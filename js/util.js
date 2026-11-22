@@ -44,10 +44,21 @@ window.VH = window.VH || {};
   };
   U.cumLen = p => { const c = [0]; for (let i = 2; i < p.length; i += 2) c.push(c[c.length - 1] + Math.hypot(p[i] - p[i - 2], p[i + 1] - p[i - 1])); return c; };
   U.fmtMoney = v => '$' + Math.round(v);
+  // saves live under 'schoolies-mayhem:'; anything left from the game's old name ('schoolies-siege:') is copied across once
+  const PREFIX = 'schoolies-mayhem:', OLD = 'schoolies-siege:';
   U.store = {
-    get(k, d) { try { const v = localStorage.getItem('schoolies-siege:' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-    set(k, v) { try { localStorage.setItem('schoolies-siege:' + k, JSON.stringify(v)); } catch (e) { /* private mode */ } },
+    get(k, d) { try { const v = localStorage.getItem(PREFIX + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(PREFIX + k, JSON.stringify(v)); } catch (e) { /* private mode */ } },
+    del(k) { try { localStorage.removeItem(PREFIX + k); } catch (e) { /* private mode */ } },
+    migrate() {
+      try {
+        const keys = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(OLD)) keys.push(k); }
+        for (const k of keys) { const nk = PREFIX + k.slice(OLD.length); if (localStorage.getItem(nk) == null) localStorage.setItem(nk, localStorage.getItem(k)); localStorage.removeItem(k); }
+        return keys.length;
+      } catch (e) { return 0; }
+    },
   };
+  U.store.migrate();
 
   // Uniform-grid spatial hash keyed on integer cells.
   class Grid {

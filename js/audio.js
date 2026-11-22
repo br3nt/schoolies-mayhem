@@ -296,21 +296,6 @@
       N('bandpass', 180, 0, i * 0.5, 0.38, 0.12, { q: 4 });
     }
   };
-  // taser: an electric crackle
-  S.zap = function () {
-    for (var i = 0; i < 7; i++) T('sawtooth', rnd(1800, 3200), rnd(400, 900), i * 0.05, 0.05, 0.12, { lp: 6000 });
-    N('highpass', 4000, 0, 0, 0.35, 0.25);
-  };
-  // stylised arcade shot: a short "tak" with a tail
-  S.shot = function () {
-    N('bandpass', 1800, 300, 0, 0.09, 0.45, { q: 1.2 });
-    T('square', 420, 90, 0, 0.08, 0.16, { lp: 1800 });
-  };
-  // ricochet ping off panel work
-  S.ping = function () {
-    T('sine', rnd(2600, 3400), rnd(1200, 1700), 0, 0.22, 0.18, { a: 0.002 });
-    N('highpass', 5000, 0, 0, 0.03, 0.2);
-  };
   // tyre blow-out: a pop and a hiss
   S.tyre = function () {
     N('lowpass', 2500, 200, 0, 0.12, 0.9);

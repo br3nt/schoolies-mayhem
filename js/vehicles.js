@@ -5,21 +5,27 @@
   const sfx = (n, o) => window.SFX && SFX.play(n, o);
 
   const VDEF = VH.VDEF = {
-    hatch: { name: 'hatchback', L: 3.9, W: 1.75, mass: 1000, accel: 24, maxV: 54, grip: 8, turn: 2.9, brake: 36, hp: 1 },
-    sedan: { name: 'sedan', L: 4.6, W: 1.85, mass: 1350, accel: 23, maxV: 58, grip: 8, turn: 2.7, brake: 36, hp: 1.2 },
-    ute: { name: 'ute', L: 5.0, W: 1.9, mass: 1600, accel: 21, maxV: 50, grip: 7, turn: 2.6, brake: 32, hp: 1.5 },
-    police: { name: 'police car', L: 4.8, W: 1.9, mass: 1500, accel: 27, maxV: 64, grip: 9, turn: 2.9, brake: 38, hp: 1.6 },
-    hearse: { name: 'hearse', L: 5.6, W: 1.95, mass: 2100, accel: 17, maxV: 50, grip: 7, turn: 2.3, brake: 28, hp: 1.6 },
-    icecream: { name: 'ice-cream van', L: 5.2, W: 2.1, mass: 2200, accel: 13, maxV: 38, grip: 6, turn: 2.3, brake: 24, hp: 1.6 },
-    gopher: { name: 'gopher', L: 1.5, W: 0.8, mass: 160, accel: 3.5, maxV: 4.2, grip: 10, turn: 3.4, brake: 10, hp: 0.7, gopher: true },
-    paddy: { name: 'paddy wagon', L: 5.4, W: 2.1, mass: 2300, accel: 19, maxV: 50, grip: 8, turn: 2.5, brake: 30, hp: 2.2 },
-    bmx: { name: 'BMX', L: 1.7, W: 0.7, mass: 90, accel: 8, maxV: 13, grip: 9, turn: 4.4, brake: 12, hp: 0.5, bike: true },
-    cruiser: { name: 'beach cruiser', L: 1.9, W: 0.8, mass: 100, accel: 5.5, maxV: 11, grip: 8, turn: 3.6, brake: 9, hp: 0.5, bike: true },
-    escooter: { name: 'e-scooter', L: 1.2, W: 0.6, mass: 70, accel: 7, maxV: 9, grip: 8, turn: 4.6, brake: 10, hp: 0.4, bike: true, electric: true },
-    heli: { name: 'helicopter', L: 11, W: 3, mass: 2500, accel: 14, maxV: 42, grip: 3, turn: 2.2, brake: 10, hp: 2.5, heli: true },
-    truck: { name: 'B-double', L: 6.5, W: 2.5, mass: 9000, accel: 8, maxV: 34, grip: 7, turn: 1.8, brake: 16, hp: 4, trailers: 2 },
+    hatch: { name: 'hatchback', L: 3.9, W: 1.75, mass: 1000, accel: 24, maxV: 54, grip: 8, turn: 2.9, brake: 36, hp: 1, tough: 1.0 },
+    sedan: { name: 'sedan', L: 4.6, W: 1.85, mass: 1350, accel: 23, maxV: 58, grip: 8, turn: 2.7, brake: 36, hp: 1.2, tough: 1.25 },
+    ute: { name: 'ute', L: 5.0, W: 1.9, mass: 1600, accel: 21, maxV: 50, grip: 7, turn: 2.6, brake: 32, hp: 1.5, tough: 1.8 },
+    police: { name: 'police car', L: 4.8, W: 1.9, mass: 1500, accel: 27, maxV: 64, grip: 9, turn: 2.9, brake: 38, hp: 1.6, tough: 2.2 },
+    hearse: { name: 'hearse', L: 5.6, W: 1.95, mass: 2100, accel: 17, maxV: 50, grip: 7, turn: 2.3, brake: 28, hp: 1.6, tough: 1.7 },
+    icecream: { name: 'ice-cream van', L: 5.2, W: 2.1, mass: 2200, accel: 13, maxV: 38, grip: 6, turn: 2.3, brake: 24, hp: 1.6, tough: 1.7 },
+    gopher: { name: 'gopher', L: 1.5, W: 0.8, mass: 160, accel: 3.5, maxV: 4.2, grip: 10, turn: 3.4, brake: 10, hp: 0.7, tough: 0.8, gopher: true },
+    paddy: { name: 'paddy wagon', L: 5.4, W: 2.1, mass: 2300, accel: 19, maxV: 50, grip: 8, turn: 2.5, brake: 30, hp: 2.2, tough: 2.6 },
+    bmx: { name: 'BMX', L: 1.7, W: 0.7, mass: 90, accel: 8, maxV: 13, grip: 9, turn: 4.4, brake: 12, hp: 0.5, tough: 0.6, bike: true },
+    cruiser: { name: 'beach cruiser', L: 1.9, W: 0.8, mass: 100, accel: 5.5, maxV: 11, grip: 8, turn: 3.6, brake: 9, hp: 0.5, tough: 0.6, bike: true },
+    escooter: { name: 'e-scooter', L: 1.2, W: 0.6, mass: 70, accel: 7, maxV: 9, grip: 8, turn: 4.6, brake: 10, hp: 0.4, tough: 0.5, bike: true, electric: true },
+    heli: { name: 'helicopter', L: 11, W: 3, mass: 2500, accel: 14, maxV: 42, grip: 3, turn: 2.2, brake: 10, hp: 2.5, tough: 2.5, heli: true },
+    truck: { name: 'B-double', L: 6.5, W: 2.5, mass: 9000, accel: 8, maxV: 34, grip: 7, turn: 1.8, brake: 16, hp: 4, tough: 5, trailers: 2 },
   };
   const CAR_TYPES = ['hatch', 'hatch', 'sedan', 'sedan', 'ute', 'hatch', 'sedan'];
+  // Damage builds up: each crash adds damage scaled by the energy that vehicle took (its change in speed, squared) and
+  // divided by its toughness, with a cap per crash, so nothing is wrecked in one hit. The stages show on the car.
+  VH.DAMAGE = { STAGES: [[0, ''], [0.08, 'DENTED'], [0.35, 'SMOKING'], [0.55, 'SPARKING'], [0.75, 'LIMPING'], [1, 'DISABLED']],
+    stage: d => { let i = 0; VH.DAMAGE.STAGES.forEach((s, k) => { if (d >= s[0]) i = k; }); return i; },
+    // dv: how hard this vehicle was jolted (m/s); returns the damage to add
+    amount: (dv, tough) => { const e = Math.max(0, dv - 2.5); return Math.min(0.28 / Math.sqrt(tough), e * e / (300 * tough)); } };
   VH.randomCarType = () => U.pick(CAR_TYPES);
 
   let nextId = 1;
@@ -58,13 +64,15 @@
         return;
       }
       const dead = this.dead;
-      const thr = dead ? 0 : this.throttle, brk = this.brake, hb = d.bike ? 0 : this.handbrake;
+      // limping: the engine coughs and cuts out now and then
+      if (this.damage >= 0.75 && !dead) { this.coughT = (this.coughT || 0) - dt; if (this.coughT <= 0) { this.coughT = U.rand(0.6, 1.8); this.cough = Math.random() < 0.35 ? 0.35 : 0; if (this.cough && this.speed > 2) { FX.smoke(this.x - Math.cos(this.ang) * d.L / 2, this.y - Math.sin(this.ang) * d.L / 2, '#2c2c30', 2, 1, 1); if (Math.random() < 0.5) sfx('thud', { vol: 0.25, pitch: 0.6 }); } } if (this.cough > 0) this.cough -= dt; }
+      const thr = dead || this.cough > 0 ? 0 : this.throttle, brk = this.brake, hb = d.bike ? 0 : this.handbrake;
       const sandy = surf === W.SURF[W.GC.SAND];
       // bikes fly along footpaths and the foreshore path, and wobble on sand; flat tyres drag and pull
       const surfBoost = d.bike ? (surf.grip > 0.9 ? 1.15 : sandy ? 0.6 : 0.85) : 1;
       if (this.boostT > 0) this.boostT -= dt;
       const boosted = this.boost || this.boostT > 0;
-      const maxV = d.maxV * (boosted ? (d.gopher && this.boostT > 0 ? 2.3 : 1.6) : 1) * (1 - this.damage * 0.35) * surfBoost * (this.flat ? 0.55 : 1);
+      const limp = this.damage >= 0.75; const maxV = d.maxV * (boosted ? (d.gopher && this.boostT > 0 ? 2.3 : 1.6) : 1) * (limp ? 0.5 : 1 - this.damage * 0.25) * surfBoost * (this.flat ? 0.55 : 1);
       if (d.gopher && this.boostT > 0 && this.speed > 4) { if (Math.random() < 0.6) FX.sparks(this.x - Math.cos(this.ang) * 0.8, this.y - Math.sin(this.ang) * 0.8, 1, this.ang + Math.PI); this.wheelie = Math.min(1, (this.wheelie || 0) + dt * 4); } else this.wheelie = Math.max(0, (this.wheelie || 0) - dt * 3);
       if (d.bike && sandy && this.speed > 1) this.av += Math.sin(performance.now() / 90 + this.id) * dt * 6;
       if (this.flat && this.speed > 2) { this.av += (this.id % 2 ? 1 : -1) * dt * 0.5; if (surf.grip > 0.9 && Math.random() < 0.25) FX.sparks(this.x - Math.cos(this.ang) * d.L / 2, this.y - Math.sin(this.ang) * d.L / 2, 1); }
@@ -124,8 +132,10 @@
       if (this.skid > 0.4 && surf.grip > 0.9 && Math.random() < 0.4) FX.smoke(this.x - fx * d.L / 2, this.y - fy * d.L / 2, '#cfcfd4', 1, 0.8, 0.8);
       // exhaust puffs when giving it a boot from low speed
       if (thr > 0.6 && this.speed < 10 && !d.gopher && Math.random() < 0.18) FX.smoke(this.x - fx * (d.L / 2 + 0.3) + rx * d.W * 0.3, this.y - fy * (d.L / 2 + 0.3) + ry * d.W * 0.3, '#9a9aa2', 1, 0.5, 0.7);
-      // damage smoke
-      if (this.damage > 0.55) { this.smokeT -= dt; if (this.smokeT <= 0) { this.smokeT = 0.12 / this.damage; FX.smoke(this.x + fx * d.L * 0.35, this.y + fy * d.L * 0.35, this.damage > 0.85 ? '#2c2c30' : '#8a8a90', 1, 1.2); } }
+      // damage stages: smoke from the bonnet, then sparks from a dragging bumper, then a limp that pulls to one side
+      if (this.damage >= 0.35 && !d.bike) { this.smokeT -= dt; if (this.smokeT <= 0) { this.smokeT = (this.dead ? 0.08 : 0.3) / this.damage; FX.smoke(this.x + fx * d.L * 0.35, this.y + fy * d.L * 0.35, this.damage >= 0.75 ? '#2c2c30' : this.damage >= 0.55 ? '#5a5a60' : '#9a9aa0', 1, this.dead ? 1.6 : 1.1, this.dead ? 2.2 : 1.4); } }
+      if (this.damage >= 0.55 && !this.dead && !d.bike && this.speed > 3 && surf.grip > 0.9 && Math.random() < 0.35) FX.sparks(this.x - fx * d.L / 2 + rx * (this.id % 2 ? 0.6 : -0.6), this.y - fy * d.L / 2 + ry * (this.id % 2 ? 0.6 : -0.6), 2, this.ang + Math.PI);
+      if (this.damage >= 0.75 && !this.dead && this.speed > 2) this.av += (this.id % 2 ? 1 : -1) * dt * 0.35;
       // water
       if (W.isWet(this.x, this.y) && !this.special && !this.boat) {
         const sd = W.seaDist(this.x, this.y); const g = W.groundAt(this.x, this.y);
@@ -179,10 +189,10 @@
     }
     hit(impact, wx, wy, other) {
       if (impact < 2) return;
-      const dmg = impact / 95 / this.def.hp;
-      this.damage = Math.min(1, this.damage + dmg);
+      this.addDamage(VH.DAMAGE.amount(impact, this.def.tough || this.def.hp || 1));
       // dent the sprite near the impact point
       if (this.sprite === this.base) this.sprite = SP.damaged(this.base);
+      if (this.def.heli) return VH.Game && VH.Game.onCrash && VH.Game.onCrash(this, impact, other);
       const fx = Math.cos(this.ang), fy = Math.sin(this.ang); const dx = wx - this.x, dy = wy - this.y;
       const lo = dx * fx + dy * fy, ll = -dx * fy + dy * fx;
       SP.dent(this.sprite, this.sprite.width / 2 + lo * 4, this.sprite.height / 2 + ll * 4, impact > 8);
@@ -191,8 +201,15 @@
       else sfx('thud', { vol: 0.5 });
       if (impact > 9) { FX.glass(wx, wy, 6); if (Math.random() < 0.3) sfx('smash', { vol: 0.6 }); }
       if (impact > 6 && Math.random() < 0.25) FX.debris(wx, wy, [this.colour, '#222', '#999'], 3, 4, { stay: true });
-      if (this.damage >= 1 && !this.dead) { this.dead = true; sfx('puff'); FX.smoke(this.x, this.y, '#333', 12, 1.8, 2.5); FX.debris(this.x, this.y, ['#bbb', '#888'], 2, 6, { type: 'chip', size: 2, stay: true }); VH.Game && VH.Game.onWreck && VH.Game.onWreck(this); }
       VH.Game && VH.Game.onCrash && VH.Game.onCrash(this, impact, other);
+    }
+    // all damage goes through here: the stage callouts and the final wreck
+    addDamage(dmg) {
+      if (!(dmg > 0) || this.dead) return;
+      const before = VH.DAMAGE.stage(this.damage); this.damage = Math.min(1, this.damage + dmg); const after = VH.DAMAGE.stage(this.damage);
+      if (this.sprite === this.base && this.damage > 0.04) this.sprite = SP.damaged(this.base);
+      if (after > before && VH.Game && VH.Game.onDamageStage) VH.Game.onDamageStage(this, after);
+      if (this.damage >= 1 && !this.dead) { this.dead = true; sfx('puff'); FX.smoke(this.x, this.y, '#333', 12, 1.8, 2.5); FX.debris(this.x, this.y, ['#bbb', '#888'], 2, 6, { type: 'chip', size: 2, stay: true }); VH.Game && VH.Game.onWreck && VH.Game.onWreck(this); }
     }
     draw(ctx, left, top, S, night) {
       if (this.removed) return;
@@ -215,7 +232,8 @@
       const wl = this.wheelie || 0; // a gopher wheelie: front up, nudged and shortened
       drawRot(ctx, this.sprite, sx, sy - this.z * S - wl * 2, this.ang, sinkA, this.z < 0.05, (this.sinking ? 1 - this.sinking * 0.2 : 1) * (1 + this.z * 0.04) * (1 + wl * 0.12));
       if (this.stripe) { ctx.save(); ctx.translate(Math.round(sx), Math.round(sy - wl * 2)); ctx.rotate(this.ang); ctx.fillStyle = '#ffd23a'; ctx.fillRect(-3, -1, 6, 1); ctx.fillStyle = '#ff4fa0'; ctx.fillRect(-3, 0, 6, 1); ctx.restore(); }
-      if ((this.type === 'police' || this.type === 'paddy') && this.siren) {
+      if (this.roofLight && !this.siren) { ctx.fillStyle = '#20202a'; ctx.fillRect(Math.round(sx) - 1, Math.round(sy) - 1, 2, 2); } // the magnetic light, off
+      if ((this.type === 'police' || this.type === 'paddy' || this.roofLight) && this.siren) {
         const ph = Math.floor(performance.now() / 120) % 2; ctx.fillStyle = ph ? '#ff3030' : '#3060ff';
         ctx.fillRect(Math.round(sx) - 1, Math.round(sy) - 1, 2, 2);
       }
@@ -297,6 +315,7 @@
   // vehicle vs building walls and solid props
   C.walls = function (v) {
     if (v.rail || v.removed || v.sinking || v.scripted || v.z > 0.3) return;
+    wallHit = null;
     v.eachCircle((cx, cy, r, off) => {
       W.wallGrid.query(cx - r, cy - r, cx + r, cy + r, s => {
         if (s.wall && v.boat) return; // [Round C map] boats pass under bridge and causeway railings
@@ -305,7 +324,9 @@
       });
       VH.Props.solidNear(cx, cy, r, (px, py, pr) => { const d = Math.hypot(cx - px, cy - py); if (d < r + pr && d > 1e-6) { const nx = (cx - px) / d, ny = (cy - py) / d; resolveStatic(v, cx, cy, px + nx * pr, py + ny * pr, d - pr, r, off); } });
     });
+    if (wallHit) v.hit(wallHit.dv, wallHit.x, wallHit.y, null);
   };
+  let wallHit = null;
   function resolveStatic(v, cx, cy, qx, qy, d, r, off) {
     const nx = (cx - qx) / (d || 1), ny = (cy - qy) / (d || 1); const pen = r - d;
     v.x += nx * pen; v.y += ny * pen;
@@ -314,7 +335,7 @@
       v.vx -= 1.35 * vn * nx; v.vy -= 1.35 * vn * ny; // bounce a little
       v.vx *= 0.92; v.vy *= 0.92;
       if (off != null) { const fx = Math.cos(v.ang), fy = Math.sin(v.ang); const torque = (off * (fx * ny - fy * nx)) * -vn * 0.12; v.av += torque; }
-      if (-vn > 2) v.hit(-vn, qx, qy, null);
+      if (-vn > 2 && (!wallHit || -vn * 1.35 > wallHit.dv)) wallHit = { dv: -vn * 1.35, x: qx, y: qy };
     }
   }
   // vehicle vs vehicle (including rail vehicles, which always win)
@@ -324,6 +345,7 @@
       if (a.rail && b.rail) continue;
       const rr = (a.rail ? 40 : a.radius + 13) + (b.rail ? 40 : b.radius + 13);
       if (Math.abs(a.x - b.x) > rr || Math.abs(a.y - b.y) > rr) continue;
+      let worst = null;
       a.eachCircle((ax, ay, ar) => b.eachCircle((bx, by, br) => {
         const dx = bx - ax, dy = by - ay, d = Math.hypot(dx, dy); if (d >= ar + br || d < 1e-6) return;
         const nx = dx / d, ny = dy / d, pen = ar + br - d;
@@ -335,10 +357,14 @@
           const jimp = -(1.3) * vn / (1 / ma + 1 / mb);
           if (!a.rail) { a.vx -= jimp * nx / ma; a.vy -= jimp * ny / ma; a.av += U.rand(-1, 1) * Math.min(2, -vn * 0.08); }
           if (!b.rail) { b.vx += jimp * nx / mb; b.vy += jimp * ny / mb; b.av += U.rand(-1, 1) * Math.min(2, -vn * 0.08); }
-          const cx = (ax + bx) / 2, cy = (ay + by) / 2;
-          if (-vn > 2) { a.hit(-vn * (b.rail ? 1.5 : 1), cx, cy, b); b.hit(-vn * (a.rail ? 1.5 : 1), cx, cy, a); }
+          if (-vn > 2 && (!worst || -vn > worst.vn)) worst = { vn: -vn, x: (ax + bx) / 2, y: (ay + by) / 2, ma, mb };
         }
       }));
+      if (worst) {
+        // each one's jolt: (1 + bounce) x closing speed x the other's share of the mass; rail vehicles shove like a wall
+        const { vn, x, y, ma, mb } = worst; const dva = b.rail ? vn * 1.5 : 1.3 * vn * mb / (ma + mb), dvb = a.rail ? vn * 1.5 : 1.3 * vn * ma / (ma + mb);
+        a.hit(dva, x, y, b); b.hit(dvb, x, y, a);
+      }
     }
   };
 })(window.VH);

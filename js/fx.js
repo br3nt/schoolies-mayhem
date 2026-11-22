@@ -21,6 +21,8 @@
   FX.sparks = (x, y, n = 8, dir) => { for (let i = 0; i < n; i++) { const a = (dir ?? Math.random() * U.TAU) + U.rand(-1.2, 1.2), s = U.rand(4, 12); FX.add({ type: 'spark', x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: U.rand(0.15, 0.4), col: U.pick(['#fff6b0', '#ffd040', '#ff9a30']), drag: 3 }); } };
   FX.glass = (x, y, n = 10) => FX.debris(x, y, ['#cfe8ff', '#9fc8e8', '#ffffff'], n, 4, { size: 1, life: 1.2 });
   FX.splash = (x, y, n = 30) => { for (let i = 0; i < n; i++) { const a = Math.random() * U.TAU, s = U.rand(1, 6); FX.add({ type: 'drop', x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, z: 0.2, vz: U.rand(3, 9), grav: 20, life: 1.2, col: U.pick(['#e8f6ff', '#9fd4ec', '#ffffff']), size: U.rand(1, 2) }); } FX.ring(x, y, '#e8f6ff', 6); };
+  // a swimmer's V-shaped wake: two short ripples that spread out sideways behind them
+  FX.wake = (x, y, ang) => { for (const s of [-1, 1]) { const a = ang + Math.PI / 2 * s; FX.add({ type: 'wake', x, y, vx: Math.cos(a) * 1.4 - Math.cos(ang) * 0.4, vy: Math.sin(a) * 1.4 - Math.sin(ang) * 0.4, life: 1.1, col: '#e8f6ff', rot: ang - s * 0.6, drag: 0.8 }); } };
   FX.ring = (x, y, col, r = 4, life = 0.6) => FX.add({ type: 'ring', x, y, vx: 0, vy: 0, life, col, size: r });
   FX.leaves = (x, y, n = 6) => FX.debris(x, y, ['#4d7a3a', '#6a9550', '#83a05f', '#3f6631'], n, 3, { type: 'leaf', life: 2.5, size: 1 });
   FX.paper = (x, y, n = 5) => FX.debris(x, y, ['#f4f2ea', '#e8e2c8', '#cfe0f0'], n, 2.5, { type: 'leaf', life: 3.5, size: 1 });
@@ -55,6 +57,7 @@
         case 'puff': { const sz = p.size * S * (1.8 - t) * 2; ctx.globalAlpha = Math.min(1, t * 1.4) * 0.8; ctx.drawImage(SP.puff(p.col), sx - sz / 2, sy - sz / 2, sz, sz); ctx.globalAlpha = 1; break; }
         case 'ring': { ctx.strokeStyle = p.col; ctx.globalAlpha = t; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(sx, sy, (1 - t) * p.size * S + 1, 0, U.TAU); ctx.stroke(); ctx.globalAlpha = 1; break; }
         case 'note': { ctx.globalAlpha = Math.min(1, t * 2); ctx.fillStyle = p.col; ctx.fillRect(Math.round(sx), Math.round(sy), 2, 2); ctx.fillRect(Math.round(sx) + 1, Math.round(sy) - 4, 1, 4); ctx.fillRect(Math.round(sx) + 2, Math.round(sy) - 4, 2, 1); ctx.globalAlpha = 1; break; }
+        case 'wake': { ctx.strokeStyle = p.col; ctx.globalAlpha = t * 0.8; ctx.lineWidth = 1; const L = (1.4 - t) * S * 0.9; ctx.beginPath(); ctx.moveTo(Math.round(sx), Math.round(sy)); ctx.lineTo(Math.round(sx - Math.cos(p.rot) * L), Math.round(sy - Math.sin(p.rot) * L)); ctx.stroke(); ctx.globalAlpha = 1; break; }
         case 'spark': ctx.fillStyle = p.col; ctx.fillRect(Math.round(sx), Math.round(sy), 1, 1); ctx.fillRect(Math.round(sx - p.vx * 0.02 * S), Math.round(sy - p.vy * 0.02 * S), 1, 1); break;
         default: {
           if (p.z > 0.05) { ctx.fillStyle = 'rgba(20,20,40,0.3)'; ctx.fillRect(Math.round(sx), Math.round(sy + p.z * S), p.size, p.size); }

@@ -16,6 +16,9 @@
   }
   UI.panel = panel;
   const T = (ctx, s, x, y, o) => U.text(ctx, s, x, y, o);
+  // cut text to fit a width (ending in a full stop when it had to be cut)
+  const fit = (s, maxW, sc) => { s = String(s); if (U.textWidth(s, sc) <= maxW) return s; const n = Math.max(1, Math.floor((maxW + sc) / (6 * sc)) - 1); return s.slice(0, n).replace(/[ ·:,]+$/, '') + '.'; };
+  UI.fit = fit;
   // slogans (Brent, 22 Nov 2026): the title-screen tagline and the three-sides premise over the character select
   const TAGLINE = "SCHOOLIES WEEK IN VICTOR HARBOR. NOBODY'S GETTING ANY SLEEP.";
   const PREMISE = 'THE SCHOOLIES HAVE ARRIVED READY TO PARTY. THE LOCALS ARE FRUSTRATED. THE POLICE ARE ON HIGH ALERT.';
@@ -46,10 +49,11 @@
     car: { title: 'DRIVING AND RIDING', rows: [[K('W / UP', 'THUMB'), 'ACCELERATE'], [K('S / DOWN', 'THUMB BACK'), 'BRAKE, REVERSE'], [K('A D / LEFT RIGHT', 'THUMB'), 'STEER'], [K('SPACE', 'SKID'), 'HANDBRAKE (DRIFT); BUNNY-HOP ON A BIKE'], [K('H', 'HORN'), 'HORN'], [K('SHIFT', 'BOOST'), 'TURBO GOPHER'], [K('E', 'GET OUT'), 'GET OUT']] },
     rail: { title: 'TRAM AND TRAIN', rows: [[K('W / UP', 'THUMB'), 'FORWARD'], [K('S / DOWN', 'THUMB BACK'), 'BRAKE, BACK UP'], [K('SHIFT', 'BOOST'), 'GIDDY UP / MORE STEAM'], [K('H', 'HORN'), 'BELL / WHISTLE'], [K('E', 'GET OUT'), 'GET OFF (WHEN STOPPED)']] },
     heli: { title: 'HELICOPTER', rows: [[K('W / S', 'THUMB'), 'FLY FORWARD / BACK'], [K('A D / LEFT RIGHT', 'THUMB'), 'TURN'], [K('SHIFT', 'BOOST'), 'CLIMB'], [K('SPACE', 'SKID'), 'DESCEND AND LAND (HELIPADS ARE GENTLEST)'], [K('E', 'GET OUT'), 'GET OUT (ONCE LANDED)']] },
-    kev: { title: 'CONSTABLE KEV', rows: [[K('H', 'SIREN'), 'SIREN (IN A POLICE CAR)'], [K('H', 'SHOUT'), 'MEGAPHONE ON FOOT: RUNNERS FREEZE'], [K('X', 'SPIKES'), 'DROP A SPIKE STRIP BEHIND YOU'], [K('B', 'BACKUP'), 'CALL BACKUP (TWO JUNIOR CONSTABLES)'], ['RAM', 'NUDGE A REAR CORNER TO SPIN THEM (PIT)']] },
-    evade: { title: 'LOSING THE POLICE', rows: [['SIGHT', 'BREAK LINE OF SIGHT AND STAY OUT OF VIEW TILL THE HEAT COOLS'], ['HIDE', 'BUSHES, CAR PARKS, THE GOLF COURSE, THE CAR WASH, UNDER THE JETTY (GOSSIP COOLS FASTER)'], ['SWAP', 'CHANGE CARS (OR GET OUT) WHERE THEY CAN\'T SEE YOU'], ['RESPRAY', 'RESPRAY SHOPS (SPRAY-CAN ICON ON THE MAP, $25) WIPE YOUR CAR\'S DESCRIPTION'], ['CLOTHES', 'A NEW SHIRT, HAT OR SUNNIES OUT OF SIGHT (CLOTHES SHOP, OP SHOP) DOES THE SAME FOR YOU'], ['ROADBLOCK', 'THERE\'S ALWAYS A GAP, OR THE FOOTPATH'], ['OFFICERS', 'DRIVE OFF, SHOVE THROUGH (THEY JUMP OUT OF THE WAY) OR OUTRUN THEM']] },
-    any: { title: 'ANY TIME', rows: [[K('WHEEL / + -', 'PINCH'), 'ZOOM IN AND OUT (0 RESETS)'], [K('M / TAB', 'MAP'), 'MAP'], [K('J', 'JOB'), 'CURRENT JOB BRIEF'], [K('?', '?'), 'THIS HELP'], [K('P / ESC', 'PAUSE'), 'PAUSE'], [K('N', 'PAUSE MENU'), 'MUTE']] },
+    kev: { title: 'CONSTABLE KEV', rows: [[K('H', 'SIREN'), 'SIREN (IN A POLICE CAR, OR ANY CAR WITH THE ROOF LIGHT)'], [K('H', 'MEGA'), 'ON FOOT: MEGAPHONE, RUNNERS WITHIN 30M FREEZE FOR 2.5 S; NEAR A GOPHER, CALL IT OVER'], [K('E', 'ACT'), 'NEXT TO A FROZEN OR CORNERED RUNNER: CUFF THEM'], ['TACKLE', 'RUN INTO A RUNNER: A TACKLE, THEN HOLD SPACE TO KEEP HOLD'], [K('L', 'LIGHT'), 'COMMANDEERED CAR: MAGNETIC FLASHING LIGHT ON THE ROOF'], [K('X', 'SPIKES'), 'DROP A SPIKE STRIP BEHIND YOU'], [K('B', 'BACKUP'), 'CALL BACKUP; NO WORKING COP CAR: A SPARE IS DROPPED OFF'], ['RAM', 'NUDGE A REAR CORNER TO SPIN THEM (PIT); CARS TAKE SEVERAL SOLID HITS']] },
+    evade: { title: 'LOSING THE POLICE', rows: [['LEVELS', 'ONE CAR PER CURTAIN (FOUR AT MOST); A ROADBLOCK AT FOUR; THE CHOPPER ONLY AT FIVE, AFTER A LONG CHASE'], ['COOLING', 'THE LINE UNDER THE CURTAINS SAYS WHAT\'S COOLING THINGS RIGHT NOW; THE THIN BAR DRAINS AS IT DOES'], ['SIGHT', 'BREAK LINE OF SIGHT AND STAY OUT OF VIEW TILL THE HEAT COOLS'], ['HIDE', 'BUSHES, CAR PARKS, THE GOLF COURSE, THE CAR WASH, UNDER THE JETTY (GOSSIP COOLS FASTER)'], ['SWAP', 'CHANGE CARS (OR GET OUT) WHERE THEY CAN\'T SEE YOU'], ['RESPRAY', 'RESPRAY SHOPS (SPRAY-CAN ICON ON THE MAP, $25) WIPE YOUR CAR\'S DESCRIPTION'], ['CLOTHES', 'A NEW SHIRT, HAT OR SUNNIES OUT OF SIGHT (CLOTHES SHOP, OP SHOP) DOES THE SAME FOR YOU'], ['ROADBLOCK', 'THERE\'S ALWAYS A GAP, OR THE FOOTPATH'], ['OFFICERS', 'DRIVE OFF, SHOVE THROUGH (THEY JUMP OUT OF THE WAY) OR OUTRUN THEM. IF THEY CATCH YOU, THEY TACKLE AND CUFF'], ['LOCK-UP', 'LET OUT AT THE GATE: THE GOSSIP IS WIPED, NOBODY WATCHES THE GATE FOR A WHILE, AND YOUR BIKE\'S THERE'], ['MERV', 'ON THE GOPHER: ONE CAR TAILS YOU WITH A MEGAPHONE LECTURE; STOP AND THEY BOOK YOU']] },
+    any: { title: 'ANY TIME', rows: [['CLOCK', 'THE TIME OF NIGHT (BY THE MOON) RUNS FAST: ONE GAME MINUTE A SECOND. FINISH BEFORE SUNRISE. TIMED JOBS HAVE THEIR OWN BOXED TIME LEFT'], [K('WHEEL / + -', 'PINCH'), 'ZOOM IN AND OUT (0 RESETS)'], [K('M / TAB', 'MAP'), 'MAP'], [K('J', 'JOB'), 'CURRENT JOB BRIEF'], [K('?', '?'), 'THIS HELP'], [K('P / ESC', 'PAUSE'), 'PAUSE'], [K('N', 'PAUSE MENU'), 'MUTE']] },
   };
+  CONTROLS.icons = { title: 'MAP ICONS', rows: [['YELLOW', 'JOB TARGETS (EACH WITH ITS OWN ARROW)'], ['LIGHT BLUE', 'YOUR LAST VEHICLE; KEV: THE COP CAR'], ['WHITE PIN', 'YOUR WAYPOINT (CLICK OR TAP THE MAP; FIND A STREET WITH ENTER)'], ['ORANGE', 'KEV: A PRISONER'], ['SPRAY CAN', 'RESPRAY SHOP: $25 FOR A NEW COLOUR'], ['TYRE', 'TYRE PLACE: A FLAT FIXED FOR $10'], ['TEAL SQUARE', 'A SHOP YOU CAN WALK INTO'], ['M R G B T S H', 'MAYHEM MINUTE, RAMP, RACES, HELIPAD']] };
   UI.CONTROLS = CONTROLS;
   const keyText = k => typeof k === 'function' ? k() : k;
   UI.context = function () {
@@ -75,7 +79,8 @@
   // the "?" overlay: only the keys that matter right now
   UI.helpOverlay = function (ctx, ts) {
     const g = G(), w = ctx.canvas.width, h = ctx.canvas.height; const cx = UI.context();
-    const secs = [CONTROLS[cx]]; if (g.char === 'cop') secs.push(CONTROLS.kev); else secs.push(CONTROLS.evade); secs.push(CONTROLS.any);
+    const secs = [CONTROLS[cx]]; if (g.char === 'cop') secs.push(CONTROLS.kev); else secs.push(CONTROLS.evade); secs.push(CONTROLS.any, CONTROLS.icons);
+    const job = M().job; if (job && job.started && job.help) secs.unshift({ title: 'THIS JOB: ' + job.title, rows: job.help }); // the job's own steps first
     const pw = Math.min(w - 16 * ts, 260 * ts); const ph = Math.min(h - 20 * ts, UI.measureControls(ts, secs, pw - 16 * ts) + 26 * ts);
     const x = Math.round(w / 2 - pw / 2), y = Math.round(Math.max(8 * ts, h / 2 - ph / 2));
     panel(ctx, x, y, pw, ph, { accent: C.teal, fill: 'rgba(18,12,36,0.93)' });
@@ -95,67 +100,91 @@
   ];
   UI.hints = function (ctx, ts, bottomY) {
     const g = G();
-    if (g.tipNow && g.tipNow.t > 0) { g.tipNow.t -= g.frameDt || 0.016; const str = g.tipNow.str; const bw = U.textWidth(str, ts) + 33 * ts, bh = 16 * ts; const x = ctx.canvas.width / 2 - bw / 2, y = bottomY - bh - 4 * ts; panel(ctx, x, y, bw, bh, { accent: C.hi, fill: 'rgba(48,40,18,0.92)' }); T(ctx, 'TIP', x + 5 * ts, y + 5 * ts, { color: C.hi, scale: ts }); T(ctx, str, x + 27 * ts, y + 5 * ts, { color: C.white, scale: ts }); if (g.tipNow.icon === 'can') VH.Shops.drawCan(ctx, x + bw - 6 * ts, y + 7 * ts, ts); return; }
+    const tipBox = (str, accent, fill, icon) => {
+      const W0 = ctx.canvas.width; const room = Math.min(W0 - 16 * ts, 330 * ts) - 33 * ts - (icon ? 10 * ts : 0); const lines = U.wrap(str, Math.max(8, Math.floor(room / (6 * ts))));
+      const bw = Math.max(...lines.map(l => U.textWidth(l, ts))) + 33 * ts + (icon ? 10 * ts : 0), bh = lines.length * 9 * ts + 7 * ts; const x = Math.round(W0 / 2 - bw / 2), y = bottomY - bh - 4 * ts;
+      UI.tipTop = y; panel(ctx, x, y, bw, bh, { accent, fill }); T(ctx, 'TIP', x + 5 * ts, y + 4 * ts, { color: accent, scale: ts }); lines.forEach((l, i) => T(ctx, l, x + 27 * ts, y + 4 * ts + i * 9 * ts, { color: C.white, scale: ts }));
+      if (icon === 'can') VH.Shops.drawCan(ctx, x + bw - 7 * ts, y + bh / 2, ts);
+    };
+    if (g.tipNow && g.tipNow.t > 0) { g.tipNow.t -= g.frameDt || 0.016; tipBox(g.tipNow.str, C.hi, 'rgba(48,40,18,0.92)', g.tipNow.icon); return; }
     if (g.hintIdx == null || g.hintIdx >= HINTS.length) return;
     const hnt = HINTS[g.hintIdx];
     if (hnt.foot && !g.player.onFoot) { g.hintIdx++; g.hintT = 0; return; }
     g.hintT = (g.hintT || 0) + (g.frameDt || 0.016);
     if (hnt.done(g) || g.hintT > 14) { g.hintIdx++; g.hintT = 0; if (g.hintIdx >= HINTS.length) U.store.set('hints', true); return; }
-    const str = hnt.txt(); const bw = U.textWidth(str, ts) + 33 * ts, bh = 16 * ts; const x = ctx.canvas.width / 2 - bw / 2, y = bottomY - bh - 4 * ts;
-    panel(ctx, x, y, bw, bh, { accent: C.teal, fill: 'rgba(18,40,48,0.9)' });
-    T(ctx, 'TIP', x + 5 * ts, y + 5 * ts, { color: C.teal, scale: ts }); T(ctx, str, x + 27 * ts, y + 5 * ts, { color: C.white, scale: ts });
+    tipBox(hnt.txt(), C.teal, 'rgba(18,40,48,0.9)');
   };
 
   UI.hud = function (ctx, ts) {
     const g = G(), pl = g.player, w = ctx.canvas.width, h = ctx.canvas.height; const c = g.CHARS[g.char] || g.CHARS.roam;
-    const pad = 4 * ts;
-    // --- top-left: who, cash, meter
-    const pw = 128 * ts; panel(ctx, pad, pad, pw, 40 * ts, { accent: C.pink });
-    T(ctx, c.name, pad + 5 * ts, pad + 5 * ts, { color: C.dim, scale: ts });
-    T(ctx, '$' + Math.round(g.cash), pad + pw - 5 * ts, pad + 4 * ts, { color: C.green, scale: ts * 2, align: 'right' });
+    const pad = 4 * ts, ip = 5 * ts; // the screen margin, and the padding inside every panel
+    const narrow = w < 380 * ts; UI.narrow = narrow;
     const PO = VH.Police; const lvl = g.meter; const flash = PO.units.length && PO.seenT < 0.5 && Math.floor(g.t * 4) % 2;
+    // --- top-left: who, cash, meter; as wide as it needs (within reason), so the name and the cash never meet
+    const kc = g.char === 'cop' ? PO.kevCar() : null; const nPris = VH.Escort.list.length;
+    const kevLines = g.char === 'cop' ? [kc ? `BACKUP (B): ${PO.backupT > 0 ? Math.ceil(PO.backupT) + 'S' : 'READY'}` : PO.spare ? 'SPARE CAR: ON ITS WAY' : `SPARE CAR (B) · ${Math.max(0, Math.ceil(PO.recoverT || 0))}S`, `SPIKES (X): ${PO.spikesLeft} LEFT`, ...(nPris ? [`PRISONERS: ${nPris}` + (VH.Escort.paddy ? ' · WAGON COMING' : '')] : [])] : [];
+    const cashS = '$' + Math.round(g.cash), cashW = U.textWidth(cashS, ts * 2);
+    const maxPw = narrow ? Math.max(120 * ts, w - 92 * ts - 3 * pad) : 190 * ts;
+    let name = c.name; if (U.textWidth(name, ts) + cashW + 2 * ip + 6 * ts > maxPw) name = name.replace('CONSTABLE ', '');
+    const pw = Math.round(Math.min(maxPw, Math.max(128 * ts, U.textWidth(name, ts) + cashW + 2 * ip + 6 * ts, ...kevLines.map(l => U.textWidth(l, ts) + 2 * ip))));
+    UI.leftW = pw;
+    panel(ctx, pad, pad, pw, 40 * ts, { accent: C.pink });
+    T(ctx, fit(name, pw - cashW - 2 * ip - 6 * ts, ts), pad + ip, pad + 5 * ts, { color: C.dim, scale: ts });
+    T(ctx, cashS, pad + pw - ip, pad + 4 * ts, { color: C.green, scale: ts * 2, align: 'right' });
     for (let i = 0; i < 5; i++) curtain(ctx, pad + 5 * ts + i * 11 * ts, pad + 19 * ts, lvl >= i + 1 || (lvl > i && lvl - i > 0.5 && Math.floor(g.t * 3) % 2), flash, ts);
+    { const bw = 54 * ts, bx = pad + 5 * ts, by = pad + 28 * ts; const cooling = PO.decay && PO.decay() > 0 && lvl > 0; ctx.fillStyle = 'rgba(10,8,25,0.8)'; ctx.fillRect(bx, by, bw, ts); ctx.fillStyle = cooling ? C.green : C.hi; ctx.fillRect(bx, by, Math.round(bw * Math.min(1, lvl / 5)), ts); } // the level, draining when it cools
     const lab = (g.char === 'cop' ? g.COP_LABELS : g.METER_LABELS)[Math.min(5, Math.floor(lvl))];
     T(ctx, c.meter, pad + 62 * ts, pad + 20 * ts, { color: g.char === 'cop' ? C.teal : C.hi, scale: ts });
-    T(ctx, lab.length > 20 ? lab.slice(0, 20) : lab, pad + 5 * ts, pad + 31 * ts, { color: C.dim, scale: ts });
+    T(ctx, fit(lab, pw - 2 * ip, ts), pad + ip, pad + 31 * ts, { color: C.dim, scale: ts });
     // --- top-centre: night + clock + job timer
     const hh = Math.floor(g.hour), mm = Math.floor((g.hour - hh) * 60);
     const clock = `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-    const nightTxt = g.char === 'roam' ? 'FREE ROAM' : `NIGHT ${g.night} ${M().NIGHTS[g.night - 1] || ''}`;
-    const tw = Math.max(U.textWidth(nightTxt, ts), U.textWidth(clock, ts * 2)) + 12 * ts;
-    const narrow = w < 380 * ts; UI.narrow = narrow;
-    const cxp = narrow ? pad + tw / 2 : w / 2, cyp = narrow ? pad + 44 * ts : pad;
+    // the time of night (a moon by it; one game minute a second), kept apart from the job's boxed countdown
+    const nightTxt = g.char === 'roam' ? 'FREE ROAM · TIME OF DAY' : `NIGHT ${g.night} · ${M().dayName(g.night)}`;
+    const tw = Math.max(U.textWidth(nightTxt, ts), U.textWidth(clock, ts * 2) + 14 * ts) + 2 * ip + 2 * ts;
+    const short = h < 260 * ts; UI.short = short;
+    let cxp = narrow ? pad + tw / 2 : w / 2, cyp = narrow ? pad + 44 * ts : pad;
+    if (!narrow && cxp - tw / 2 < pad + pw + 4 * ts) { cxp = pad + pw + 4 * ts + tw / 2; if (cxp + tw / 2 > w - pad - 96 * ts) { cxp = pad + tw / 2; cyp = pad + 44 * ts; } } // never over the left panel or the minimap
     panel(ctx, cxp - tw / 2, cyp, tw, 28 * ts, { accent: C.teal });
     T(ctx, nightTxt, cxp, cyp + 4 * ts, { align: 'center', color: C.dim, scale: ts });
-    T(ctx, clock, cxp, cyp + 13 * ts, { align: 'center', color: C.white, scale: ts * 2 });
-    const tm = M().timer();
-    if (tm != null) { const s = Math.max(0, Math.ceil(tm)); const str = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; T(ctx, str, cxp + tw / 2 + 4 * ts, cyp + 13 * ts, { color: s < 30 && Math.floor(g.t * 2) % 2 ? C.red : C.hi, scale: ts * 2 }); }
+    T(ctx, clock, cxp + 7 * ts, cyp + 13 * ts, { align: 'center', color: C.white, scale: ts * 2 });
+    const mx0 = Math.round(cxp + 7 * ts - U.textWidth(clock, ts * 2) / 2 - 13 * ts), my0 = cyp + 14 * ts; // a crescent moon
+    ctx.fillStyle = '#f2e6a0'; ctx.beginPath(); ctx.arc(mx0 + 5 * ts, my0 + 5 * ts, 5 * ts, 0, U.TAU); ctx.fill(); ctx.fillStyle = '#1a1230'; ctx.beginPath(); ctx.arc(mx0 + 7.5 * ts, my0 + 3.5 * ts, 4.4 * ts, 0, U.TAU); ctx.fill();
+
     // --- police status under the money panel
     let py = pad + 44 * ts; if (narrow) py = pad + 76 * ts;
-    const near = g.char !== 'cop' && !PO.units.length && (PO.patrols.some(v => Math.hypot(v.x - pl.x, v.y - pl.y) < 90) || g.meter >= 1);
+    const near = g.char !== 'cop' && !PO.units.length && (PO.patrols.some(v => Math.hypot(v.x - pl.x, v.y - pl.y) < 90) || g.meter >= 0.05 || PO.inGrace());
+    // the line (or two) under the police status says what's cooling things down right now
+    const nChars = Math.max(8, Math.floor((pw - 2 * ip) / (6 * ts))); let polH = 0;
     if (near) {
-      panel(ctx, pad, py, pw, 22 * ts, { accent: C.hi });
-      T(ctx, 'POLICE INTERESTED', pad + 5 * ts, py + 4 * ts, { color: C.hi, scale: ts });
-      T(ctx, PO.patrols.some(v => Math.hypot(v.x - pl.x, v.y - pl.y) < 90) ? 'PATROL CAR NEARBY. BEHAVE...' : 'MORE GOSSIP AND THEY COME', pad + 5 * ts, py + 13 * ts, { color: C.dim, scale: ts });
+      const ch = PO.coolHint && PO.coolHint(); const grace = PO.inGrace();
+      const txt = ch ? ch.txt : PO.patrols.some(v => Math.hypot(v.x - pl.x, v.y - pl.y) < 90) ? 'PATROL CAR NEARBY. BEHAVE...' : 'MORE GOSSIP AND THEY COME';
+      const lines = U.wrap(txt, nChars).slice(0, 2); polH = (13 + lines.length * 9) * ts;
+      panel(ctx, pad, py, pw, polH, { accent: grace ? C.green : C.hi });
+      T(ctx, grace ? 'LET OUT AT THE GATE' : 'POLICE INTERESTED', pad + ip, py + 4 * ts, { color: grace ? C.green : C.hi, scale: ts });
+      lines.forEach((l, i) => T(ctx, fit(l, pw - 2 * ip, ts), pad + ip, py + 13 * ts + i * 9 * ts, { color: ch ? ch.col : C.dim, scale: ts }));
     } else if (g.char !== 'cop' && (PO.units.length || PO.heli || PO.boat || PO.blocks.length)) {
       const bits = [PO.units.length + (PO.units.length === 1 ? ' CAR' : ' CARS')]; if (PO.blocks.length) bits.push('BLOCK'); if (PO.boat) bits.push('BOAT'); if (PO.heli) bits.push('CHOPPER');
-      const seen = PO.seenT < 0.6, st = seen ? 'THEY CAN SEE YOU!' : PO.hidden ? 'HIDING. LIE LOW...' : 'SEARCHING. STAY OUT OF SIGHT';
-      const col = seen ? (Math.floor(g.t * 5) % 2 ? C.red : '#ffb0a8') : PO.hidden ? C.green : C.hi;
-      panel(ctx, pad, py, pw, 31 * ts, { accent: seen ? C.red : '#3070ff' });
-      T(ctx, 'POLICE CHASING', pad + 5 * ts, py + 4 * ts, { color: C.white, scale: ts }); T(ctx, bits.join(' · '), pad + 5 * ts, py + 13 * ts, { color: C.dim, scale: ts }); T(ctx, st, pad + 5 * ts, py + 22 * ts, { color: col, scale: ts });
+      const seen = PO.seenT < 0.6, ch = PO.coolHint && PO.coolHint(); const st = ch ? ch.txt : seen ? 'THEY CAN SEE YOU!' : PO.hidden ? 'HIDING. LIE LOW...' : 'SEARCHING. STAY OUT OF SIGHT';
+      const col = seen && (!ch || /SEE YOU/.test(ch.txt)) ? (Math.floor(g.t * 5) % 2 ? C.red : '#ffb0a8') : ch ? ch.col : PO.hidden ? C.green : C.hi;
+      const lines = U.wrap(st, nChars).slice(0, 2); polH = (22 + lines.length * 9) * ts;
+      panel(ctx, pad, py, pw, polH, { accent: seen ? C.red : '#3070ff' });
+      T(ctx, 'POLICE CHASING', pad + ip, py + 4 * ts, { color: C.white, scale: ts }); T(ctx, fit(bits.join(' · '), pw - 2 * ip, ts), pad + ip, py + 13 * ts, { color: C.dim, scale: ts });
+      lines.forEach((l, i) => T(ctx, fit(l, pw - 2 * ip, ts), pad + ip, py + 22 * ts + i * 9 * ts, { color: col, scale: ts }));
     } else if (g.char === 'cop') {
-      const car = g.custody && g.custody.length; const lines = [`BACKUP (B): ${PO.backupT > 0 ? Math.ceil(PO.backupT) + 'S' : 'READY'}`, `SPIKES (X): ${PO.spikesLeft} LEFT`];
-      if (car) lines.push(`IN THE BACK: ${g.custody.length}`);
-      panel(ctx, pad, py, pw, (lines.length * 9 + 5) * ts, { accent: '#3070ff' });
-      lines.forEach((l, i) => T(ctx, l, pad + 5 * ts, py + 4 * ts + i * 9 * ts, { color: i === 2 ? C.teal : C.white, scale: ts }));
+      panel(ctx, pad, py, pw, (kevLines.length * 9 + 5) * ts, { accent: '#3070ff' });
+      kevLines.forEach((l, i) => T(ctx, fit(l, pw - 2 * ip, ts), pad + ip, py + 4 * ts + i * 9 * ts, { color: i === 2 ? '#ff9a30' : C.white, scale: ts }));
     }
     const hasPolice = near || (g.char !== 'cop' && (PO.units.length || PO.heli || PO.boat || PO.blocks.length)) || g.char === 'cop';
-    const actY = py + (hasPolice ? (g.char !== 'cop' && PO.units.length ? 35 : 26) * ts : 0);
+    const actY = py + (hasPolice ? (g.char === 'cop' ? (kevLines.length * 9 + 9) * ts : polH + 4 * ts) : 0);
     UI.leftBottom = actY + VH.Acts.hud(ctx, ts, pad, actY, pw);
     // --- toasts: at most three short status lines, wrapped so they never run off the edge
     // on narrow screens the status lines go below the left-hand panels (and the touch buttons), so nothing overlaps
-    let ty = narrow ? Math.max(pad + 102 * ts, UI.leftBottom + 4 * ts, I.touchMode ? pad + 168 * ts : 0) : pad + 34 * ts; const tn = Math.max(12, Math.floor((w - 12 * ts) / (6 * ts)));
-    for (const m of g.msgs) { const a = Math.min(1, m.t * 2); ctx.globalAlpha = a; for (const l of U.wrap(m.str, tn)) { T(ctx, l, w / 2, ty, { align: 'center', color: m.col, scale: ts }); ty += 10 * ts; } ctx.globalAlpha = 1; }
+    // between the left-hand panels and the minimap when there's room, otherwise below them
+    const side = Math.max(pw, 92 * ts) + 2 * pad, mid = w - 2 * side; const under = narrow || mid < 170 * ts;
+    let ty = under && short ? Math.max(UI.leftBottom + 4 * ts, pad + 44 * ts) : under ? Math.max(pad + 102 * ts, UI.leftBottom + 4 * ts, I.touchMode ? pad + 168 * ts : 0) : pad + 34 * ts; const tn = Math.max(12, Math.floor(((under ? w - 2 * pad : mid) - 4 * ts) / (6 * ts)));
+    if (short && !under) ty = Math.max(ty, cyp + 32 * ts);
+    for (const m of (short ? g.msgs.slice(-1) : g.msgs)) { const a = Math.min(1, m.t * 2); ctx.globalAlpha = a; for (const l of U.wrap(m.str, tn)) { T(ctx, l, w / 2, ty, { align: 'center', color: m.col, scale: ts }); ty += 10 * ts; } ctx.globalAlpha = 1; }
     // --- the one big callout
     const co = g.nextCallout && g.nextCallout();
     if (co) {
@@ -166,56 +195,79 @@
       lines.forEach((l, i) => T(ctx, l, w / 2, cy + i * 9 * big, { align: 'center', color: co.col, scale: big })); ctx.globalAlpha = 1;
     }
     // --- minimap
-    UI.minimap(ctx, w - pad - 92 * ts, pad, 92 * ts, 92 * ts, ts);
+    const mmS = short && I.touchMode ? 64 * ts : 92 * ts; UI.mmS = mmS; UI.minimap(ctx, w - pad - mmS, pad, mmS, mmS, ts);
     // --- bottom: street + objective
     const street = UI.streetCache(pl.x, pl.y);
-    if (!(I.touchMode && narrow)) T(ctx, street, pad + 2, I.touchMode ? pad + 44 * ts : h - pad - 9 * ts, { color: C.white, scale: ts });
+    if (!(I.touchMode && (narrow || short))) T(ctx, street, pad + 2, I.touchMode ? pad + 44 * ts : h - pad - 9 * ts, { color: C.white, scale: ts });
     const obj = M().objective(); let objTop = h - pad - 22 * ts;
     if (obj) {
-      const job = M().job; const head = job && job.started ? job.title + (I.touchMode ? '' : '  (J: BRIEF)') : '';
-      const lines = U.wrap(obj, Math.floor((w - 20 * ts) / (6 * ts)));
-      const bw = Math.max(U.textWidth(head, ts), ...lines.map(l => U.textWidth(l, ts))) + 14 * ts, bh = lines.length * 9 * ts + 8 * ts + (head ? 9 * ts : 0);
-      const by = h - pad - (I.touchMode && narrow ? 96 : 22) * ts - bh; objTop = by; // on phones, sit above the thumb buttons
-      const fl = (g.objFlash || 0) > 0 && Math.floor(g.objFlash * 6) % 2;
-      panel(ctx, w / 2 - bw / 2, by, bw, bh, { accent: C.hi, fill: fl ? 'rgba(120,80,10,0.92)' : C.panel, edge: fl ? C.hi : C.edge });
-      if (head) T(ctx, head, w / 2, by + 4 * ts, { align: 'center', color: C.dim, scale: ts });
-      lines.forEach((l, i) => T(ctx, l, w / 2, by + 5 * ts + (head ? 9 * ts : 0) + i * 9 * ts, { align: 'center', color: C.hi, scale: ts }));
+      const job = M().job; const tm = M().timer(); const secs = tm != null ? Math.max(0, Math.ceil(tm)) : null;
+      const tstr = secs != null ? ' · ' + Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0') : ''; const tW = U.textWidth(tstr, ts);
+      const btnW = I.touchMode && !narrow ? 110 * ts : 0; const ocx = (w - btnW) / 2; // on a phone on its side, clear of the thumb buttons
+      const maxW = Math.min(w - btnW - 2 * pad - 2 * ip, 330 * ts); const head = job && job.started ? fit(job.title + (I.touchMode ? '' : '  (J: BRIEF)'), maxW, ts) : '';
+      const paras = obj.split('\n'); const first = U.wrap(paras[0], Math.max(8, Math.floor((maxW - tW) / (6 * ts)))); const rest = paras.slice(1).flatMap(p => U.wrap(p, Math.max(8, Math.floor(maxW / (6 * ts)))));
+      let lines = [...first, ...rest]; let lastFirst = first.length - 1;
+      if (short && lines.length > 3) { const f2 = first.slice(0, 2); if (first.length > 2) f2[1] = fit(f2[1] + ' ' + first.slice(2).join(' '), maxW - tW, ts); lines = [...f2, ...rest.slice(0, 1).map(l => fit(l + (rest.length > 1 ? ' ' + rest.slice(1).join(' ') : ''), maxW, ts))]; lastFirst = f2.length - 1; } // short screens: two lines, then one
+      const bw = Math.round(Math.max(U.textWidth(head, ts), ...lines.map((l, i) => U.textWidth(l, ts) + (i === lastFirst ? tW : 0))) + 2 * ip + 4 * ts), bh = lines.length * 9 * ts + 8 * ts + (head ? 9 * ts : 0);
+      const by = h - pad - (I.touchMode && narrow ? 116 : 22) * ts - bh; objTop = by; // on phones, sit above the thumb buttons
+      const fl = (g.objFlash || 0) > 0 && Math.floor(g.objFlash * 6) % 2; const bx = Math.round(ocx - bw / 2);
+      panel(ctx, bx, by, bw, bh, { accent: C.hi, fill: fl ? 'rgba(120,80,10,0.92)' : C.panel, edge: fl ? C.hi : C.edge });
+      if (head) T(ctx, head, ocx, by + 4 * ts, { align: 'center', color: C.dim, scale: ts });
+      lines.forEach((l, i) => {
+        const yy = by + 5 * ts + (head ? 9 * ts : 0) + i * 9 * ts; const col = i < first.length ? C.hi : C.teal;
+        if (i === lastFirst && tstr) { const lw = U.textWidth(l, ts); const x0 = Math.round(ocx - (lw + tW) / 2); T(ctx, l, x0, yy, { color: col, scale: ts }); T(ctx, tstr, x0 + lw, yy, { color: secs < 30 && Math.floor(g.t * 2) % 2 ? C.red : secs < 30 ? '#ffb0a8' : C.white, scale: ts }); }
+        else T(ctx, l, ocx, yy, { align: 'center', color: col, scale: ts });
+      });
     }
     if (g.objFlash > 0) g.objFlash -= g.frameDt || 0.016;
     UI.objTop = objTop;
     if (!I.touchMode) T(ctx, '? HELP', w - pad, h - pad - 9 * ts, { align: 'right', color: C.dim, scale: ts });
     // vehicle readout
-    if (!pl.onFoot && pl.vehicle) {
+    if (!pl.onFoot && pl.vehicle && !(short && I.touchMode)) { // (no room for it beside the thumb buttons on a phone on its side)
       const v = pl.vehicle; const kmh = Math.round(v.speed * 3.6);
       const vx = w - pad - 92 * ts, vy = pad + 96 * ts;
       panel(ctx, vx, vy, 92 * ts, 24 * ts);
-      T(ctx, (v.rail ? v.name : v.def.name).toUpperCase().slice(0, 14), vx + 4 * ts, vy + 4 * ts, { color: C.dim, scale: ts });
+      T(ctx, fit((v.rail ? v.name : v.def.name).toUpperCase(), 84 * ts, ts), vx + 4 * ts, vy + 4 * ts, { color: C.dim, scale: ts });
       T(ctx, kmh + ' KM/H', vx + 4 * ts, vy + 13 * ts, { color: C.white, scale: ts });
-      if (!v.rail) { const bw = 30 * ts; ctx.fillStyle = '#2a2040'; ctx.fillRect(vx + 58 * ts, vy + 14 * ts, bw, 5 * ts); ctx.fillStyle = v.damage > 0.75 ? C.red : v.damage > 0.4 ? C.hi : C.green; ctx.fillRect(vx + 58 * ts, vy + 14 * ts, bw * (1 - v.damage), 5 * ts); }
+      if (!v.rail) { const bw = 30 * ts; ctx.fillStyle = '#2a2040'; ctx.fillRect(vx + 58 * ts, vy + 14 * ts, bw, 5 * ts); ctx.fillStyle = G().dmgCol(v.damage); ctx.fillRect(vx + 58 * ts, vy + 14 * ts, bw * (1 - v.damage), 5 * ts);
+        // the damage stage takes the name's place once there is one (dented, smoking, sparking, limping, disabled)
+        const stg = VH.DAMAGE.STAGES[VH.DAMAGE.stage(v.damage)][1]; if (stg && Math.floor(g.t * 0.7) % 2) { ctx.fillStyle = '#1a1230'; ctx.fillRect(vx + 2 * ts, vy + 3 * ts, 88 * ts, 9 * ts); T(ctx, stg, vx + 4 * ts, vy + 4 * ts, { color: G().dmgCol(v.damage), scale: ts }); } }
     }
     // context prompt
     let prompt = '';
-    if (pl.inShop) prompt = VH.Shops.prompt();
+    const jp = M().job && M().job.started && M().job.prompt ? M().job.prompt() : '';
+    const ep = VH.Escort.prompt();
+    if (ep) prompt = ep;
+    else if (jp) prompt = jp;
+    else if (pl.inShop) prompt = VH.Shops.prompt();
     else if (pl.onFoot && !VH.Tackle.on) { const v = g.nearestVehicle(pl.x, pl.y, g.ENTER_R); if (v) prompt = UI.enterPrompt(v); }
-    else if (pl.vehicle && pl.vehicle.type === 'police' && !pl.vehicle.siren && g.char === 'cop') prompt = 'H: SIREN';
+    else if (pl.vehicle && (pl.vehicle.type === 'police' || pl.vehicle.roofLight) && !pl.vehicle.siren && g.char === 'cop') prompt = (I.touchMode ? 'SIREN BUTTON' : 'H') + ': SIREN ON';
+    else if (pl.vehicle && g.char === 'cop' && !pl.vehicle.rail && !pl.vehicle.def.heli && !pl.vehicle.def.bike && !pl.vehicle.def.gopher && pl.vehicle.type !== 'police' && pl.vehicle.type !== 'paddy' && !pl.vehicle.roofLight) prompt = (I.touchMode ? 'LIGHT' : 'L') + ': MAGNETIC LIGHT ON THE ROOF';
     // the bottom prompt sits just above the objective, and first-time tips above that
-    let aboveY = UI.objTop || h - pad - 22 * ts;
-    if (prompt) { T(ctx, prompt, w / 2, aboveY - 12 * ts, { align: 'center', color: C.white, scale: ts }); aboveY -= 14 * ts; }
-    UI.hints(ctx, ts, aboveY);
-    // off-screen target arrows
-    const vw = g.view; const offs = M().targets().filter(tg => !tg.small).sort((a, b) => Math.hypot(a.x - pl.x, a.y - pl.y) - Math.hypot(b.x - pl.x, b.y - pl.y)).slice(0, 1);
+    UI.lastPrompt = prompt; let aboveY = UI.objTop || h - pad - 22 * ts;
+    if (prompt) { const pt = fit(prompt, w - 2 * pad - 8 * ts, ts), pw2 = U.textWidth(pt, ts) + 2 * ip; panel(ctx, w / 2 - pw2 / 2, aboveY - 15 * ts, pw2, 13 * ts, { fill: 'rgba(18,12,36,0.8)' }); T(ctx, pt, w / 2, aboveY - 12 * ts, { align: 'center', color: C.white, scale: ts }); aboveY -= 17 * ts; }
+    UI.tipTop = aboveY; if (!(short && I.touchMode)) UI.hints(ctx, ts, aboveY);
+    // off-screen target arrows: every target gets its own arrow, label and distance (nearest first); labels shuffle
+    // along the edge so they never sit on top of each other
+    const vw = g.view; const wpt = g.waypoint ? [{ ...g.waypoint, col: '#ffffff' }] : [];
+    const offs = [...wpt, ...g.myMarkers(), ...M().targets().filter(tg => !tg.small).sort((a, b) => Math.hypot(a.x - pl.x, a.y - pl.y) - Math.hypot(b.x - pl.x, b.y - pl.y)).slice(0, 8)];
+    const placed = [];
     if (vw && !VH.Tackle.on) for (const tg of offs) {
-      const kz = vw.k || 1; const sx = (tg.x - vw.left) * vw.S * kz, sy = (tg.y - vw.top) * vw.S * kz; const m = 14 * ts, mt = narrow ? Math.max(Math.min(104 * ts, h * 0.3), (UI.leftBottom || 0) + 16 * ts) : Math.min(104 * ts, h * 0.3), mb = Math.max(64 * ts, h - (UI.objTop || h) + 20 * ts);
+      const kz = vw.k || 1, io = UI.inset || { l: 0, t: 0, scale: 1 }; const sx = (tg.x - vw.left) * vw.S * kz - io.l / io.scale, sy = (tg.y - vw.top) * vw.S * kz - io.t / io.scale; const m = 14 * ts, mt = narrow ? Math.max(Math.min(104 * ts, h * 0.3), (UI.leftBottom || 0) + 16 * ts) : Math.min(104 * ts, h * 0.3), mb = Math.max(64 * ts, h - Math.min(UI.objTop || h, UI.tipTop || h) + 16 * ts);
       if (sx > m && sy > m && sx < w - m && sy < h - m) continue;
       const cx = w / 2, cy = h / 2 + (mt - mb) / 2; const a = Math.atan2(sy - cy, sx - cx);
       const k = Math.min((w / 2 - m - 10 * ts) / Math.abs(Math.cos(a) || 1e-6), ((h - mt - mb) / 2) / Math.abs(Math.sin(a) || 1e-6));
-      const ax = cx + Math.cos(a) * k, ay = cy + Math.sin(a) * k;
+      const ax = cx + Math.cos(a) * k, ay = cy + Math.sin(a) * k; const col = tg.col || C.hi;
       ctx.save(); ctx.translate(Math.round(ax), Math.round(ay)); ctx.rotate(a); ctx.fillStyle = C.ink; ctx.beginPath(); ctx.moveTo(8 * ts, 0); ctx.lineTo(-5 * ts, -6 * ts); ctx.lineTo(-5 * ts, 6 * ts); ctx.fill();
-      ctx.fillStyle = Math.floor(g.t * 3) % 2 ? C.hi : '#ffe98a'; ctx.beginPath(); ctx.moveTo(6 * ts, 0); ctx.lineTo(-4 * ts, -4 * ts); ctx.lineTo(-4 * ts, 4 * ts); ctx.fill(); ctx.restore();
+      ctx.fillStyle = Math.floor(g.t * 3) % 2 ? col : '#fff4c0'; ctx.beginPath(); ctx.moveTo(6 * ts, 0); ctx.lineTo(-4 * ts, -4 * ts); ctx.lineTo(-4 * ts, 4 * ts); ctx.fill(); ctx.restore();
       const dm = Math.round(Math.hypot(tg.x - pl.x, tg.y - pl.y)); const lab = (tg.label ? tg.label + ' · ' : '') + dm + 'M';
-      const lw = U.textWidth(lab, ts); const lx = U.clamp(Math.round(ax - Math.cos(a) * 22 * ts), lw / 2 + 4 * ts, w - lw / 2 - 4 * ts), ly = U.clamp(Math.round(ay - Math.sin(a) * 14 * ts) - 3, mt, h - mb);
-      panel(ctx, lx - lw / 2 - 3 * ts, ly - 3 * ts, lw + 6 * ts, 13 * ts, { fill: 'rgba(18,12,36,0.8)' });
-      T(ctx, lab, lx, ly, { align: 'center', color: C.hi, scale: ts });
+      const lw = U.textWidth(lab, ts); let lx = U.clamp(Math.round(ax - Math.cos(a) * 22 * ts), lw / 2 + 4 * ts, w - lw / 2 - 4 * ts), ly = U.clamp(Math.round(ay - Math.sin(a) * 14 * ts) - 3, mt, h - mb);
+      const side = Math.abs(Math.cos(a)) * (w / 2) > Math.abs(Math.sin(a)) * (h / 2); // on the left or right edge: shuffle up and down
+      const hit = (x, y) => placed.some(r => Math.abs(r.x - x) < (r.w + lw) / 2 + 4 * ts && Math.abs(r.y - y) < 14 * ts);
+      for (let i = 1, x0 = lx, y0 = ly; i < 12 && hit(lx, ly); i++) { const s = (i % 2 ? 1 : -1) * Math.ceil(i / 2); if (side) ly = U.clamp(y0 + s * 14 * ts, mt, h - mb); else lx = U.clamp(x0 + s * (lw + 8 * ts), lw / 2 + 4 * ts, w - lw / 2 - 4 * ts); }
+      placed.push({ x: lx, y: ly, w: lw });
+      panel(ctx, lx - lw / 2 - 3 * ts, ly - 3 * ts, lw + 6 * ts, 13 * ts, { fill: 'rgba(18,12,36,0.8)', edge: tg.col || C.edge });
+      T(ctx, lab, lx, ly, { align: 'center', color: col, scale: ts });
     }
     if (I.touchMode && !VH.Tackle.on) UI.touch(ctx, ts); else if (!I.touchMode) I.setButtons([{ id: 'pause', x: w / 2 + tw / 2 + 40 * ts, y: pad, w: 0, h: 0 }]);
     VH.Street.drawFeed(ctx, ts);
@@ -243,9 +295,11 @@
     const sw = w * mpp / sc, sh = h * mpp / sc; const sx = pl.x / sc - sw / 2, sy = pl.y / sc - sh / 2;
     ctx.imageSmoothingEnabled = false; ctx.drawImage(ov, sx, sy, sw, sh, x, y, w, h);
     const toM = (wx, wy) => [x + (wx / sc - sx) / sw * w, y + (wy / sc - sy) / sh * h];
-    for (const tg of M().targets()) { if (tg.small) continue; let [mx, my] = toM(tg.x, tg.y); mx = U.clamp(mx, x + 2, x + w - 3); my = U.clamp(my, y + 2, y + h - 3); ctx.fillStyle = Math.floor(g.t * 4) % 2 ? C.hi : C.ink; ctx.fillRect(Math.round(mx) - 2, Math.round(my) - 2, 4, 4); ctx.fillStyle = C.hi; ctx.fillRect(Math.round(mx) - 1, Math.round(my) - 1, 2, 2); }
+    for (const tg of M().targets()) { if (tg.small) continue; let [mx, my] = toM(tg.x, tg.y); mx = U.clamp(mx, x + 2, x + w - 3); my = U.clamp(my, y + 2, y + h - 3); ctx.fillStyle = Math.floor(g.t * 4) % 2 ? (tg.col || C.hi) : C.ink; ctx.fillRect(Math.round(mx) - 2, Math.round(my) - 2, 4, 4); ctx.fillStyle = tg.col || C.hi; ctx.fillRect(Math.round(mx) - 1, Math.round(my) - 1, 2, 2); }
+    for (const m of g.myMarkers()) { const [mx, my] = toM(m.x, m.y); UI.carIcon(ctx, U.clamp(mx, x + 4, x + w - 5), U.clamp(my, y + 3, y + h - 4), 1); }
+    if (g.waypoint) { const [mx, my] = toM(g.waypoint.x, g.waypoint.y); UI.pin(ctx, U.clamp(mx, x + 3, x + w - 4), U.clamp(my, y + 7, y + h - 2), 1); }
     const PO = VH.Police, LK = VH.Lockup; const blink = Math.floor(g.t * 6) % 2;
-    for (const r of VH.Shops.resprays) { const [mx, my] = toM(r.x, r.y); if (mx < x || my < y || mx > x + w || my > y + h) continue; VH.Shops.drawCan(ctx, Math.round(mx), Math.round(my), 1); }
+    for (const r of VH.Shops.resprays) { const [mx, my] = toM(r.x, r.y); if (mx < x || my < y || mx > x + w || my > y + h) continue; (r.service === 'tyres' ? VH.Shops.drawTyre : VH.Shops.drawCan)(ctx, Math.round(mx), Math.round(my), 1); }
     for (const m of [...VH.Acts.markers(), ...(g.helipads || []).map(h => ({ x: h.x, y: h.y, letter: 'H', col: '#ffffff' }))]) { const [mx, my] = toM(m.x, m.y); if (mx < x || my < y || mx > x + w || my > y + h) continue; ctx.fillStyle = 'rgba(18,12,36,0.8)'; ctx.fillRect(Math.round(mx) - 3, Math.round(my) - 4, 7, 9); U.text(ctx, m.letter, Math.round(mx) - 2, Math.round(my) - 3, { color: m.col, shadow: false }); }
     if (LK.b) { const [mx, my] = toM(LK.centre.x, LK.centre.y); ctx.fillStyle = '#4a4f66'; ctx.fillRect(Math.round(mx) - 3, Math.round(my) - 2, 7, 5); ctx.fillStyle = '#c9ccd8'; ctx.fillRect(Math.round(mx) - 3, Math.round(my) - 4, 2, 2); ctx.fillRect(Math.round(mx) + 2, Math.round(my) - 4, 2, 2); }
     if (VH.Street.scannerT > 0) for (const v of PO.patrols) { const [mx, my] = toM(v.x, v.y); ctx.fillStyle = '#7fa6ff'; ctx.fillRect(Math.round(mx) - 1, Math.round(my) - 1, 3, 3); }
@@ -261,15 +315,61 @@
     T(ctx, 'N', x + w - 7, y + 2, { color: C.white });
   };
 
+  // ---------- the full map: zoom and pan, find a street or place, and drop a waypoint ----------
+  // Everything you can search for: named streets (a point on each), named places and parks, landmarks and the shops.
+  UI.searchIndex = function () {
+    if (UI._sidx) return UI._sidx; const g = G(); const out = []; const seen = new Set();
+    const add = (name, x, y, kind) => { if (!name) return; const key = kind + ':' + name.toUpperCase(); if (seen.has(key)) return; seen.add(key); out.push({ name: name.toUpperCase(), x, y, kind }); };
+    const P = g.places; [['WARLAND RESERVE', P.warland], ['GRANITE ISLAND', P.granite], ['THE BLUFF (ROSETTA HEAD)', P.bluff], ['GOLF CLUB', P.golf], ['POLICE STATION', P.police], ['RAILWAY STATION', P.station], ['INDUSTRIAL ESTATE', P.industrial], ['CEMETERY', P.cemetery], ['FISH SHOP', P.fishShop], ['WHALE CENTRE', P.whaleCentre], ['OVAL', P.oval]].forEach(([n, p]) => p && add(n, p.x, p.y, 'PLACE'));
+    if (VH.Lockup.centre) add(VH.Lockup.NAME || 'THE LOCK-UP', VH.Lockup.centre.x, VH.Lockup.centre.y, 'PLACE');
+    for (const s of VH.Shops.list) add(s.name, s.door.x, s.door.y, 'SHOP'); for (const r of VH.Shops.resprays) add(r.name, r.x, r.y, 'SHOP');
+    for (const p of W.pois) if (p.n) add(p.n, p.x, p.y, 'PLACE');
+    for (const a of W.areas) if (a.n && typeof a.n === 'string') add(a.n, (a.bb[0] + a.bb[2]) / 2, (a.bb[1] + a.bb[3]) / 2, 'PLACE');
+    // streets: the middle of the longest stretch with that name
+    const best = new Map(); for (const e of W.edges) if (e.n) { const b = best.get(e.n); if (!b || e.len > b.len) best.set(e.n, e); }
+    for (const [n, e] of best) { const [x, y] = U.alongPoly(e.p, e.cum, e.len / 2); add(n, x, y, 'STREET'); }
+    return (UI._sidx = out);
+  };
+  // street-type abbreviations: typed short, shown short on the waypoint arrow
+  const ABBR = [['ROAD', 'RD'], ['STREET', 'ST'], ['AVENUE', 'AVE'], ['DRIVE', 'DR'], ['TERRACE', 'TCE'], ['PARADE', 'PDE'], ['CRESCENT', 'CRES'], ['HIGHWAY', 'HWY'], ['COURT', 'CT'], ['PLACE', 'PL'], ['ESPLANADE', 'ESP'], ['BOULEVARD', 'BVD'], ['CLOSE', 'CL'], ['LANE', 'LN']];
+  UI.longName = q => ABBR.reduce((s, [l, a]) => s.replace(new RegExp('\\b' + a + '\\b', 'g'), l), q);
+  UI.shortName = q => ABBR.reduce((s, [l, a]) => s.replace(new RegExp('\\b' + l + '\\b', 'g'), a), q);
+  UI.searchFind = function (q) {
+    q = q.trim().toUpperCase(); if (!q) return []; q = UI.longName(q); // BAY RD finds BAY ROAD
+    const res = []; for (const it of UI.searchIndex()) { const i = it.name.indexOf(q); if (i < 0) continue; const word = i === 0 || it.name[i - 1] === ' '; res.push({ it, score: (i === 0 ? 0 : word ? 1 : 2) * 100 + it.name.length }); }
+    return res.sort((a, b) => a.score - b.score).slice(0, 6).map(r => r.it);
+  };
+  // a real (see-through) text box over the drawn one, so phones bring up their keyboard; the drawing is pixel font
+  UI.searchEl = function () {
+    if (UI._sel) return UI._sel; const el = document.createElement('input'); el.type = 'text'; el.autocomplete = 'off'; el.spellcheck = false; el.setAttribute('aria-label', 'Find a street or place');
+    Object.assign(el.style, { position: 'fixed', opacity: '0.01', border: '0', padding: '0', margin: '0', fontSize: '16px', zIndex: 5, display: 'none', background: 'transparent', color: 'transparent', caretColor: 'transparent' });
+    el.addEventListener('keydown', e => {
+      const s = UI.search; e.stopPropagation();
+      if (e.key === 'ArrowDown') { s.sel = Math.min((s.res.length || 1) - 1, s.sel + 1); e.preventDefault(); }
+      else if (e.key === 'ArrowUp') { s.sel = Math.max(0, s.sel - 1); e.preventDefault(); }
+      else if (e.key === 'Enter') { if (s.res[s.sel]) UI.pickPlace(s.res[s.sel]); el.blur(); e.preventDefault(); }
+      else if (e.key === 'Tab') e.preventDefault();
+      else if (e.key === 'Escape') { el.value = ''; s.q = ''; s.res = []; el.blur(); e.preventDefault(); }
+    });
+    el.addEventListener('input', () => { const s = UI.search; s.q = el.value.toUpperCase().slice(0, 28); s.res = UI.searchFind(s.q); s.sel = 0; });
+    el.addEventListener('focus', () => { UI.search.focus = true; }); el.addEventListener('blur', () => { UI.search.focus = false; });
+    document.body.appendChild(el); return (UI._sel = el);
+  };
+  UI.search = { q: '', res: [], sel: 0, focus: false };
+  UI.hideSearch = () => { if (UI._sel) { UI._sel.style.display = 'none'; UI._sel.blur(); } };
+  UI.pickPlace = function (it) {
+    const g = G(); g.waypoint = { x: it.x, y: it.y, label: UI.shortName(it.name) }; const mz = UI.mapZ; if (mz) { mz.z = Math.max(mz.z, 3.375); mz.cx = it.x; mz.cy = it.y; }
+    sfx('click'); g.toast('WAYPOINT: ' + it.name, '#ffffff'); const s = UI.search; s.res = []; s.q = ''; if (UI._sel) UI._sel.value = '';
+  };
   UI.fullMap = function (ctx, ts) {
-    const g = G(), pl = g.player, w = ctx.canvas.width, h = ctx.canvas.height; const ov = R.overview; const sc = R.overviewScale;
+    const g = G(), pl = g.player, w = ctx.canvas.width, h = ctx.canvas.height; const ov = R.overview; const sc = R.overviewScale; const S = UI.search;
     ctx.fillStyle = 'rgba(10,8,24,0.85)'; ctx.fillRect(0, 0, w, h);
     // zoom (wheel, +/-, pinch) and pan (arrows / WASD / drag) the full map; 0 recentres
     const mz = UI.mapZ || (UI.mapZ = { z: 1, cx: pl.x, cy: pl.y });
-    if (I.consume('zoomIn')) mz.z = Math.min(8, mz.z * 1.5); if (I.consume('zoomOut')) mz.z = Math.max(1, mz.z / 1.5); if (I.consume('zoomReset')) { mz.z = 1; mz.cx = pl.x; mz.cy = pl.y; }
+    if (!S.focus) { if (I.consume('zoomIn')) mz.z = Math.min(8, mz.z * 1.5); if (I.consume('zoomOut')) mz.z = Math.max(1, mz.z / 1.5); if (I.consume('zoomReset')) { mz.z = 1; mz.cx = pl.x; mz.cy = pl.y; } }
     const k0 = Math.min((w - 20) / ov.width, (h - 40 * ts) / ov.height); const k = k0 * mz.z;
-    const pan = 400 / mz.z * (g.frameDt || 0.016); mz.cx += ((I.down('right') ? 1 : 0) - (I.down('left') ? 1 : 0)) * pan; mz.cy += ((I.down('down') ? 1 : 0) - (I.down('up') ? 1 : 0)) * pan;
-    for (const q of I.pointers.values()) { if (q.lx != null) { mz.cx -= (q.x - q.lx) / k * sc; mz.cy -= (q.y - q.ly) / k * sc; } q.lx = q.x; q.ly = q.y; }
+    const pan = S.focus ? 0 : 400 / mz.z * (g.frameDt || 0.016); mz.cx += ((I.down('right') ? 1 : 0) - (I.down('left') ? 1 : 0)) * pan; mz.cy += ((I.down('down') ? 1 : 0) - (I.down('up') ? 1 : 0)) * pan;
+    for (const q of I.pointers.values()) { if (q.lx != null && !q.btn) { mz.cx -= (q.x - q.lx) / k * sc; mz.cy -= (q.y - q.ly) / k * sc; } q.lx = q.x; q.ly = q.y; }
     if (mz.z === 1) { mz.cx = W.width / 2; mz.cy = W.height / 2; }
     const mw = ov.width * k, mh = ov.height * k; const vx0 = 10, vy0 = 22 * ts, vw0 = w - 20, vh0 = h - 40 * ts;
     let mx = vx0 + vw0 / 2 - mz.cx / sc * k, my = vy0 + vh0 / 2 - mz.cy / sc * k;
@@ -277,39 +377,92 @@
     ctx.save(); ctx.beginPath(); ctx.rect(vx0 - 4, vy0 - 4, vw0 + 8, vh0 + 8); ctx.clip();
     panel(ctx, mx - 3, my - 3, mw + 6, mh + 6, { accent: C.teal });
     ctx.imageSmoothingEnabled = true; ctx.drawImage(ov, mx, my, mw, mh); ctx.imageSmoothingEnabled = false;
-    const toM = (x, y) => [mx + x / sc * k, my + y / sc * k];
+    const toM = (x, y) => [mx + x / sc * k, my + y / sc * k]; const fromM = (x, y) => [(x - mx) / k * sc, (y - my) / k * sc];
     // landmark labels
     const P = g.places; const labels = [['WARLAND RESERVE', P.warland], ['GRANITE ISLAND', P.granite], ['THE BLUFF', P.bluff], ['GOLF CLUB', P.golf], ['POLICE', P.police], ['STATION', P.station], ['INDUSTRIAL ESTATE', P.industrial], ['CEMETERY', P.cemetery], ['LOCK-UP', VH.Lockup.centre]];
     for (const [s, p] of labels) { if (!p) continue; const [x, y] = toM(p.x, p.y); ctx.fillStyle = C.white; ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 2, 2); T(ctx, s, x + 3, y - 3, { color: C.white, scale: 1 }); }
     if (R.drawMapLabels) R.drawMapLabels(ctx, toM, k / sc, ts, [vx0, vy0, vw0, vh0]); // [Round C map] street, suburb and park names
-    for (const r of VH.Shops.resprays) { const [x, y] = toM(r.x, r.y); VH.Shops.drawCan(ctx, Math.round(x), Math.round(y), 2); T(ctx, r.name, x + 8, y - 4, { color: '#9be15d', scale: 1 }); }
+    for (const r of VH.Shops.resprays) { const [x, y] = toM(r.x, r.y); (r.service === 'tyres' ? VH.Shops.drawTyre : VH.Shops.drawCan)(ctx, Math.round(x), Math.round(y), 2); T(ctx, r.name, x + 8, y - 4, { color: '#9be15d', scale: 1 }); }
     for (const s of VH.Shops.list) { const [x, y] = toM(s.door.x, s.door.y); ctx.fillStyle = '#38e0c8'; ctx.fillRect(Math.round(x) - 2, Math.round(y) - 2, 4, 4); }
     for (const m of [...VH.Acts.markers(), ...(g.helipads || []).map(h => ({ x: h.x, y: h.y, letter: 'H', col: '#ffffff' }))]) { const [x, y] = toM(m.x, m.y); ctx.fillStyle = 'rgba(18,12,36,0.85)'; ctx.fillRect(Math.round(x) - 4, Math.round(y) - 5, 9, 11); U.text(ctx, m.letter, Math.round(x) - 2, Math.round(y) - 3, { color: m.col, shadow: false }); }
-    for (const tg of M().targets()) { if (tg.small) continue; const [x, y] = toM(tg.x, tg.y); ctx.fillStyle = Math.floor(g.t * 4) % 2 ? C.hi : C.pink; ctx.fillRect(Math.round(x) - 3, Math.round(y) - 3, 6, 6); }
+    for (const tg of M().targets()) { if (tg.small) continue; const [x, y] = toM(tg.x, tg.y); ctx.fillStyle = Math.floor(g.t * 4) % 2 ? (tg.col || C.hi) : C.pink; ctx.fillRect(Math.round(x) - 3, Math.round(y) - 3, 6, 6); }
+    for (const m of g.myMarkers()) { const [x, y] = toM(m.x, m.y); UI.carIcon(ctx, x, y, 2); T(ctx, m.label, x + 8, y - 4, { color: g.MINE_COL, scale: 1 }); }
+    if (g.waypoint) { const [x, y] = toM(g.waypoint.x, g.waypoint.y); UI.pin(ctx, x, y, 2); T(ctx, g.waypoint.label, x + 8, y - 12, { color: '#fff', scale: 1 }); }
     const [px, py] = toM(pl.x, pl.y); ctx.fillStyle = Math.floor(g.t * 5) % 2 ? '#fff' : C.pink; ctx.fillRect(Math.round(px) - 3, Math.round(py) - 3, 6, 6);
     ctx.restore();
-    if (g.char !== 'cop') T(ctx, 'M MAYHEM MINUTE  R RAMP  G/B/T/S RACES  H HELIPAD  CAN: RESPRAY  BLUE: SHOPS', w / 2, h - 30 * ts, { align: 'center', color: C.white, scale: ts });
+    UI.mapLegend(ctx, ts, w / 2, h - 32 * ts, w - 20 * ts);
     T(ctx, 'MAP OF VICTOR HARBOR', w / 2, 6 * ts, { align: 'center', color: C.hi, scale: ts * 1.5 | 0 || 1 });
-    T(ctx, I.touchMode ? 'PINCH: ZOOM  DRAG: PAN  TAP MAP: CLOSE' : 'WHEEL / + -: ZOOM   ARROWS: PAN   0: RESET   M: CLOSE', w / 2, h - 20 * ts, { align: 'center', color: C.dim, scale: ts });
+    T(ctx, I.touchMode ? 'PINCH: ZOOM  DRAG: PAN  TAP: WAYPOINT' : 'WHEEL / + -: ZOOM  ARROWS: PAN  CLICK: WAYPOINT  M: CLOSE', w / 2, h - 20 * ts, { align: 'center', color: C.dim, scale: ts });
     T(ctx, 'MAP DATA (C) OPENSTREETMAP CONTRIBUTORS (ODBL)', w / 2, h - 10 * ts, { align: 'center', color: C.dim, scale: ts });
+    // the search box (top left of the map) and its results; CLOSE (top right)
+    const bw = Math.min(w - 70 * ts, 190 * ts), bx = 14 * ts, by = vy0 + 4 * ts, bh = 14 * ts;
+    panel(ctx, bx, by, bw, bh, { fill: S.focus ? 'rgba(18,12,36,0.96)' : 'rgba(18,12,36,0.85)', edge: S.focus ? C.teal : C.edge });
+    const caret = S.focus && Math.floor(g.t * 2.5) % 2 ? '_' : ''; const maxC = Math.floor((bw - 10 * ts) / (6 * ts));
+    T(ctx, S.q ? (S.q + caret).slice(-maxC) : S.focus ? caret || ' ' : (I.touchMode ? 'TAP: FIND A STREET OR PLACE' : 'ENTER: FIND A STREET OR PLACE').slice(0, maxC), bx + 5 * ts, by + 4 * ts, { color: S.q || S.focus ? C.white : C.dim, scale: ts });
+    const rr = []; S.res.forEach((it, i) => { const ry = by + bh + i * 12 * ts; const sel = i === S.sel; panel(ctx, bx, ry, bw, 12 * ts, { fill: sel ? 'rgba(60,40,100,0.97)' : 'rgba(18,12,36,0.95)', edge: C.edge }); T(ctx, (it.name + ' · ' + it.kind).slice(0, maxC), bx + 5 * ts, ry + 3 * ts, { color: sel ? C.hi : C.white, scale: ts }); rr.push({ x: bx, y: ry, w: bw, h: 12 * ts, it }); });
+    if (S.q && !S.res.length) { panel(ctx, bx, by + bh, bw, 12 * ts, { fill: 'rgba(18,12,36,0.95)' }); T(ctx, 'NOTHING BY THAT NAME', bx + 5 * ts, by + bh + 3 * ts, { color: C.dim, scale: ts }); }
+    const cbw = 40 * ts, cbx = w - cbw - 12 * ts, cby = vy0 + 4 * ts; panel(ctx, cbx, cby, cbw, 14 * ts, { accent: C.pink }); T(ctx, 'CLOSE', cbx + cbw / 2, cby + 4 * ts, { align: 'center', color: C.white, scale: ts });
+    // the real text box sits over the drawn one
+    const el = UI.searchEl(); const cssK = I.scale / (I.canvas.width / I.canvas.getBoundingClientRect().width || 1), cssO = cssK / I.scale;
+    Object.assign(el.style, { display: 'block', left: bx * cssK + (I.offX || 0) * cssO + 'px', top: by * cssK + (I.offY || 0) * cssO + 'px', width: bw * cssK + 'px', height: bh * cssK + 'px' });
+    if (!S.focus && (I.consume('confirm') || I.consume('kick'))) { el.focus(); }
+    // clicks and taps: a result, CLOSE, or anywhere on the map for a waypoint (on the waypoint again clears it)
+    const c = I.click(); if (c) {
+      const hit = rr.find(r => c.x >= r.x && c.y >= r.y && c.x <= r.x + r.w && c.y <= r.y + r.h);
+      if (hit) UI.pickPlace(hit.it);
+      else if (c.x >= cbx && c.y >= cby && c.x <= cbx + cbw && c.y <= cby + 14 * ts) UI.closeMap = true;
+      else if (c.x >= bx && c.y >= by && c.x <= bx + bw && c.y <= by + bh) el.focus();
+      else if (c.x > vx0 && c.y > vy0 && c.x < vx0 + vw0 && c.y < vy0 + vh0) {
+        const [wx, wy] = fromM(c.x, c.y); const wp = g.waypoint;
+        if (wp) { const [qx, qy] = toM(wp.x, wp.y); if (Math.hypot(qx - c.x, qy - c.y) < 10 * ts) { g.waypoint = null; g.toast('WAYPOINT CLEARED', '#ffffff'); sfx('click'); return; } }
+        if (W.inBounds(wx, wy)) { const st = W.streetName(wx, wy); g.waypoint = { x: wx, y: wy, label: st ? UI.shortName(st.toUpperCase()) : 'WAYPOINT' }; sfx('click'); g.toast('WAYPOINT: ' + g.waypoint.label, '#ffffff'); }
+        if (S.focus) el.blur();
+      }
+    }
   };
+  // the key to the map icons, drawn as the icons themselves (one row, or two on a narrow screen), centred at x
+  UI.MAP_KEY = [['job', 'JOB'], ['car', 'YOUR CAR'], ['pin', 'WAYPOINT'], ['can', 'RESPRAY'], ['tyre', 'TYRES'], ['shop', 'SHOP'], ['M', 'MAYHEM MINUTE'], ['R', 'RAMP'], ['G', 'RACES'], ['H', 'HELIPAD']];
+  UI.mapLegend = function (ctx, ts, cx, y, maxW) {
+    const item = ([ic, txt]) => 12 * ts + U.textWidth(txt, ts) + 8 * ts; const rows = [[]]; let rw = 0;
+    for (const it of UI.MAP_KEY) { const iw = item(it); if (rw + iw > maxW && rows[rows.length - 1].length) { rows.push([]); rw = 0; } rows[rows.length - 1].push(it); rw += iw; }
+    const y0 = y - (rows.length - 1) * 11 * ts;
+    rows.forEach((row, ri) => {
+      let x = Math.round(cx - row.reduce((a, it) => a + item(it), 0) / 2); const yy = y0 + ri * 11 * ts;
+      for (const it of row) {
+        const [ic, txt] = it; const ix = x + 4 * ts, iy = yy + 3 * ts;
+        if (ic === 'job') { ctx.fillStyle = C.hi; ctx.fillRect(ix - 2 * ts, iy - 2 * ts, 4 * ts, 4 * ts); }
+        else if (ic === 'car') UI.carIcon(ctx, ix, iy, ts); else if (ic === 'pin') UI.pin(ctx, ix, iy + 3 * ts, ts); else if (ic === 'can') VH.Shops.drawCan(ctx, ix, iy, Math.max(1, ts * 0.6 | 0)); else if (ic === 'tyre') VH.Shops.drawTyre(ctx, ix, iy, Math.max(1, ts * 0.6 | 0));
+        else if (ic === 'shop') { ctx.fillStyle = '#38e0c8'; ctx.fillRect(ix - 2 * ts, iy - 2 * ts, 4 * ts, 4 * ts); }
+        else { ctx.fillStyle = 'rgba(18,12,36,0.85)'; ctx.fillRect(ix - 4 * ts, iy - 5 * ts, 9 * ts, 11 * ts); T(ctx, ic, ix - 2 * ts, iy - 3 * ts, { color: ic === 'M' ? '#ff4fa0' : ic === 'H' ? '#fff' : '#ff9a30', scale: ts, shadow: false }); }
+        T(ctx, txt, x + 12 * ts, yy, { color: C.white, scale: ts }); x += item(it);
+      }
+    });
+  };
+  // the light-blue "your car" icon and the white waypoint pin, shared by the map and the minimap
+  UI.carIcon = (ctx, x, y, s = 1) => { x = Math.round(x); y = Math.round(y); ctx.fillStyle = '#120c24'; ctx.fillRect(x - 3 * s - 1, y - 2 * s - 1, 6 * s + 2, 4 * s + 2); ctx.fillStyle = G().MINE_COL; ctx.fillRect(x - 3 * s, y - 2 * s, 6 * s, 4 * s); ctx.fillStyle = '#120c24'; ctx.fillRect(x - s, y - 2 * s, 2 * s, 4 * s); };
+  UI.pin = (ctx, x, y, s = 1) => { x = Math.round(x); y = Math.round(y); ctx.fillStyle = '#120c24'; ctx.fillRect(x - 2 * s - 1, y - 6 * s - 1, 4 * s + 2, 4 * s + 2); ctx.fillRect(x - 1, y - 2 * s, 2 + (s > 1 ? 1 : 0), 2 * s + 1); ctx.fillStyle = '#ffffff'; ctx.fillRect(x - 2 * s, y - 6 * s, 4 * s, 4 * s); ctx.fillRect(x, y - 2 * s, 1, 2 * s); };
 
   // ---------- touch controls ----------
   UI.touch = function (ctx, ts) {
     const w = ctx.canvas.width, h = ctx.canvas.height; const g = G(); const pl = g.player;
-    const r = 15 * ts; const bx = w - r - 8 * ts, by = h - r - 12 * ts;
+    const sh = UI.short; const r = (sh ? 13 : 15) * ts; const bx = w - r - 8 * ts, by = h - r - (sh ? 6 : 12) * ts;
     const v = pl.vehicle; const heli = v && v.def && v.def.heli, bike = v && v.def && v.def.bike;
     const btns = [
       { id: 'action', x: bx - r, y: by - r, label: pl.onFoot ? 'ACT' : heli ? 'DOWN' : bike ? 'HOP' : 'SKID', col: C.pink },
       { id: 'enter', x: bx - r * 3.4, y: by - r * 0.3, label: pl.onFoot ? 'GET IN' : 'GET OUT', col: C.teal },
-      { id: 'horn', x: bx - r * 1.2, y: by - r * 3.4, label: pl.onFoot ? (g.char === 'cop' ? 'MEGA' : 'SHOUT') : (v && (v.type === 'police' || v.type === 'paddy')) ? 'SIREN' : 'HORN', col: C.hi },
+      { id: 'horn', x: bx - r * 1.2, y: by - r * 3.4, label: pl.onFoot ? (g.char === 'cop' ? 'MEGA' : 'SHOUT') : (v && (v.type === 'police' || v.type === 'paddy' || v.roofLight)) ? 'SIREN' : 'HORN', col: C.hi },
       { id: 'run', x: bx - r * 3.4, y: by - r * 2.8, label: heli ? 'UP' : 'BOOST', col: '#7c5cff' },
     ];
     if (pl.onFoot) btns.push({ id: 'kick', x: bx - r, y: by - r * 5.6, label: 'KICK', col: '#ff9a30' });
     if (g.char === 'cop' && v && !v.rail && !heli) btns.push({ id: 'spikes', x: bx - r, y: by - r * 5.6, label: 'SPIKES', col: '#ff9a30' }, { id: 'backup', x: bx - r * 3.4, y: by - r * 5.2, label: 'BACKUP', col: '#7fa6ff' });
+    if (g.char === 'cop' && v && !v.rail && !heli && !bike && !v.def.gopher && v.type !== 'police' && v.type !== 'paddy') btns.push({ id: 'light', x: bx - r * 5.8, y: by - r * 0.3, label: 'LIGHT', col: '#9fd4ec' });
+    if (g.char === 'cop' && pl.onFoot && !VH.Police.kevCar()) btns.push({ id: 'backup', x: bx - r * 3.4, y: by - r * 5.2, label: 'SPARE', col: '#7fa6ff' });
     const rects = btns.map(b => ({ id: b.id, x: b.x, y: b.y, w: r * 2, h: r * 2 }));
+    // MAP, PAUSE, JOB and ?: a 2 x 2 block under the vehicle readout, or (a phone on its side) a row under the small minimap
+    const small = sh ? [['map', 'MAP'], ['pause', 'II'], ['job', 'JOB'], ['help', '?']].map(([id, lab], i) => ({ id, lab, x: w - 4 * ts - UI.mmS + i * (UI.mmS + 3 * ts) / 4, y: 4 * ts + UI.mmS + 4 * ts, w: (UI.mmS + 3 * ts) / 4 - 3 * ts, h: 13 * ts })) : null;
     const ux = w - 4 * ts - 92 * ts, uy = 4 * ts + 124 * ts;
-    rects.push({ id: 'pause', x: ux + 50 * ts, y: uy, w: 42 * ts, h: 16 * ts }, { id: 'map', x: ux, y: uy, w: 42 * ts, h: 16 * ts }, { id: 'job', x: ux, y: uy + 20 * ts, w: 42 * ts, h: 16 * ts }, { id: 'help', x: ux + 50 * ts, y: uy + 20 * ts, w: 42 * ts, h: 16 * ts });
+    if (small) { rects.push(...small.map(b => ({ id: b.id, x: b.x, y: b.y, w: b.w, h: b.h }))); I.setButtons(rects); I.stickZone = w * 0.5; I.stickR = 26 * ts; }
+    else rects.push({ id: 'pause', x: ux + 50 * ts, y: uy, w: 42 * ts, h: 16 * ts }, { id: 'map', x: ux, y: uy, w: 42 * ts, h: 16 * ts }, { id: 'job', x: ux, y: uy + 20 * ts, w: 42 * ts, h: 16 * ts }, { id: 'help', x: ux + 50 * ts, y: uy + 20 * ts, w: 42 * ts, h: 16 * ts });
     I.setButtons(rects); I.stickZone = w * 0.5; I.stickR = 26 * ts;
     for (const b of btns) {
       const cx = b.x + r, cy = b.y + r; const held = I.held[b.id];
@@ -317,10 +470,11 @@
       ctx.strokeStyle = b.col; ctx.lineWidth = Math.max(1, ts); ctx.beginPath(); ctx.arc(cx, cy, r - 1, 0, U.TAU); ctx.stroke(); ctx.globalAlpha = 1;
       T(ctx, b.label, cx, cy - 3 * ts, { align: 'center', color: b.col, scale: ts });
     }
-    panel(ctx, ux + 50 * ts, uy, 42 * ts, 16 * ts); T(ctx, 'PAUSE', ux + 71 * ts, uy + 5 * ts, { align: 'center', scale: ts });
+    if (small) for (const b of small) { panel(ctx, b.x, b.y, b.w, b.h, { edge: b.id === 'help' && G().helpOpen ? C.teal : C.edge }); T(ctx, b.lab, b.x + b.w / 2, b.y + 3 * ts, { align: 'center', scale: ts, color: b.id === 'help' ? C.teal : C.white }); }
+    else { panel(ctx, ux + 50 * ts, uy, 42 * ts, 16 * ts); T(ctx, 'PAUSE', ux + 71 * ts, uy + 5 * ts, { align: 'center', scale: ts });
     panel(ctx, ux, uy, 42 * ts, 16 * ts); T(ctx, 'MAP', ux + 21 * ts, uy + 5 * ts, { align: 'center', scale: ts });
     panel(ctx, ux, uy + 20 * ts, 42 * ts, 16 * ts); T(ctx, 'JOB', ux + 21 * ts, uy + 25 * ts, { align: 'center', scale: ts });
-    panel(ctx, ux + 50 * ts, uy + 20 * ts, 42 * ts, 16 * ts, { edge: G().helpOpen ? C.teal : C.edge }); T(ctx, '?', ux + 71 * ts, uy + 25 * ts, { align: 'center', scale: ts, color: C.teal });
+    panel(ctx, ux + 50 * ts, uy + 20 * ts, 42 * ts, 16 * ts, { edge: G().helpOpen ? C.teal : C.edge }); T(ctx, '?', ux + 71 * ts, uy + 25 * ts, { align: 'center', scale: ts, color: C.teal }); }
     if (I.stick.active) {
       ctx.globalAlpha = 0.5; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(I.stick.ox, I.stick.oy, I.stickR, 0, U.TAU); ctx.stroke();
       ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(I.stick.ox + I.stick.x * I.stickR, I.stick.oy + I.stick.y * I.stickR, 8 * ts, 0, U.TAU); ctx.fill(); ctx.globalAlpha = 1;
@@ -342,13 +496,20 @@
       }
     });
   }
-  function menuList(ctx, items, x, y, ts, idx) {
-    const taps = [];
+  // a vertical menu; on a short or narrow screen it drops to the small font and moves up so every item fits above the
+  // footer line
+  function menuList(ctx, items, x, y, ts, idx, minY = 4 * ts, foot = 14 * ts) {
+    const taps = []; const W = ctx.canvas.width, H = ctx.canvas.height;
+    let s = ts * 2, row = 18 * ts;
+    const widest = Math.max(...items.map(it => U.textWidth('> ' + it + ' <', ts * 2)));
+    if (y + items.length * row > H - foot || widest > W - 8 * ts) { s = ts; row = 12 * ts; }
+    if (y + items.length * row > H - foot) y = Math.max(minY, H - foot - items.length * row);
+    if (y + items.length * row > H - foot) row = Math.max(9 * ts, (H - foot - y) / items.length); // squeeze the rows a little rather than run off the screen
     items.forEach((it, i) => {
-      const sel = i === idx; const s = ts * (sel ? 2 : 2); const yy = y + i * 18 * ts; const wdt = U.textWidth(it, s) + 16 * ts;
-      if (sel) { panel(ctx, x - wdt / 2, yy - 4 * ts, wdt, 22 * ts, { fill: 'rgba(255,79,160,0.25)', edge: C.pink }); }
+      const sel = i === idx; const yy = y + i * row; const wdt = U.textWidth(it, s) + 16 * ts;
+      if (sel) { panel(ctx, x - wdt / 2, yy - (s > ts ? 4 : 2) * ts, wdt, row + (s > ts ? 4 : 1) * ts, { fill: 'rgba(255,79,160,0.25)', edge: C.pink }); }
       T(ctx, (sel ? '> ' : '') + it + (sel ? ' <' : ''), x, yy, { align: 'center', color: sel ? C.hi : C.white, scale: s });
-      taps.push({ x: x - wdt / 2, y: yy - 4 * ts, w: wdt, h: 18 * ts });
+      taps.push({ x: x - wdt / 2, y: yy - (s > ts ? 4 : 2) * ts, w: wdt, h: row });
     });
     return taps;
   }
@@ -359,6 +520,73 @@
   function tappedIndex(rects) { const t = I.tap(); if (!t) return -1; return rects.findIndex(r => t.x >= r.x && t.y >= r.y && t.x <= r.x + r.w && t.y <= r.y + r.h); }
   const confirm = () => I.consume('confirm') || I.consume('enter') || I.consume('action');
 
+  // footer lines, wrapped to the screen and drawn up from the bottom edge; returns the height they take
+  const footer = (ctx, ts, lines) => { const w = ctx.canvas.width, h = ctx.canvas.height, n = Math.max(12, Math.floor((w - 12 * ts) / (6 * ts))); const out = lines.flatMap(l => U.wrap(l, n)); out.forEach((l, i) => T(ctx, l, w / 2, h - (out.length - i) * 9 * ts - 3 * ts, { align: 'center', color: C.dim, scale: ts })); return (out.length * 9 + 5) * ts; };
+  // credits and links, in one place (the game's own repo, and bug and idea links, slot in here later)
+  UI.CREDITS = {
+    year: 2026, author: 'BRENT JACOBS',
+    // where: 'credits' (the credits page), 'menu' (the title and pause menus); all open in a new tab
+    links: [
+      { id: 'osm', label: 'OPENSTREETMAP.ORG/COPYRIGHT', url: 'https://www.openstreetmap.org/copyright', where: ['credits'] },
+      { id: 'site', label: 'SCHOOLIES MAYHEM ONLINE', url: 'https://br3nt.github.io/schoolies-mayhem/', where: ['credits'] },
+      { id: 'repo', label: 'THE CODE ON GITHUB', url: 'https://github.com/br3nt/schoolies-mayhem', where: ['credits'] },
+      { id: 'bug', label: 'REPORT A BUG', url: 'https://github.com/br3nt/schoolies-mayhem/issues/new/choose', where: ['credits', 'menu'] },
+      { id: 'idea', label: 'SUGGEST AN IDEA', url: 'https://github.com/br3nt/schoolies-mayhem/discussions/categories/ideas', where: ['credits', 'menu'] },
+      { id: 'project', label: 'VICTOR HARBOR ROADS PROJECT', url: 'https://br3nt.github.io/victor-harbor-roads/', where: ['credits'] },
+      { id: 'blog', label: "BRENT'S BLOG", url: 'https://br3nt.github.io/', where: ['credits'] },
+    ],
+    // the small print, documentary-reenactment style (tweak freely)
+    disclaimers: ['NAMES HAVE BEEN CHANGED TO PROTECT THE IDENTITIES AND REPUTATIONS OF THOSE INVOLVED. MERV INSISTED.', 'ANY RESEMBLANCE TO REAL GOPHERS, LIVING OR DEAD, IS PURELY COINCIDENTAL.'],
+    footer: 'AN ORIGINAL GAME. NO REAL PEOPLE WERE HARMED.', // on the title screen
+    build: null, // filled in by update detection later
+  };
+  const link = id => UI.CREDITS.links.find(l => l.id === id && l.url);
+  UI.menuLinks = () => UI.CREDITS.links.filter(l => l.url && (l.where || []).includes('menu'));
+  UI.openLink = l => { try { window.open(l.url, '_blank', 'noopener'); } catch (e) { /* a sandboxed frame may refuse */ } };
+  UI.credits = function (ctx, ts) {
+    const w = ctx.canvas.width, h = ctx.canvas.height, g = G(); ctx.fillStyle = 'rgba(18,12,36,0.94)'; ctx.fillRect(0, 0, w, h);
+    T(ctx, 'CREDITS', w / 2, 8 * ts, { align: 'center', color: C.hi, scale: ts * 2 });
+    const n = Math.max(12, Math.floor((w - 16 * ts) / (6 * ts))), C0 = UI.CREDITS;
+    const rows = [];
+    const text = (str, color = C.white) => U.wrap(str, n).forEach(l => rows.push({ str: l, color }));
+    const gap = () => rows.push({ gap: true });
+    text(`SCHOOLIES MAYHEM · A GAME BY ${C0.author} · ${C0.year}`, C.hi); gap();
+    text('MAP DATA (C) OPENSTREETMAP CONTRIBUTORS (ODBL)'); if (link('osm')) rows.push({ link: link('osm') }); gap();
+    for (const d of C0.disclaimers) { text(d, C.dim); gap(); }
+    text('SOUND AND MUSIC: ORIGINAL, SYNTHESISED IN THE BROWSER', C.dim); gap();
+    for (const l of C0.links) if (l.url && l.id !== 'osm' && (l.where || ['credits']).includes('credits')) rows.push({ link: l });
+    gap(); text('BUILD: ' + (window.VH_BUILD || C0.build || 'DEVELOPMENT COPY'), C.dim);
+    const links = rows.filter(r => r.link); UI.creditIdx = U.clamp(UI.creditIdx || 0, 0, Math.max(0, links.length - 1));
+    if (links.length && I.consume('up')) { UI.creditIdx = (UI.creditIdx + links.length - 1) % links.length; sfx('click'); }
+    if (links.length && I.consume('down')) { UI.creditIdx = (UI.creditIdx + 1) % links.length; sfx('click'); }
+    const L = 11 * ts, LK = 14 * ts, GP = 5 * ts, top = 26 * ts, view = h - top - 22 * ts;
+    for (const r of rows) if (r.link) r.lines = U.wrap(r.link.label, n - 2);
+    const hOf = r => r.gap ? GP : r.link ? LK + (r.lines.length - 1) * 9 * ts : L; const total = rows.reduce((t, r) => t + hOf(r), 0);
+    const cur = links[UI.creditIdx] && links[UI.creditIdx].link;
+    // scroll: slowly by itself when it doesn't fit, always keeping the chosen link in view
+    let y = 0, selY = 0; for (const r of rows) { if (r.link && r.link === cur) selY = y; y += hOf(r); }
+    const maxS = Math.max(0, total - view); UI.creditScroll = U.clamp((UI.creditScroll || 0) + (maxS ? (g.frameDt || 0.016) * 6 * ts : 0), 0, maxS);
+    if (maxS) { if (selY < UI.creditScroll) UI.creditScroll = selY; if (selY + LK > UI.creditScroll + view) UI.creditScroll = Math.min(maxS, selY + LK - view); }
+    const oy = top + Math.max(0, (view - total) / 2) - UI.creditScroll; const rects = [];
+    ctx.save(); ctx.beginPath(); ctx.rect(0, top - 1 * ts, w, view + 4 * ts); ctx.clip();
+    y = oy; for (const r of rows) {
+      if (r.gap) { y += GP; continue; }
+      if (r.link) {
+        const sel = r.link === cur; const lw = Math.max(...r.lines.map(l => U.textWidth(l, ts))) + 12 * ts, lh = 13 * ts + (r.lines.length - 1) * 9 * ts;
+        if (sel) panel(ctx, w / 2 - lw / 2, y - 3 * ts, lw, lh, { fill: 'rgba(255,79,160,0.25)', edge: C.pink });
+        r.lines.forEach((l, i) => T(ctx, l, w / 2, y + i * 9 * ts, { align: 'center', color: sel ? C.hi : C.teal, scale: ts })); rects.push({ x: w / 2 - lw / 2, y: y - 3 * ts, w: lw, h: lh, link: r.link }); y += hOf(r); continue;
+      }
+      T(ctx, r.str, w / 2, y, { align: 'center', color: r.color, scale: ts }); y += L;
+    }
+    ctx.restore();
+    const hint = I.touchMode ? 'TAP A LINK TO OPEN IT · TAP HERE TO GO BACK' : 'UP/DOWN: CHOOSE A LINK · ENTER: OPEN (NEW TAB) · ESC: BACK';
+    U.wrap(hint, n).slice(0, 2).forEach((l, i, a) => T(ctx, l, w / 2, h - (a.length - i) * 9 * ts - 4 * ts, { align: 'center', color: C.pink, scale: ts }));
+    const close = () => { g.state = g.prevState || 'title'; g.prevState = null; UI.creditScroll = 0; sfx('click'); };
+    const t = I.tap();
+    if (t) { const hit = rects.find(r => t.x >= r.x && t.x <= r.x + r.w && t.y >= r.y && t.y <= r.y + r.h); if (hit) { UI.openLink(hit.link); sfx('menu'); } else if (t.y > h - 24 * ts || t.y < top) close(); return; }
+    if (I.consume('back') || I.consume('pause')) return close();
+    if (confirm() && cur) { UI.openLink(cur); sfx('menu'); }
+  };
   UI.title = function (ctx, ts) {
     const w = ctx.canvas.width, h = ctx.canvas.height; const g = G(); const t = g.t;
     const grad = ctx.createLinearGradient(0, 0, 0, h); grad.addColorStop(0, 'rgba(18,12,36,0.75)'); grad.addColorStop(0.5, 'rgba(18,12,36,0.25)'); grad.addColorStop(1, 'rgba(18,12,36,0.8)'); ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
@@ -366,31 +594,36 @@
     const ly = Math.round(h * 0.07);
     logo(ctx, w / 2, ly, s, t);
     fitLines(TAGLINE, w - 16 * ts, ts).forEach((l, i) => T(ctx, l, w / 2, ly + 22 * s + i * 10 * ts, { align: 'center', color: C.teal, scale: ts }));
-    const save = U.store.get('save', null);
-    const items = ['NEW GAME', ...(save ? ['CONTINUE NIGHT ' + save.night] : []), 'FREE ROAM', 'SOUND: ' + (window.SFX && SFX.isMuted() ? 'OFF' : 'ON'), 'CONTROLS'];
+    // returning players: straight into the last character's first unfinished night (or their week, once it's all done)
+    const last = U.store.get('last', null); const lc = last && g.CHARS[last] && M().nightCount(last) ? last : null;
+    const short = lc ? g.CHARS[lc].name.replace('CONSTABLE ', '') : '';
+    const cont = lc ? (M().allDone(lc) ? `CONTINUE: ${short}'S WEEK` : `CONTINUE: ${short} · NIGHT ${M().firstUnfinished(lc)}` + (M().resumeAt(lc, M().firstUnfinished(lc)) ? ` · JOB ${M().resumeAt(lc, M().firstUnfinished(lc)) + 1}` : '')) : null;
+    const items = [lc ? 'PLAY' : 'NEW GAME', ...(cont ? [cont] : []), 'FREE ROAM', 'SOUND: ' + (window.SFX && SFX.isMuted() ? 'OFF' : 'ON'), 'CONTROLS', 'CREDITS', ...UI.menuLinks().map(l => l.label)];
     UI.menuIdx = Math.min(UI.menuIdx, items.length - 1);
     navigate(items.length, 'menuIdx');
-    const rects = menuList(ctx, items, w / 2, Math.max(ly + 20 * s + 22 * ts, h * 0.5), ts, UI.menuIdx);
+    const footH = footer(ctx, ts, [`(C) ${UI.CREDITS.year} ${UI.CREDITS.author} · MAP DATA (C) OPENSTREETMAP CONTRIBUTORS`, UI.CREDITS.footer]); // wrapped, so it fits a phone
+    const rects = menuList(ctx, items, w / 2, Math.max(ly + 20 * s + 22 * ts, h * 0.5), ts, UI.menuIdx, ly + 20 * s + 22 * ts, footH + 4 * ts);
     const ti = tappedIndex(rects); if (ti >= 0) UI.menuIdx = ti;
     if (ti >= 0 || confirm()) {
       sfx('menu'); const it = items[UI.menuIdx];
-      if (it === 'NEW GAME') { g.state = 'select'; UI.selIdx = 0; }
-      else if (it.startsWith('CONTINUE')) { g.continueRun(save); }
+      if (it === 'NEW GAME' || it === 'PLAY') { g.state = 'select'; UI.selIdx = Math.max(0, ['schoolie', 'grump', 'cop'].indexOf(lc)); }
+      else if (it.startsWith('CONTINUE')) { if (M().allDone(lc)) g.openWeek(lc); else g.playNight(lc, M().firstUnfinished(lc)); }
       else if (it === 'FREE ROAM') g.beginRun('roam');
       else if (it.startsWith('SOUND')) { SFX.setMuted(!SFX.isMuted()); U.store.set('muted', SFX.isMuted()); }
       else if (it === 'CONTROLS') { g.state = 'help'; }
+      else if (it === 'CREDITS') { g.prevState = 'title'; g.state = 'credits'; UI.creditIdx = 0; UI.creditScroll = 0; }
+      else { const l = UI.menuLinks().find(q => q.label === it); if (l) UI.openLink(l); }
     }
-    T(ctx, 'MAP DATA (C) OPENSTREETMAP CONTRIBUTORS. AN ORIGINAL GAME. NO REAL PEOPLE WERE HARMED.', w / 2, h - 12 * ts, { align: 'center', color: C.dim, scale: ts });
   };
   // the controls card (title screen and pause menu): every section, two columns when there's room
   UI.help = function (ctx, ts) {
     const w = ctx.canvas.width, h = ctx.canvas.height; ctx.fillStyle = 'rgba(18,12,36,0.9)'; ctx.fillRect(0, 0, w, h);
     T(ctx, 'CONTROLS', w / 2, 8 * ts, { align: 'center', color: C.hi, scale: ts * 2 });
-    const all = [CONTROLS.foot, CONTROLS.car, CONTROLS.rail, CONTROLS.heli, CONTROLS.kev, CONTROLS.evade, CONTROLS.any];
+    const all = [CONTROLS.foot, CONTROLS.car, CONTROLS.rail, CONTROLS.heli, CONTROLS.kev, CONTROLS.evade, CONTROLS.any, CONTROLS.icons];
     const two = w >= 420 * ts; const colW = two ? Math.min(250 * ts, (w - 30 * ts) / 2) : Math.min(w - 16 * ts, 300 * ts);
-    const left = two ? [all[0], all[1], all[2], all[3]] : all, right = two ? [all[4], all[5], all[6]] : [];
+    const left = two ? [all[0], all[1], all[2], all[3]] : all, right = two ? [all[4], all[5], all[6], all[7]] : [];
     const hL = UI.measureControls(ts, left, colW), hR = UI.measureControls(ts, right, colW);
-    const extra = ['GOSSIP: MAYHEM FILLS THE CURTAINS. MORE CURTAINS, MORE POLICE.', 'BREAK THEIR LINE OF SIGHT AND LIE LOW TO LOSE THEM.', 'BUSTED? THE PADDY WAGON TAKES YOU UP THE HILL TO THE LOCK-UP.', 'NOBODY GETS HURT: PEOPLE ALWAYS JUMP OUT OF THE WAY.'];
+    const extra = ['GOSSIP: MAYHEM FILLS THE CURTAINS. MORE CURTAINS, MORE POLICE.', 'BREAK THEIR LINE OF SIGHT AND LIE LOW TO LOSE THEM: THE LINE UNDER THE CURTAINS SAYS WHAT IS COOLING THINGS.', 'IF THEY CATCH YOU, THEY TACKLE AND CUFF: AN ARREST IS ENOUGH.', 'BUSTED? THE PADDY WAGON TAKES YOU UP THE HILL TO THE LOCK-UP.', 'NOBODY GETS HURT: PEOPLE ALWAYS JUMP OUT OF THE WAY.'];
     const x0 = two ? w / 2 - colW - 5 * ts : w / 2 - colW / 2; const y0 = 26 * ts;
     // scroll with up/down when it doesn't fit (small phones)
     const total = Math.max(hL, two ? hR : 0) + extra.length * 9 * ts + 10 * ts; const view = h - 48 * ts;
@@ -422,8 +655,8 @@
     ctx.fillStyle = 'rgba(18,12,36,0.72)'; ctx.fillRect(0, 0, w, h);
     const keys = ['schoolie', 'grump', 'cop'];
     if (I.consume('left') || I.consume('up')) { UI.selIdx = (UI.selIdx + 2) % 3; sfx('click'); } if (I.consume('right') || I.consume('down')) { UI.selIdx = (UI.selIdx + 1) % 3; sfx('click'); }
-    const rects = []; const wins = U.store.get('wins', {});
-    const jobsOf = k => (M().STORY[k] || []).map((n, i) => `${i + 1}: ` + n.map(j => j.title).join(' · '));
+    const rects = []; const wins = Object.fromEntries(keys.map(k => [k, M().allDone(k)]));
+    const jobsOf = k => M().nights(k).map((n, i) => `${i + 1}: ` + n.jobs.map(j => j.title).join(' · '));
     const L = 9 * ts; const titleY = 8 * ts; const footY = h - 12 * ts;
     const premise = fitLines(PREMISE, w - 16 * ts, ts);
     const top0 = titleY + 23 * ts + premise.length * L + 3 * ts, avail = footY - 6 * ts - top0;
@@ -460,7 +693,7 @@
         panel(ctx, x, y, rw, rh, { accent: sel ? C.pink : C.edge, edge: sel ? C.pink : C.edge, fill: sel ? 'rgba(40,20,70,0.94)' : C.panel }); rects.push({ x, y, w: rw, h: rh });
         portrait(ctx, k, x + 22 * ts, y + rh / 2, ps, g.t);
         let yy = y + 5 * ts;
-        T(ctx, c.name + ' · ' + c.title + (wins[k] ? ' (BEATEN)' : ''), x + tx, yy, { color: sel ? C.hi : C.white, scale: ts }); yy += 12 * ts;
+        T(ctx, fit(c.name.replace('CONSTABLE ', '') + ' · ' + c.title + (wins[k] ? ' (BEATEN)' : ''), rw - tx - 4 * ts, ts), x + tx, yy, { color: sel ? C.hi : C.white, scale: ts }); yy += 12 * ts;
         ctx.save(); ctx.beginPath(); ctx.rect(x, y, rw, rh - 2); ctx.clip();
         for (const l of b.blurb) { T(ctx, l, x + tx, yy, { color: C.dim, scale: ts }); yy += L; }
         if (b.plays.length) { yy += 3 * ts; for (const l of b.plays) { T(ctx, l, x + tx, yy, { color: C.teal, scale: ts }); yy += L; } }
@@ -472,10 +705,103 @@
     T(ctx, 'PICK YOUR PLAYER', w / 2, titleY, { align: 'center', color: C.hi, scale: pickSc });
     premise.forEach((l, i) => T(ctx, l, w / 2, titleY + 23 * ts + i * L, { align: 'center', color: C.teal, scale: ts }));
     const ti = tappedIndex(rects);
-    if (ti >= 0 && ti === UI.selIdx || confirm()) { sfx('menu'); g.beginRun(keys[UI.selIdx]); }
+    if (ti >= 0 && ti === UI.selIdx || confirm()) { sfx('menu'); g.openWeek(keys[UI.selIdx]); }
     else if (ti >= 0) { UI.selIdx = ti; sfx('click'); }
     if (I.consume('back') || I.consume('pause')) { g.state = 'title'; }
     T(ctx, I.touchMode ? 'TAP A CARD, TAP AGAIN TO PLAY' : 'ARROWS / WASD TO CHOOSE, ENTER TO PLAY', w / 2, footY, { align: 'center', color: C.dim, scale: ts });
+  };
+  // ---------- the week: one card per night; a night unlocks when the one before it is finished ----------
+  const glyph = (ctx, rows, x, y, s, col) => { ctx.fillStyle = col; rows.forEach((r, j) => { for (let i = 0; i < r.length; i++) if (r[i] === '#') ctx.fillRect(Math.round(x + i * s), Math.round(y + j * s), s, s); }); };
+  const TICK = ['......#', '.....#.', '#...#..', '.#.#...', '..#....'];
+  const PADLOCK = ['.###.', '#...#', '#...#', '#####', '##.##', '##.##', '#####'];
+  const STAR = ['...#...', '..###..', '#######', '.#####.', '..###..', '.##.##.', '.#...#.'];
+  UI.drawStar = (ctx, x, y, s, on) => glyph(ctx, STAR, x, y, s, on ? C.hi : '#4a3f6e');
+  const fmtTime = sec => `${Math.floor(sec / 60)}:${String(Math.round(sec) % 60).padStart(2, '0')}`;
+  UI.fmtTime = fmtTime;
+  UI.week = function (ctx, ts) {
+    if (UI.weekPick) { const k0 = UI.weekChar || 'schoolie'; return UI.weekNightMenu(ctx, ts, k0); }
+    const w = ctx.canvas.width, h = ctx.canvas.height; const g = G(), m = M(); const k = UI.weekChar || 'schoolie'; const c = g.CHARS[k];
+    ctx.fillStyle = 'rgba(18,12,36,0.8)'; ctx.fillRect(0, 0, w, h);
+    const items = [...m.nights(k).map((nt, i) => ({ n: i + 1, nt })), { roam: true }]; const N = items.length;
+    UI.weekIdx = U.clamp(UI.weekIdx || 0, 0, N - 1);
+    if (I.consume('left') || I.consume('up')) { UI.weekIdx = (UI.weekIdx + N - 1) % N; sfx('click'); }
+    if (I.consume('right') || I.consume('down')) { UI.weekIdx = (UI.weekIdx + 1) % N; sfx('click'); }
+    const next = m.firstUnfinished(k), allDone = m.allDone(k);
+    T(ctx, 'SCHOOLIES WEEK', w / 2, 8 * ts, { align: 'center', color: C.hi, scale: ts * 2 });
+    T(ctx, c.name + ' · ' + c.title + (allDone ? ' · WEEK DONE!' : ''), w / 2, 27 * ts, { align: 'center', color: allDone ? C.green : C.teal, scale: ts });
+    const L = 9 * ts; const top0 = 40 * ts, footY = h - 13 * ts, avail = footY - 6 * ts - top0;
+    // what each card says, wrapped to a width
+    const content = (it, chars) => {
+      const out = []; const add = (s, col, extra = {}) => U.wrap(s, chars).forEach(l => out.push({ s: l, col, ...extra }));
+      if (it.roam) { add('FREE ROAM', C.hi); add('ALWAYS OPEN', C.green); add('NO JOBS, NO CLOCK. T CHANGES THE TIME OF DAY.', C.dim); return out; }
+      const rec = m.record(k, it.n) || {}; const open = m.unlocked(k, it.n);
+      add('NIGHT ' + it.n, open ? C.hi : C.dim); add(m.dayName(it.n, k) + (it.nt.title ? ': ' + it.nt.title : ''), open ? C.white : '#6a5f8e');
+      out.push({ gap: 4 });
+      it.nt.jobs.forEach((j, ji) => { const ok = m.jobDone(k, it.n, ji); U.wrap(j.title, chars - 2).forEach((l, li) => out.push({ s: l, col: open ? (ok ? C.green : C.white) : '#6a5f8e', tick: li === 0 ? ok : null, ind: true })); });
+      out.push({ gap: 4 });
+      if (!open) { out.push({ lock: true }); add('FINISH NIGHT ' + (it.n - 1) + ' FIRST', '#8a7fae'); }
+      else if (rec.done) { out.push({ star: !!rec.clean, s: 'DONE', col: C.green }); if (rec.best) add('BEST TIME ' + fmtTime(rec.best), C.white); if (rec.cash != null) add('BEST TAKINGS $' + rec.cash, C.white); add(rec.clean ? (k === 'cop' ? 'STAR: NO CALLS FROM SARGE' : 'STAR: NO BUSTS') : (k === 'cop' ? 'NO SARGE CALLS FOR THE STAR' : 'NO BUSTS FOR THE STAR'), rec.clean ? C.hi : C.dim); }
+      else add(it.n === next ? 'UP NEXT' : 'NOT PLAYED YET', it.n === next ? C.pink : C.dim);
+      return out;
+    };
+    const lineH = l => l.gap ? l.gap * ts : l.lock ? 17 * ts : l.star != null ? 10 * ts : L;
+    const blockH = ls => ls.reduce((a, l) => a + lineH(l), 0);
+    const drawLines = (ls, x, y, cw) => { let yy = y; for (const l of ls) { if (l.lock) { glyph(ctx, PADLOCK, x, yy, 2 * ts, '#b0a6d0'); T(ctx, 'LOCKED', x + 14 * ts, yy + 4 * ts, { color: '#b0a6d0', scale: ts }); } else if (l.star != null) { UI.drawStar(ctx, x, yy, ts, l.star); T(ctx, l.s, x + 10 * ts, yy, { color: l.col, scale: ts }); } else if (l.ind) { if (l.tick) glyph(ctx, TICK, x, yy + ts, ts, C.green); else if (l.tick === false) T(ctx, '·', x, yy, { color: l.col, scale: ts }); T(ctx, l.s, x + 10 * ts, yy, { color: l.col, scale: ts }); } else if (l.s != null) T(ctx, l.s, x, yy, { color: l.col, scale: ts }); yy += lineH(l); } };
+    const rects = []; const gap = 6 * ts;
+    const cols = w >= N * 92 * ts + (N - 1) * gap + 12 * ts;
+    if (cols) {
+      // a wall calendar: a page per night, side by side
+      const cw = Math.floor(Math.min(150 * ts, (w - 12 * ts - (N - 1) * gap) / N)); const chars = Math.floor((cw - 12 * ts) / (6 * ts));
+      const blocks = items.map(it => content(it, chars)); const ch = Math.min(avail, Math.max(...blocks.map(blockH)) + 16 * ts);
+      const x0 = Math.round(w / 2 - (N * cw + (N - 1) * gap) / 2), y = Math.round(top0 + Math.max(0, (avail - ch) / 2));
+      items.forEach((it, i) => {
+        const x = x0 + i * (cw + gap), sel = i === UI.weekIdx, open = it.roam || m.unlocked(k, it.n);
+        panel(ctx, x, y, cw, ch, { accent: sel ? C.pink : open ? C.teal : C.edge, edge: sel ? C.pink : C.edge, fill: sel ? 'rgba(40,20,70,0.95)' : open ? C.panel : 'rgba(28,24,40,0.9)' });
+        ctx.save(); ctx.beginPath(); ctx.rect(x, y, cw, ch - 2); ctx.clip(); drawLines(blocks[i], x + 6 * ts, y + 8 * ts, cw); ctx.restore();
+        rects.push({ x, y, w: cw, h: ch });
+      });
+    } else {
+      // a diary: one row per night, scrolled to keep the selected one in view
+      const rw = Math.min(w - 12 * ts, 320 * ts); const chars = Math.floor((rw - 14 * ts) / (6 * ts));
+      const blocks = items.map(it => content(it, chars)); const hs = blocks.map(b => blockH(b) + 12 * ts);
+      const total = hs.reduce((a, b) => a + b + 4 * ts, 0); const ys = []; let acc = 0; for (const hh of hs) { ys.push(acc); acc += hh + 4 * ts; }
+      const selTop = ys[UI.weekIdx], selBot = selTop + hs[UI.weekIdx];
+      let sc = UI.weekScroll || 0; if (selTop - sc < 0) sc = selTop; if (selBot - sc > avail) sc = selBot - avail; UI.weekScroll = sc = U.clamp(sc, 0, Math.max(0, total - avail));
+      const x = Math.round(w / 2 - rw / 2), y0 = Math.round(top0 + Math.max(0, (avail - total) / 2)) - sc;
+      ctx.save(); ctx.beginPath(); ctx.rect(0, top0 - 2 * ts, w, avail + 4 * ts); ctx.clip();
+      items.forEach((it, i) => {
+        const y = y0 + ys[i], rh = hs[i], sel = i === UI.weekIdx, open = it.roam || m.unlocked(k, it.n);
+        panel(ctx, x, y, rw, rh, { accent: sel ? C.pink : open ? C.teal : C.edge, edge: sel ? C.pink : C.edge, fill: sel ? 'rgba(40,20,70,0.95)' : open ? C.panel : 'rgba(28,24,40,0.9)' });
+        drawLines(blocks[i], x + 7 * ts, y + 6 * ts, rw); rects.push({ x, y, w: rw, h: rh });
+      });
+      ctx.restore();
+      if (total > avail) { T(ctx, sc > 0 ? '^' : ' ', w - 8 * ts, top0, { color: C.dim, scale: ts }); T(ctx, sc < total - avail ? '`' : ' ', w - 8 * ts, footY - 12 * ts, { color: C.dim, scale: ts }); }
+    }
+    if (UI.weekMsg && UI.weekMsg.t > 0) { UI.weekMsg.t -= g.frameDt || 0.016; const s = UI.weekMsg.str; const bw = U.textWidth(s, ts) + 12 * ts; panel(ctx, w / 2 - bw / 2, footY - 22 * ts, bw, 14 * ts, { accent: C.red, fill: 'rgba(48,18,30,0.95)' }); T(ctx, s, w / 2, footY - 18 * ts, { align: 'center', color: C.white, scale: ts }); }
+    T(ctx, I.touchMode ? 'TAP A NIGHT, TAP AGAIN TO PLAY' : 'ARROWS: CHOOSE   ENTER: PLAY   ESC: BACK', w / 2, footY, { align: 'center', color: C.dim, scale: ts });
+    const ti = tappedIndex(rects); let go = false;
+    if (ti >= 0 && ti === UI.weekIdx) go = true; else if (ti >= 0) { UI.weekIdx = ti; sfx('click'); }
+    if (confirm()) go = true;
+    if (go) {
+      const it = items[UI.weekIdx];
+      if (it.roam) { sfx('menu'); g.beginRun('roam'); }
+      else if (m.unlocked(k, it.n)) { sfx('menu'); const any = it.nt.jobs.some((j, ji) => m.jobDone(k, it.n, ji)); if (any) { UI.weekPick = it.n; UI.endIdx = 0; } else g.playNight(k, it.n); }
+      else { sfx('fail'); UI.weekMsg = { str: 'LOCKED: FINISH NIGHT ' + (it.n - 1) + ' FIRST', t: 2 }; }
+    }
+    if (I.consume('back') || I.consume('pause')) { g.state = 'select'; UI.selIdx = Math.max(0, ['schoolie', 'grump', 'cop'].indexOf(k)); sfx('click'); }
+  };
+  // a night with some jobs done: carry on from the next job, start the night again, or replay one job on its own
+  UI.weekNightMenu = function (ctx, ts, k) {
+    const g = G(), m = M(), n = UI.weekPick, nt = m.nightOf(k, n); const w = ctx.canvas.width, h = ctx.canvas.height; const at = m.resumeAt(k, n);
+    const opts = [...(at > 0 ? [{ lab: `CARRY ON: JOB ${at + 1}, ${nt.jobs[at].title}`, go: () => g.playNight(k, n) }] : []), { lab: 'THE WHOLE NIGHT FROM THE START', go: () => g.playNight(k, n, { fromStart: true }) },
+      ...nt.jobs.map((j, ji) => ({ j, ji })).filter(o => m.jobDone(k, n, o.ji)).map(o => ({ lab: 'REPLAY JUST ' + o.j.title, go: () => g.playNight(k, n, { only: o.ji }) })), { lab: 'BACK', go: () => { UI.weekPick = null; } }];
+    ctx.fillStyle = 'rgba(18,12,36,0.86)'; ctx.fillRect(0, 0, w, h); const tsz = Math.min(ts * 2, Math.max(ts, Math.floor((w - 10) / ((`NIGHT ${n}: ${m.dayName(n, k)}`).length * 6))));
+    T(ctx, `NIGHT ${n}: ${m.dayName(n, k)}`, w / 2, h * 0.16, { align: 'center', color: C.hi, scale: tsz });
+    const labs = opts.map(o => UI.fit(o.lab, w - 30 * ts, ts * 2) === o.lab ? o.lab : UI.fit(o.lab, w - 30 * ts, ts * 2));
+    UI.endIdx = Math.min(UI.endIdx || 0, opts.length - 1); navigate(opts.length, 'endIdx');
+    const rects = menuList(ctx, labs, w / 2, h * 0.16 + 30 * ts, ts, UI.endIdx); const ti = tappedIndex(rects); if (ti >= 0) UI.endIdx = ti;
+    if (ti >= 0 || confirm()) { sfx('menu'); const o = opts[UI.endIdx]; UI.endIdx = 0; o.go(); if (o.lab !== 'BACK') UI.weekPick = null; }
+    if (I.consume('back') || I.consume('pause')) { UI.weekPick = null; sfx('click'); }
   };
   // the phone-style job brief
   UI.brief = function (ctx, ts) {
@@ -485,7 +811,7 @@
     const txt = j ? (I.touchMode ? j.brief.replace(/SPACE/g, 'ACT').replace(/\(H\)/g, '(HORN)').replace(/SHIFT/g, 'BOOST') : j.brief) : '';
     const lines = j ? U.wrap(txt, Math.floor((pw - 24 * ts) / (6 * ts))) : [];
     const ph = 60 * ts + lines.length * 10 * ts + (g.briefNight ? 26 * ts : 0); const x = w / 2 - pw / 2, y = Math.max(6 * ts, h / 2 - ph / 2);
-    if (g.briefNight) { T(ctx, g.char === 'roam' ? 'FREE ROAM' : `NIGHT ${g.night}: ${M().NIGHTS[g.night - 1]}`, w / 2, y, { align: 'center', color: C.hi, scale: ts * 2 }); }
+    if (g.briefNight) { const nt = M().nightOf(g.char, g.night); const hd = g.char === 'roam' ? 'FREE ROAM' : `NIGHT ${g.night}: ${M().dayName(g.night)}` + (nt && nt.title ? ' · ' + nt.title : ''); T(ctx, hd, w / 2, y, { align: 'center', color: C.hi, scale: U.textWidth(hd, ts * 2) > w - 8 * ts ? ts : ts * 2 }); }
     const py = y + (g.briefNight ? 26 * ts : 0);
     // phone
     panel(ctx, x, py, pw, ph - (g.briefNight ? 26 * ts : 0), { fill: '#1d2a22', edge: '#6a8a70', accent: '#9be15d' });
@@ -498,7 +824,7 @@
     } else T(ctx, 'NO JOBS TONIGHT. GO NUTS.', x + 10 * ts, py + 20 * ts, { color: ink, scale: ts, shadow: false });
     if (Math.floor(g.t * 2) % 2 || g.reviewBrief) T(ctx, g.reviewBrief ? (I.touchMode ? 'TAP TO CARRY ON' : 'ENTER OR J: CARRY ON') : I.touchMode ? 'TAP TO GO' : 'PRESS ENTER', w / 2, py + ph - (g.briefNight ? 26 * ts : 0) - 13 * ts, { align: 'center', color: '#9be15d', scale: ts });
     // only Enter, a tap or J closes it, after a short beat, so a key held while driving can't skip a new job
-    const close = I.consume('confirm') || I.consume('job') || I.tap();
+    const close = I.consume('confirm') || I.consume('job') || I.tap() || I.consume('pause') || I.consume('back');
     I.consume('enter'); I.consume('action');
     if ((g.stateT || 0) > 0.8 && close) {
       sfx('sms'); g.briefNight = false; g.state = 'play';
@@ -508,17 +834,34 @@
   UI.pause = function (ctx, ts) {
     const w = ctx.canvas.width, h = ctx.canvas.height; const g = G();
     ctx.fillStyle = 'rgba(18,12,36,0.7)'; ctx.fillRect(0, 0, w, h);
+    const resume = () => { g.state = 'play'; g.autoPaused = false; UI.pauseAsk = null; };
+    // paused because the game lost focus (another tab, a click outside the frame): any click or tap carries on
+    if (g.autoPaused) {
+      const s = I.touchMode ? 'PAUSED · TAP TO CONTINUE' : 'PAUSED · CLICK OR TAP TO CONTINUE'; const sc = U.textWidth(s, ts * 2) < w - 16 * ts ? ts * 2 : ts;
+      T(ctx, s, w / 2, h * 0.45, { align: 'center', color: Math.floor(g.t * 2) % 2 ? C.hi : C.white, scale: sc });
+      T(ctx, 'THE GAME PAUSES ITSELF WHEN IT LOSES FOCUS', w / 2, h * 0.45 + 22 * ts, { align: 'center', color: C.dim, scale: ts });
+      if (I.click() || I.consume('confirm') || I.consume('pause') || I.consume('enter') || I.consume('action')) { resume(); sfx('click'); }
+      return;
+    }
     T(ctx, 'PAUSED', w / 2, h * 0.18, { align: 'center', color: C.hi, scale: ts * 3 });
-    const items = ['RESUME', 'CONTROLS', 'WALKING: ' + (g.walkMode === 'screen' ? 'SCREEN DIRECTION' : 'LIKE A CAR'), 'SOUND: ' + (window.SFX && SFX.isMuted() ? 'OFF' : 'ON'), 'QUIT TO TITLE'];
-    const job = M().job; if (job && job.started) { const wrapN = Math.floor((w - 20 * ts) / (6 * ts)); T(ctx, 'JOB: ' + job.title, w / 2, h * 0.18 + 28 * ts, { align: 'center', color: C.white, scale: ts }); U.wrap(M().objective(), wrapN).forEach((l, i) => T(ctx, l, w / 2, h * 0.18 + 39 * ts + i * 9 * ts, { align: 'center', color: C.hi, scale: ts })); }
+    const live = g.char !== 'roam';
+    const items = UI.pauseAsk ? [UI.pauseAsk + ': YES', 'NO, CARRY ON'] : ['RESUME', ...(live && M().job ? ['RESTART JOB'] : []), ...(live ? ['RESTART NIGHT'] : []), 'CONTROLS', 'WALKING: ' + (g.walkMode === 'screen' ? 'SCREEN DIRECTION' : 'LIKE A CAR'), 'SOUND: ' + (window.SFX && SFX.isMuted() ? 'OFF' : 'ON'), ...(live ? ['SCHOOLIES WEEK'] : []), 'QUIT TO TITLE', 'CREDITS', ...UI.menuLinks().map(l => l.label)];
+    const job = M().job;
+    if (UI.pauseAsk) T(ctx, UI.pauseAsk === 'RESTART JOB' ? 'START ' + (job ? job.title : 'THE JOB') + ' AGAIN FROM THE TOP?' : `START NIGHT ${g.night} AGAIN FROM THE FIRST JOB?`, w / 2, h * 0.18 + 28 * ts, { align: 'center', color: C.white, scale: ts });
+    else if (job && job.started) { const wrapN = Math.floor((w - 20 * ts) / (6 * ts)); T(ctx, 'JOB: ' + job.title, w / 2, h * 0.18 + 28 * ts, { align: 'center', color: C.white, scale: ts }); U.wrap(M().objective(), wrapN).forEach((l, i) => T(ctx, l, w / 2, h * 0.18 + 39 * ts + i * 9 * ts, { align: 'center', color: C.hi, scale: ts })); }
     navigate(items.length, 'menuIdx'); UI.menuIdx = Math.min(UI.menuIdx, items.length - 1);
-    const rects = menuList(ctx, items, w / 2, Math.max(h * 0.4, h * 0.18 + 70 * ts), ts, UI.menuIdx); const ti = tappedIndex(rects); if (ti >= 0) UI.menuIdx = ti;
-    if (I.consume('pause')) { g.state = 'play'; return; }
+    const rects = menuList(ctx, items, w / 2, Math.max(Math.min(h * 0.4, h - items.length * 18 * ts - 10 * ts), h * 0.18 + 60 * ts), ts, UI.menuIdx, h * 0.18 + 60 * ts); const ti = tappedIndex(rects); if (ti >= 0) UI.menuIdx = ti;
+    if (I.consume('pause')) { if (UI.pauseAsk) { UI.pauseAsk = null; UI.menuIdx = 0; } else resume(); return; }
     if (ti >= 0 || confirm()) {
       sfx('menu'); const it = items[UI.menuIdx];
-      if (it === 'RESUME') g.state = 'play'; else if (it === 'CONTROLS') { g.prevState = 'pause'; g.state = 'help'; }
+      if (UI.pauseAsk) { const ask = UI.pauseAsk; UI.pauseAsk = null; UI.menuIdx = 0; if (it.endsWith(': YES')) { if (ask === 'RESTART JOB') M().restartJob(); else M().restartNight(); } return; }
+      if (it === 'RESUME') resume(); else if (it === 'CONTROLS') { g.prevState = 'pause'; g.state = 'help'; }
+      else if (it === 'RESTART JOB' || it === 'RESTART NIGHT') { UI.pauseAsk = it; UI.menuIdx = 1; }
       else if (it.startsWith('WALKING')) { g.walkMode = g.walkMode === 'screen' ? 'car' : 'screen'; U.store.set('walk', g.walkMode); }
-      else if (it.startsWith('SOUND')) { SFX.setMuted(!SFX.isMuted()); U.store.set('muted', SFX.isMuted()); } else if (it === 'QUIT TO TITLE') g.toTitle();
+      else if (it.startsWith('SOUND')) { SFX.setMuted(!SFX.isMuted()); U.store.set('muted', SFX.isMuted()); }
+      else if (it === 'CREDITS') { g.prevState = 'pause'; g.state = 'credits'; UI.creditIdx = 0; UI.creditScroll = 0; }
+      else if (it === 'SCHOOLIES WEEK') { M().abandonNight(); g.openWeek(g.char, g.night); } else if (it === 'QUIT TO TITLE') { M().abandonNight(); g.toTitle(); }
+      else { const l = UI.menuLinks().find(q => q.label === it); if (l) UI.openLink(l); } // a new tab: the game stays as it is
     }
   };
   function card(ctx, ts, title, col, lines, foot) {
@@ -526,7 +869,8 @@
     const tsz = Math.max(ts * 2, Math.min(ts * 3, Math.floor((w - 10) / (title.length * 6))));
     T(ctx, title, w / 2, h * 0.16, { align: 'center', color: col, scale: tsz });
     lines.forEach((l, i) => T(ctx, l, w / 2, h * 0.16 + 32 * ts + i * 11 * ts, { align: 'center', color: i === 0 ? C.white : C.dim, scale: ts }));
-    if (Math.floor(G().t * 2) % 2) T(ctx, foot, w / 2, h - 22 * ts, { align: 'center', color: C.pink, scale: ts });
+    if (foot && Math.floor(G().t * 2) % 2) T(ctx, foot, w / 2, h - 22 * ts, { align: 'center', color: C.pink, scale: ts });
+    return h * 0.16 + 32 * ts + lines.length * 11 * ts;
   }
   const statLines = () => { const s = G().stats; return [`STUFF KNOCKED OVER: ${s.smashed}`, `PEOPLE WHO JUMPED OUT OF THE WAY: ${s.dives}`, `VEHICLES BORROWED: ${s.stolen}`, `TYRE MARKS: ${Math.round(s.tracks)}M`, `DISTANCE: ${(s.distance / 1000).toFixed(1)}KM`, `TRIPS UP THE HILL: ${s.busted}`, `CASH: $${Math.round(G().cash)}`]; };
   // in the back of the paddy wagon: letterbox bars, a caption, and a skip
@@ -537,26 +881,55 @@
     if (r.phase === 'load') { const s = Math.max(ts * 3, Math.min(ts * 5, Math.floor(w / 60))); T(ctx, 'BUSTED!', w / 2, h * 0.38, { align: 'center', color: '#ff6a5a', scale: s }); T(ctx, 'INTO THE BACK OF THE PADDY WAGON WITH YOU', w / 2, h * 0.38 + 10 * s, { align: 'center', color: C.white, scale: ts }); }
     T(ctx, r.phase === 'arrive' ? 'WELCOME TO ' + VH.Lockup.NAME : 'OFF UP THE HILL TO ' + VH.Lockup.NAME + '...', w / 2, Math.round(bar / 2 - 3 * ts), { align: 'center', color: C.hi, scale: ts });
     T(ctx, I.touchMode ? 'TAP TO SKIP' : 'ENTER: SKIP', w - 6 * ts, h - bar / 2 - 3 * ts, { align: 'right', color: C.dim, scale: ts });
-    if (I.consume('confirm') || I.tap()) VH.Lockup.skipRide();
+    if (I.consume('confirm') || I.tap() || I.consume('pause')) VH.Lockup.skipRide();
   };
   UI.lockedUp = function (ctx, ts) {
     const b = G().bustInfo || {}; const wrapN = Math.floor(ctx.canvas.width / (6 * ts)) - 4;
     card(ctx, ts, 'LOCKED UP', '#7fa6ff', ['A SHORT STAY AT ' + VH.Lockup.NAME + '.', '', ...U.wrap('THE SERGEANT: "' + b.line + '"', wrapN), '', `FINE: $${b.fine} (DONATED TO THE FOOTY CLUB)`, "YOU'RE LET OUT AT THE GATE. THE JOB STARTS OVER."], 'PRESS ENTER / TAP');
-    if (G().stateT > 1 && (I.consume('confirm') || I.tap())) G().afterBust();
+    if (G().stateT > 1 && (I.consume('confirm') || I.tap() || I.consume('pause'))) G().afterBust();
   };
+  // end-of-night cards: the record, then a choice (the next night, or back to the week)
+  const recordLines = () => {
+    const r = M().lastRecord; if (!r) return [];
+    const k = G().char; const out = [`TIME: ${fmtTime(r.time)}` + (r.newBest ? ' (NEW BEST!)' : ''), `TAKINGS: $${r.cash}`];
+    out.push(r.clean ? (k === 'cop' ? '* STAR: NOT ONE CALL FROM SARGE' : '* STAR: NOT BUSTED ONCE') : (k === 'cop' ? 'NO STAR: SARGE RANG' : 'NO STAR: YOU GOT BUSTED'));
+    if (r.unlocked) out.push(`NIGHT ${r.unlocked} (${M().dayName(r.unlocked)}) UNLOCKED`);
+    return out;
+  };
+  function endMenu(ctx, ts, items, y) {
+    const h = ctx.canvas.height, w = ctx.canvas.width; UI.endIdx = Math.min(UI.endIdx || 0, items.length - 1);
+    navigate(items.length, 'endIdx');
+    const yy = Math.min(Math.max(y + 8 * ts, h - (items.length * 18 + 14) * ts), h - (items.length * 18 + 6) * ts);
+    const rects = menuList(ctx, items, w / 2, yy, ts, UI.endIdx); const ti = tappedIndex(rects); if (ti >= 0) UI.endIdx = ti;
+    const back = I.consume('back') || I.consume('pause');
+    if (G().stateT <= 1) return -1;
+    if (back) return items.length - 1;
+    return ti >= 0 || confirm() ? UI.endIdx : -1;
+  }
   UI.nightEnd = function (ctx, ts) {
-    card(ctx, ts, `NIGHT ${G().night} DONE`, C.green, ['YOU STAGGER HOME AS THE SKY GOES GREY.', '', ...statLines()], 'PRESS ENTER / TAP FOR THE NEXT NIGHT');
-    if (G().stateT > 1 && (confirm() || I.tap())) { sfx('menu'); M().toNight(G().night + 1); }
+    const g = G(); const s = g.stats; const n = g.night;
+    const y = card(ctx, ts, `NIGHT ${n} DONE`, C.green, ['YOU STAGGER HOME AS THE SKY GOES GREY.', '', ...recordLines(), '', `STUFF KNOCKED OVER: ${s.smashed}   BORROWED: ${s.stolen}`, `CASH: $${Math.round(g.cash)}`], '');
+    const pick = endMenu(ctx, ts, [`NIGHT ${n + 1}: ${M().dayName(n + 1)}`, 'SCHOOLIES WEEK'], y);
+    if (pick === 0) { sfx('menu'); UI.endIdx = 0; M().toNight(n + 1); } else if (pick === 1) { sfx('click'); UI.endIdx = 0; g.openWeek(g.char, n + 1); }
   };
   UI.sunrise = function (ctx, ts) {
-    card(ctx, ts, "SUN'S UP", C.hi, ["THE BIRDS ARE OUT, THE PARTY'S OVER, AND", "YOU DIDN'T GET IT ALL DONE.", '', 'TRY THE NIGHT AGAIN.'], 'PRESS ENTER / TAP');
-    if (G().stateT > 1 && (confirm() || I.tap())) { sfx('menu'); const sv = U.store.get('save', null); if (sv && sv.char === G().char && sv.night === G().night) G().cash = sv.cash; M().toNight(G().night); }
+    const g = G();
+    const y = card(ctx, ts, "SUN'S UP", C.hi, ["THE BIRDS ARE OUT, THE PARTY'S OVER, AND", "YOU DIDN'T GET IT ALL DONE.", '', 'TRY THE NIGHT AGAIN.'], '');
+    const pick = endMenu(ctx, ts, ['TRY AGAIN', 'SCHOOLIES WEEK'], y);
+    if (pick === 0) { sfx('menu'); UI.endIdx = 0; g.playNight(g.char, g.night); } else if (pick === 1) { sfx('click'); UI.endIdx = 0; g.openWeek(g.char, g.night); }
   };
   UI.win = function (ctx, ts) {
-    const w = M().WIN[G().char] || { title: 'YOU WIN', text: '' }; const wrapN = Math.floor(ctx.canvas.width / (6 * ts)) - 4;
-    if (Math.random() < 0.3) FX.confetti(G().player.x + U.rand(-20, 20), G().player.y - 10, 4);
-    card(ctx, ts, w.title, C.pink, [...U.wrap(w.text, wrapN), '', ...statLines()], 'PRESS ENTER / TAP');
-    if (G().stateT > 2 && (confirm() || I.tap())) G().toTitle();
+    const g = G(); const w = M().winFor(g.char); const wrapN = Math.floor(ctx.canvas.width / (6 * ts)) - 4;
+    if (Math.random() < 0.3) FX.confetti(g.player.x + U.rand(-20, 20), g.player.y - 10, 4);
+    card(ctx, ts, w.title, C.pink, [...U.wrap(w.text, wrapN), '', ...recordLines(), '', ...statLines()], I.touchMode ? 'TAP FOR THE WEEK' : 'ENTER: BACK TO THE WEEK');
+    if (g.stateT > 2 && (confirm() || I.tap())) g.openWeek(g.char, g.night);
+  };
+  // a job that can't be finished: say why, and offer the ways out
+  UI.deadEnd = function (ctx, ts) {
+    const g = G(), d = M().deadEnd || { thing: 'SOMETHING', job: '' };
+    const y = card(ctx, ts, "JOB CAN'T BE FINISHED", C.red, [`YOU LOST ${d.thing}.`, d.job ? `(${d.job})` : '', 'START IT AGAIN, OR THE NIGHT, OR CARRY ON IN FREE PLAY.'], '');
+    const pick = endMenu(ctx, ts, ['RESTART JOB', 'RESTART NIGHT', 'KEEP PLAYING'], y);
+    if (pick === 0) { UI.endIdx = 0; M().restartJob(); } else if (pick === 1) { UI.endIdx = 0; M().restartNight(); } else if (pick === 2) { UI.endIdx = 0; g.state = 'play'; g.toast("FREE PLAY. PAUSE MENU: RESTART JOB OR RESTART NIGHT WHEN YOU'RE READY", '#9fd4ec'); }
   };
   UI.loading = function (ctx, ts, p, msg) {
     const w = ctx.canvas.width, h = ctx.canvas.height; ctx.fillStyle = '#120c24'; ctx.fillRect(0, 0, w, h);

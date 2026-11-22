@@ -1,17 +1,27 @@
-// The police. For Jaz and Merv: a response that grows with the gossip meter (more patrol cars that ram and box
-// you in, roadblocks at chokepoints, a boat off the foreshore, a chopper spotlight), officers who taser you on foot
-// and, at high gossip, fire at your vehicle (sparks, dents, blown tyres; never at people). Lose them by breaking
-// line of sight and lying low. For Constable Kev: backup (two junior constables) and spike strips. Kev has no gun.
+// The police. Nobody in this game shoots or tasers anyone, ever: an arrest is enough. For Jaz and Merv: a response
+// that grows slowly with the gossip meter (one patrol car per level, up to four; a roadblock at level four; the
+// chopper only at level five after a long chase) that chases, boxes you in, rams, sets roadblocks and spikes, and
+// officers on foot who tackle and cuff. Merv on his gopher mostly gets one car tailing him with a megaphone lecture.
+// Lose them by breaking line of sight and lying low; the HUD says what's cooling things down right now.
+// For Constable Kev: backup (two junior constables) and spike strips.
 'use strict';
 (function (VH) {
   const U = VH.U, W = VH.World, SP = VH.Sprites, FX = VH.FX, GC = W.GC;
   const sfx = (n, o) => window.SFX && SFX.play(n, o);
   const G = () => VH.Game;
-  const P = VH.Police = { patrols: [], units: [], blocks: [], officers: [], shots: [], darts: [], spikes: [], backup: [], boat: null, heli: null,
+  const P = VH.Police = { patrols: [], units: [], blocks: [], officers: [], spikes: [], backup: [], boat: null, heli: null,
     seenT: 99, last: null, hidden: false, spawnT: 0, blockT: 6, bustT: 0, backupT: 0, spikesLeft: 3, hadChase: false, peak: 0 };
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const JUNIORS = ['CONSTABLE TEGAN', 'CONSTABLE BAZZA'];
-  P.wantUnits = m => m < 1.5 ? 0 : m < 2.5 ? 1 : m < 3.5 ? 2 : m < 4.5 ? 3 : 4;
+  const LECTURES = ['SIR. SIR. PULL OVER, SIR.', 'THAT IS A FOOTPATH, SIR.', 'FOUR KILOMETRES AN HOUR, SIR. THAT\'S THE RULE.', 'SIR, WE CAN SEE YOU. WE\'VE ALWAYS BEEN ABLE TO SEE YOU.', 'PLEASE STOP THE MOBILITY SCOOTER, SIR.', 'NOBODY NEEDS A WHEELIE ON A GOPHER, SIR.', 'WE\'LL JUST FOLLOW YOU HOME THEN, SHALL WE?'];
+  P.wantUnits = m => P.gentle() ? (m < 1 ? 0 : 1) : m < 1 ? 0 : Math.min(4, Math.floor(m)); // one car a level, four at most
+  // Merv pootling about on his gopher (or on foot): one car tailing him with the siren and a megaphone lecture, a pull-over
+  // attempt, no rams, roadblocks, boat or chopper, unless it's truly outrageous (the meter right at the top)
+  P.gentle = () => { const g = G(), pl = g.player; return g.char === 'grump' && pl && (pl.onFoot || (pl.vehicle && pl.vehicle.def.gopher)) && g.meter < 4.8; }; // on his gopher, or on foot (not in a borrowed car)
+  // let out of the lock-up: a grace period (90 s, or till you're well away) when nothing near the gate raises the
+  // gossip and no patrols lurk there
+  P.GRACE = 90; P.GRACE_R = 320;
+  P.inGrace = () => { const L = VH.Lockup, pl = G().player; return P.graceT > 0 && L && L.gate && pl && Math.hypot(pl.x - L.gate.x, pl.y - L.gate.y) < P.GRACE_R; };
 
   // chokepoints for roadblocks: roundabouts, bridges, and the landward end of the causeway
   P.init = function () {
@@ -23,9 +33,10 @@
     P.hideAreas = W.areas.filter(a => a.k === 'paved' || a.k === 'golf' || a.k === 'fairway' || a.k === 'wood' || a.k === 'scrub');
   };
   P.reset = function () {
+    if (P.spare && P.spare.v) P.spare.v.removed = true; // a spare on its way goes back to the station
     for (const v of [...P.units, ...P.backup, ...P.patrols]) v.removed = true;
     for (const b of P.blocks) for (const v of b.cars) v.removed = true;
-    Object.assign(P, { tackleCool: 0, arrest: null, patrols: [], witnessT: 0, units: [], blocks: [], officers: [], shots: [], darts: [], spikes: [], backup: [], boat: null, heli: null, seenT: 99, last: null, hidden: false, spawnT: 0, blockT: 6, bustT: 0, backupT: 0, spikesLeft: 3, hadChase: false, peak: 0 });
+    Object.assign(P, { spare: null, recoverT: 0, graceT: 0, chaseT: 0, lost: null, megaT: 0, tackleCool: 0, arrest: null, patrols: [], witnessT: 0, units: [], blocks: [], officers: [], spikes: [], backup: [], boat: null, heli: null, seenT: 99, last: null, hidden: false, spawnT: 0, blockT: 6, bustT: 0, backupT: 0, spikesLeft: 3, hadChase: false, peak: 0 });
   };
   const target = () => { const pl = G().player; return pl.onFoot ? pl : pl.vehicle; };
   const pSpeed = () => { const pl = G().player; return pl.onFoot ? Math.hypot(pl.vx, pl.vy) : pl.vehicle.speed; };
@@ -38,21 +49,12 @@
     let tree = false; if (pl.onFoot) VH.Props.trees.query(pl.x - 3, pl.y - 3, pl.x + 3, pl.y + 3, t => { if (Math.hypot(t.x - pl.x, t.y - pl.y) < 2.6) tree = true; });
     return tree;
   };
-  // is anyone standing near the line between two points? (police never fire past a bystander)
-  P.clearLine = function (x0, y0, x1, y1) {
-    const near = q => Math.abs(q.x - (x0 + x1) / 2) <= Math.abs(x1 - x0) / 2 + 4 && Math.abs(q.y - (y0 + y1) / 2) <= Math.abs(y1 - y0) / 2 + 4 && U.segPointDist(q.x, q.y, x0, y0, x1, y1)[0] < 3;
-    for (const o of P.officers) if (near(o)) return false;
-    const pv = G().player.vehicle; for (const v of G().vehicles) if (!v.removed && v !== pv && (v.def.gopher || v.def.bike || v.watch) && (v.driver || v.ai || v.watch) && near(v)) return false;
-    for (const p of G().peds) { if (Math.abs(p.x - (x0 + x1) / 2) > Math.abs(x1 - x0) / 2 + 4 || Math.abs(p.y - (y0 + y1) / 2) > Math.abs(y1 - y0) / 2 + 4) continue; if (U.segPointDist(p.x, p.y, x0, y0, x1, y1)[0] < 3) return false; }
-    return true;
-  };
-
-  function spawnCar(near, rMin, rMax, filter) {
+  function spawnCar(near, rMin, rMax, filter, type = 'police') {
     const g = G(); const view = g.viewHalf || [90, 60];
     for (let k = 0; k < 6; k++) {
       const n = W.randomRoadPoint(near.x, near.y, rMin, rMax, filter || (e => e.w >= 5)); if (!n) continue;
       if (Math.abs(n.x - g.cam.x) < view[0] + 10 && Math.abs(n.y - g.cam.y) < view[1] + 10) continue;
-      const v = new VH.Vehicle('police', n.x, n.y, n.ang, { colour: '#fff' }); v.siren = true; g.vehicles.push(v); return v;
+      const v = new VH.Vehicle(type, n.x, n.y, n.ang, { colour: '#fff' }); v.siren = true; g.vehicles.push(v); return v;
     }
     return null;
   }
@@ -61,7 +63,8 @@
   P.updatePatrols = function (dt) {
     const g = G(), pl = g.player, tg = target();
     P.patrols = P.patrols.filter(v => !v.removed && !v.dead && !v.sinking && v.patrol && dist(v, pl) < 480 || (v.patrol = false));
-    if (P.patrols.length < 2 && Math.random() < dt * 0.6) {
+    if (P.graceT > 0) { P.graceT -= dt; if (!P.inGrace()) { P.graceT = 0; } }
+    if (P.patrols.length < 2 && Math.random() < dt * 0.6 && !P.inGrace()) {
       const n = W.randomRoadPoint(pl.x, pl.y, 140, 300, e => e.w >= 5 && e.speed > 8); const view = g.viewHalf || [90, 60];
       if (n && (Math.abs(n.x - g.cam.x) > view[0] + 10 || Math.abs(n.y - g.cam.y) > view[1] + 10)) { const v = new VH.Vehicle('police', n.x, n.y, n.ang, { colour: '#fff' }); VH.AI.attach(v, n, n.e.ow === -1 ? -1 : 1); v.patrol = true; g.vehicles.push(v); P.patrols.push(v); }
     }
@@ -70,16 +73,16 @@
     if (!pl.onFoot && pl.vehicle && !pl.vehicle.rail) {
       const v = pl.vehicle;
       if (v.speed > 22 && !v.def.gopher) for (const c of P.patrols) if (dist(c, v) < 35) { P.witness(0.6, 'SPEEDING PAST THE POLICE!'); break; }
-      const gnd = W.groundAt(v.x, v.y); if (v.speed > 6 && (gnd === GC.PAVED || gnd === GC.LAWN || gnd === GC.GRASS) && W.roadDist(v.x, v.y) > 3 && !v.def.bike) { P.footT = (P.footT || 0) + dt; if (P.footT > 1.2) { P.footT = 0; g.addMeter(0.15); P.witness(0.3, 'OFF THE ROAD!'); } }
+      const gnd = W.groundAt(v.x, v.y); if (v.speed > 6 && (gnd === GC.PAVED || gnd === GC.LAWN || gnd === GC.GRASS) && W.roadDist(v.x, v.y) > 3 && !v.def.bike && !v.def.gopher) { P.footT = (P.footT || 0) + dt; if (P.footT > 1.2) { P.footT = 0; g.addMeter(0.15); P.witness(0.3, 'OFF THE ROAD!'); } }
     }
   };
   // a patrol car that can see you when you do something: it joins in, and the gossip jumps
   P.sees = (c, x, y, r = 60) => dist(c, { x, y }) < r && VH.AI.los(c.x, c.y, x, y);
   P.witness = function (amount, label) {
-    const g = G(); if (g.char === 'cop') return false; const pl = g.player; if (P.witnessT > 0) return false;
+    const g = G(); if (g.char === 'cop' || P.inGrace()) return false; const pl = g.player; if (P.witnessT > 0) return false;
     const c = P.patrols.find(c => P.sees(c, pl.x, pl.y)) || P.units.find(c => P.sees(c, pl.x, pl.y));
     if (!c) return false;
-    P.witnessT = 2.5; g.meter = Math.max(g.meter, 1.6); g.addMeter(amount, label);
+    P.witnessT = 2.5; g.meter = Math.max(g.meter, 1.05); g.addMeter(amount, label);
     if (c.patrol) { c.patrol = false; c.police = true; c.siren = true; c.ai = null; c.role = P.units.length; P.patrols = P.patrols.filter(x => x !== c); P.units.push(c); P.hadChase = true; sfx('radio'); g.toast('A PATROL CAR SAW THAT! THEY\'RE AFTER YOU', '#ff6a5a'); }
     P.seenT = 0; P.last = { x: pl.x, y: pl.y };
     return true;
@@ -98,7 +101,7 @@
     if (!seen && P.boat && !P.hidden && dist(P.boat, tg) < 90 && VH.AI.los(P.boat.x, P.boat.y, tg.x, tg.y)) seen = true;
     if (!seen && P.heli && !P.hidden && Math.hypot(P.heli.sx - tg.x, P.heli.sy - tg.y) < 10) seen = true;
     if (VH.Street && VH.Street.popperT > 0) seen = false; // party popper: they're all looking the wrong way
-    if (seen) { P.seenT = 0; P.last = { x: tg.x, y: tg.y }; P.desc = pl.onFoot ? 'foot' : pl.vehicle; } else P.seenT += dt;
+    if (seen) { P.seenT = 0; P.last = { x: tg.x, y: tg.y }; P.lastFoot = pl.onFoot; P.desc = pl.onFoot ? 'foot' : pl.vehicle; for (const v of P.units) { v.pullUp = null; v.searched = false; v.searchDone = null; } } else P.seenT += dt;
     // swapped cars (or got out) where they couldn't see: they're still looking for the old one
     const now = pl.onFoot ? 'foot' : pl.vehicle;
     if (!seen && P.desc && now !== P.desc && P.seenT > 1.5 && P.units.length) { P.desc = null; P.seenT = Math.max(P.seenT, 8); g.meter = Math.max(0, g.meter - 0.6); g.toast("SWAPPED OUT OF SIGHT. THEY'RE STILL LOOKING FOR THE OLD ONE", '#9be15d'); }
@@ -122,9 +125,46 @@
       if (!P.units.length) { g.toast(P.hadChase ? 'THE POLICE HAVE LOST YOU' : 'THE POLICE HAVE LOST INTEREST', '#9be15d'); if (P.hadChase && P.peak >= 3) VH.Acts && VH.Acts.onGetaway(P.peak); P.hadChase = false; P.peak = 0; }
     }
     if (P.units.length) P.peak = Math.max(P.peak, m);
+    P.chaseT = P.units.length ? (P.chaseT || 0) + dt : Math.max(0, (P.chaseT || 0) - dt * 3);
     P.units.forEach((v, i) => P.drive(v, i, dt));
     P.updateBust(dt);
-    P.updateBlocks(dt); P.updateBoat(dt); P.updateHeli(dt); P.updateOfficers(dt); P.updateShots(dt); P.updateSpikes(dt);
+    P.updateBlocks(dt); P.updateBoat(dt); P.updateHeli(dt); P.updateOfficers(dt); P.updateSpikes(dt);
+  };
+  // the HUD line under the meter: what's lowering it right now, or what would
+  P.coolHint = function () {
+    const g = G(), pl = g.player, m = g.meter; if (g.char === 'cop' || !pl) return null;
+    if (P.inGrace()) return { txt: (G().gateRides || []).some(v => !v.removed && v.def.bike) ? 'NOBODY\'S WATCHING. YOUR BIKE\'S HERE' : 'NOBODY\'S WATCHING THE GATE', col: '#9be15d' };
+    if (m < 0.05 && !P.units.length) return null;
+    const rate = P.units.length ? (P.hidden ? 0.16 : 0.09) : 0.07; const frac = m - Math.floor(m) || (m >= 1 ? 1 : m); // the rate it drains at once it starts
+    const secs = Math.ceil(frac / rate + (P.units.length ? Math.max(0, P.DECAY_AFTER - P.seenT) : Math.max(0, 8 - g.quietT)));
+    if (P.officers.some(o => o.state === 'search')) return { txt: 'OFFICER SEARCHING ON FOOT', col: '#ffd23a' };
+    if (P.units.some(v => v.pullUp && !v.searchDone && !v.officerOut)) return { txt: 'A PATROL CAR IS COMING TO LOOK', col: '#ffd23a' };
+    if (P.units.length && P.seenT < 0.6) {
+      // seen: say how to break away, with the nearest help
+      const tick = Math.floor(g.t / 3) % 3;
+      if (tick === 1 && !pl.onFoot) { const r = VH.Shops.nearestRespray && VH.Shops.nearestRespray(pl.x, pl.y); if (r && r.service !== 'tyres') { const d = Math.hypot(r.x - pl.x, r.y - pl.y); if (d < 900) return { txt: `RESPRAY AT ${r.name} · ${Math.round(d / 10) * 10}M`, col: '#ffd23a' }; } }
+      if (tick === 2) { const h = P.hideNear(); if (h) return { txt: `HIDE: ${h} NEARBY`, col: '#9be15d' }; }
+      return { txt: 'THEY CAN SEE YOU: BREAK LINE OF SIGHT', col: '#ff6a5a' };
+    }
+    if (P.units.length) return { txt: (P.hidden ? 'HIDING: COOLING DOWN ' : 'OUT OF SIGHT: COOLING DOWN ') + secs + 'S', col: P.hidden ? '#9be15d' : '#ffd23a' };
+    return { txt: (g.quietT > 8 ? 'LYING LOW: COOLING ' : 'LIE LOW: COOLS IN ') + secs + 'S', col: '#9be15d' };
+  };
+  // somewhere to hide near you (checked once a second): scrub, bushes, trees, the golf course, a car wash
+  P.hideNear = function () {
+    const g = G(), pl = g.player; if (P.hideAt && g.t - P.hideAt.t < 1 && Math.hypot(P.hideAt.x - pl.x, P.hideAt.y - pl.y) < 8) return P.hideAt.what;
+    let what = null;
+    for (let r = 10; r <= 70 && !what; r += 15) for (let a = 0; a < U.TAU && !what; a += 0.5) { const x = pl.x + Math.cos(a) * r, y = pl.y + Math.sin(a) * r; const gc = W.groundAt(x, y);
+      if (gc === GC.SCRUB || gc === GC.WOOD || gc === GC.WETLAND) what = 'BUSHES'; else if (gc === GC.GOLF) what = 'THE GOLF COURSE'; else if (VH.Street && VH.Street.hidingSpot(x, y)) what = 'A CAR WASH'; }
+    if (!what && pl.onFoot) VH.Props.trees.query(pl.x - 40, pl.y - 40, pl.x + 40, pl.y + 40, () => { what = 'TREES'; });
+    P.hideAt = { t: g.t, x: pl.x, y: pl.y, what }; return what;
+  };
+  // how fast the meter drains right now (levels a second); the game ticks it down at this rate
+  P.DECAY_AFTER = 3;
+  P.decay = function () {
+    const g = G(); if (g.char === 'cop') return g.quietT > 8 ? 0.03 : 0;
+    if (P.units.length && P.units.some(v => v.pullUp && !v.searchDone && G().t - (v.pullT || 0) < 60)) return 0; // a search on foot is under way
+    if (P.units.length) return P.seenT > P.DECAY_AFTER ? (P.hidden ? 0.16 : 0.09) : 0;
+    return g.quietT > 8 && !g.copSees ? 0.07 : 0;
   };
   P.standDown = function (v) {
     v.siren = false; v.police = false; v.ai = null; const n = W.nearestEdge(v.x, v.y, 40); if (n) VH.AI.attach(v, n, 1);
@@ -133,22 +173,33 @@
   P.drive = function (v, i, dt) {
     v.def.maxV = 42 + G().meter * 2.5; // quick, but a fast car driven well can still pull away
     const g = G(), pl = g.player, tg = target();
-    const chasing = P.seenT < 7 && P.last;
+    // last seen on foot and out of sight now: the first car goes to look for you on foot (below)
+    const footSearch = P.lastFoot && P.last && P.seenT >= 0.4 && i === 0 && !v.searchDone && !P.officers.some(o => o.car === v && o.state === 'return');
+    const chasing = P.seenT < 7 && P.last && !footSearch;
     if (chasing) {
       let aim = P.seenT < 0.4 ? { x: tg.x, y: tg.y, vx: tg.vx || 0, vy: tg.vy || 0 } : { x: P.last.x, y: P.last.y, vx: 0, vy: 0 };
       const role = i % 4;
       if (role === 1) aim = { x: aim.x + aim.vx * 1.6, y: aim.y + aim.vy * 1.6, vx: 0, vy: 0 }; // cut them off
       else if (role === 2) { const a = Math.atan2(aim.vy, aim.vx) + Math.PI / 2, s = i % 2 ? 1 : -1; aim = { x: aim.x + aim.vx * 0.8 + Math.cos(a) * 6 * s, y: aim.y + aim.vy * 0.8 + Math.sin(a) * 6 * s, vx: 0, vy: 0 }; } // come alongside
-      VH.AI.pursue(v, dt, aim, { ram: role === 0 && g.meter >= 3 && !pl.onFoot });
+      const gentle = P.gentle();
+      if (gentle) { const ta = (pl.vehicle || pl).ang; aim = { x: tg.x - Math.cos(ta) * 7, y: tg.y - Math.sin(ta) * 7, vx: 0, vy: 0 }; } // tail him, a car length back
+      VH.AI.pursue(v, dt, aim, { ram: !gentle && role === 0 && g.meter >= 3 && !pl.onFoot && !(pl.vehicle && (pl.vehicle.def.gopher || pl.vehicle.def.bike)) });
+      if (gentle && P.seenT < 1 && dist(v, tg) < 40) { v.lectureT = (v.lectureT || 1) - dt; if (v.lectureT <= 0) { v.lectureT = U.rand(3.5, 5); FX.text(v.x, v.y - 5, U.pick(LECTURES), '#9fd4ec'); sfx('megaphone', { vol: 0.25 }); if (!P.pullSaid) { P.pullSaid = true; G().toast('THEY WANT YOU TO PULL OVER. STOP AND THEY\'LL BOOK YOU; KEEP GOING AND THEY TAIL YOU', '#9fd4ec'); } } }
       v.search = null;
       // pulling up next to someone on foot: an officer gets out
       if ((pl.onFoot || (pSpeed() < 4 && !(pl.vehicle.z > 1))) && dist(v, tg) < 26 && v.speed < 7 && !v.officerOut && P.officers.length < 4 && P.seenT < 1) P.addOfficer(v);
       if (v.officerOut) { v.throttle = 0; v.brake = 1; }
-      P.maybeFire(v, dt);
     } else {
-      // search: head to the last sighting, then poke around nearby streets
-      if (!v.search || dist(v, v.search) < 14) { const c = P.last || pl; const n = W.randomRoadPoint(c.x, c.y, 10, 70); v.search = n ? { x: n.x, y: n.y } : { x: c.x, y: c.y }; }
-      VH.AI.pursue(v, dt, v.search); v.throttle *= 0.65;
+      // search. You were last seen on foot: the first car pulls up on the road nearest that spot and an officer gets out
+      // to look around on foot (one officer, a walk, a torch at night). Otherwise: poke around the nearby streets.
+      if (footSearch) {
+        if (!v.pullUp) { v.pullT = G().t; const n = W.nearestEdge(P.last.x, P.last.y, 60); v.pullUp = n ? { x: n.x, y: n.y } : { x: P.last.x, y: P.last.y }; }
+        if (dist(v, v.pullUp) > 6 && !v.officerOut) { VH.AI.pursue(v, dt, v.pullUp); v.throttle *= 0.7; }
+        else { v.throttle = 0; v.brake = 1; if (!v.officerOut && v.speed < 2 && !v.searched && P.officers.length < 4) { v.searched = true; P.addOfficer(v, 'search'); } }
+      } else {
+        if (!v.search || dist(v, v.search) < 14) { const c = P.last || pl; const n = W.randomRoadPoint(c.x, c.y, 10, 70); v.search = n ? { x: n.x, y: n.y } : { x: c.x, y: c.y }; }
+        VH.AI.pursue(v, dt, v.search); v.throttle *= 0.65;
+      }
     }
     v.siren = true;
     // left far behind and out of sight: bring them round the block instead
@@ -166,12 +217,13 @@
     if (!boxed) P.boxedSaid = false;
     if (!pl.onFoot && pl.vehicle.z > 1) return; // nobody can reach you up there
     if (VH.Tackle.on || (P.tackleCool || 0) > 0) { P.tackleCool = Math.max(0, (P.tackleCool || 0) - dt); return; }
+    if (!g.arrestAllowed('player')) return; // nobody is tackled or cuffed in the water
     const reach = pl.onFoot ? 2.3 : (pl.vehicle.def.W / 2 + 1.2);
     if (pl.inShop) return;
     for (const o of P.officers) if (o.state === 'chase' && !o.dive && !(o.downT > 0) && VH.AI.los(o.x, o.y, tg.x, tg.y) && dist(o, tg) < reach + (pl.onFoot ? 0 : pl.vehicle.def.L * 0.3) && (slow || pl.stunT > 0 || (pl.onFoot && pSpeed() < 12))) {
       // out of the car first if you're in one, then a flying tackle and a struggle on the ground
       if (!pl.onFoot && pl.vehicle) { g.callout('OUT OF THE CAR!', '#ff6a5a'); g.exit(true); if (!pl.onFoot) return; }
-      o.state = 'tackle'; o.x = pl.x - Math.cos(o.ang) * 0.6; o.y = pl.y - Math.sin(o.ang) * 0.6; sfx('megaphone');
+      o.state = 'tackle'; o.intent = null; sfx('megaphone');
       VH.Tackle.start({ mode: 'escape', rank: o.rank || 'senior', who: o, startCuff: pl.stunT > 0 ? 0.35 : 0,
         onWin: () => { o.state = 'chase'; o.downT = 2.5; P.tackleCool = 2.5; g.callout('BROKE FREE!', '#9be15d'); g.addMeter(0.4); },
         onLose: () => { o.state = 'cuff'; P.arrest = { t: 0.3, o }; } });
@@ -185,12 +237,12 @@
     const view = g.viewHalf || [90, 60]; const offscreen = q => Math.abs(q.x - g.cam.x) > view[0] + 12 || Math.abs(q.y - g.cam.y) > view[1] + 12;
     P.blocks = P.blocks.filter(b => {
       b.t += dt;
-      if ((dist(b, pl) > 320 || b.t > 80 || m < 2) && offscreen(b)) { for (const v of b.cars) v.removed = true; return false; }
+      if ((dist(b, pl) > 320 || b.t > 80 || m < 3) && offscreen(b)) { for (const v of b.cars) v.removed = true; return false; }
       return true;
     });
     P.blockT -= dt;
-    const maxBlocks = m >= 4.5 ? 2 : 1;
-    if (m < 3 || P.blocks.length >= maxBlocks || P.blockT > 0 || pl.onFoot || pl.vehicle.speed < 6) return;
+    const maxBlocks = 1;
+    if (m < 4 || P.gentle() || P.blocks.length >= maxBlocks || P.blockT > 0 || pl.onFoot || pl.vehicle.speed < 6) return;
     P.blockT = 16;
     const v = pl.vehicle; const dx = v.vx / v.speed, dy = v.vy / v.speed;
     const ahead = c => { const ex = c.x - pl.x, ey = c.y - pl.y, d = Math.hypot(ex, ey); return d > 70 && d < 260 && (ex * dx + ey * dy) / d > 0.6; };
@@ -215,14 +267,14 @@
   // ---------- the boat off the foreshore ----------
   P.updateBoat = function (dt) {
     const g = G(), pl = g.player, m = g.meter;
-    const want = m >= 3 && W.seaDist(pl.x, pl.y) < 200 && G().char !== 'cop';
+    const want = m >= 3 && !P.gentle() && W.seaDist(pl.x, pl.y) < 200 && G().char !== 'cop';
     if (want && !P.boat) {
       for (let k = 0; k < 30; k++) { const a = Math.random() * U.TAU, r = U.rand(120, 220); const x = pl.x + Math.cos(a) * r, y = pl.y + Math.sin(a) * r; if (W.seaDist(x, y) < -15) { P.boat = { x, y, ang: a + Math.PI, t: 0, leave: false }; g.toast('THE POLICE BOAT IS OUT', '#7fa6ff'); break; } }
     }
     const b = P.boat; if (!b) return; b.t += dt;
     if (!want) b.leave = true;
     const aim = b.leave ? { x: b.x + Math.cos(b.ang) * 100, y: b.y + Math.sin(b.ang) * 100 } : pl;
-    const want0 = Math.atan2(aim.y - b.y, aim.x - b.x); const spd = dist(b, aim) < 28 && !b.leave ? 0 : 11;
+    const want0 = Math.atan2(aim.y - b.y, aim.x - b.x); const spd = dist(b, aim) < (pl.onFoot && pl.water ? 7 : 28) && !b.leave ? 0 : 11;
     let chosen = null;
     for (const da of [0, 0.5, -0.5, 1, -1, 1.6, -1.6, 2.3, -2.3]) { const a = want0 + da, nx = b.x + Math.cos(a) * 9, ny = b.y + Math.sin(a) * 9; if (W.seaDist(nx, ny) < -8) { chosen = a; break; } }
     if (chosen != null && spd) { b.ang += U.angDiff(b.ang, chosen) * Math.min(1, dt * 2); b.x += Math.cos(b.ang) * spd * dt; b.y += Math.sin(b.ang) * spd * dt; if (Math.random() < 0.5) FX.add({ type: 'ring', x: b.x - Math.cos(b.ang) * 4, y: b.y - Math.sin(b.ang) * 4, vx: 0, vy: 0, life: 0.9, col: '#e8f6ff', size: 1.4 }); }
@@ -230,11 +282,12 @@
     if (b.leave && dist(b, pl) > 400) P.boat = null;
   };
   // ---------- the chopper and its spotlight ----------
+  P.HELI_AFTER = 150; // seconds of chase before the chopper can come up (and only at the top level)
   P.updateHeli = function (dt) {
     const g = G(), pl = g.player, m = g.meter, tg = target();
-    if (!P.heli && m >= 4.5) { P.heli = { sx: pl.x - 120, sy: pl.y - 120, x: pl.x - 260, y: pl.y - 300, vx: 0, vy: 0, rot: 0, sweep: 0, chop: 0, leave: false }; g.toast('THE CHOPPER IS UP', '#ff6a5a'); sfx('radio'); }
+    if (!P.heli && m >= 5 && (P.chaseT || 0) > P.HELI_AFTER && !P.gentle()) { P.heli = { sx: pl.x - 120, sy: pl.y - 120, x: pl.x - 260, y: pl.y - 300, vx: 0, vy: 0, rot: 0, sweep: 0, chop: 0, leave: false }; g.toast('THE CHOPPER IS UP', '#ff6a5a'); sfx('radio'); }
     const h = P.heli; if (!h) return;
-    if (m < 3.5) h.leave = true;
+    if (m < 4 || !P.units.length) h.leave = true;
     h.sweep += dt;
     let ax, ay;
     if (h.leave) { ax = h.x + 400; ay = h.y - 400; }
@@ -251,88 +304,51 @@
     if (h.leave && dd > 500) P.heli = null;
   };
 
-  // ---------- officers on foot (and their tasers) ----------
-  P.addOfficer = function (v) {
+  // ---------- officers on foot: they run you down, tackle and cuff (nobody carries a weapon) ----------
+  P.addOfficer = function (v, state = 'chase') {
     const a = v.ang + Math.PI / 2; const m = G().meter;
     const rank = m >= 4.5 && !P.officers.some(o => o.rank === 'sergeant') ? 'sergeant' : m >= 3 ? 'senior' : 'rookie';
-    const o = { x: v.x + Math.cos(a) * 1.6, y: v.y + Math.sin(a) * 1.6, ang: a, anim: 0, state: 'chase', car: v, zapT: 1.2, t: 0, rank };
-    v.officerOut = true; P.officers.push(o); FX.text(o.x, o.y - 3, U.pick(["'ELLO 'ELLO!", 'OI! STOP RIGHT THERE!', 'STAY WHERE YOU ARE!']), '#9fd4ec');
+    const o = { x: v.x + Math.cos(a) * 1.6, y: v.y + Math.sin(a) * 1.6, ang: a, anim: 0, state, car: v, t: 0, rank, r: 0.5, searchT: 0 };
+    v.officerOut = true; P.officers.push(o); FX.text(o.x, o.y - 3, state === 'search' ? U.pick(['RIGHT. WHERE DID THEY GO?', 'POLICE! ANYONE ABOUT?', 'COME OUT, WE JUST WANT A CHAT']) : U.pick(["'ELLO 'ELLO!", 'OI! STOP RIGHT THERE!', 'STAY WHERE YOU ARE!']), '#9fd4ec');
   };
   P.updateOfficers = function (dt) {
     const g = G(), pl = g.player;
     for (const o of P.officers) { VH.stride(o, dt);
-      o.t += dt; o.zapT -= dt;
+      o.t += dt;
       const car = o.car; const tv = !pl.onFoot && pl.vehicle;
       if (o.state === 'cuff' || o.state === 'tackle') { o.ang = Math.atan2(pl.y - o.y, pl.x - o.x); continue; }
       if (o.downT > 0) { o.downT -= dt; continue; }
       // a car coming through: jump out of the way (nobody gets hurt)
-      if (o.dive > 0) { o.dive -= dt; o.x += o.dvx * dt; o.y += o.dvy * dt; o.dvx *= Math.exp(-3 * dt); o.dvy *= Math.exp(-3 * dt); if (o.dive <= 0) o.dive = 0; continue; }
-      for (const v of G().vehicles) { if (v.removed || v.speed < 3 || v === car || Math.abs(v.x - o.x) > 12 || Math.abs(v.y - o.y) > 12) continue; const sp = v.speed, ux = v.vx / sp, uy = v.vy / sp; const dx = o.x - v.x, dy = o.y - v.y; const along = dx * ux + dy * uy, lat = -dx * uy + dy * ux; if (along > -1 && along < 3 + sp * 0.5 && Math.abs(lat) < v.def.W / 2 + 1.2) { const s = lat >= 0 ? 1 : -1; o.dive = 0.6; o.dvx = -uy * s * 9; o.dvy = ux * s * 9; sfx('dive', { vol: 0.5 }); FX.text(o.x, o.y - 3, U.pick(['WHOA!', 'STRUTH!', 'OI!']), '#9fd4ec'); break; } }
+      if (o.dive > 0) { o.dive -= dt; VH.Nav.update(o, dt); if (o.dive <= 0) { o.dive = 0; o.intent = null; } continue; }
+      for (const v of G().vehicles) { if (v.removed || v.speed < 3 || v === car || Math.abs(v.x - o.x) > 12 || Math.abs(v.y - o.y) > 12) continue; const sp = v.speed, ux = v.vx / sp, uy = v.vy / sp; const dx = o.x - v.x, dy = o.y - v.y; const along = dx * ux + dy * uy, lat = -dx * uy + dy * ux; if (along > -1 && along < 3 + sp * 0.5 && Math.abs(lat) < v.def.W / 2 + 1.2) { const s = lat >= 0 ? 1 : -1; o.dive = 0.6; o.intent = { kind: 'push', vx: -uy * s * 9, vy: ux * s * 9 }; sfx('dive', { vol: 0.5 }); FX.text(o.x, o.y - 3, U.pick(['WHOA!', 'STRUTH!', 'OI!']), '#9fd4ec'); break; } }
       if (o.dive > 0) continue;
-      const lost = (tv && pSpeed() > 8) || dist(o, pl) > 55 || car.removed || pl.hidden || (P.hidden && dist(o, pl) > 8 && P.seenT > 1.5);
+      // you're in the water: they stop at the waterline and shout, and give up if you stay out there
+      const swim = pl.onFoot && pl.water; o.waitT = swim ? (o.waitT || 0) + dt : 0;
+      const lost = (tv && pSpeed() > 8) || dist(o, pl) > 55 || car.removed || pl.hidden || (P.hidden && dist(o, pl) > 8 && P.seenT > 1.5) || o.waitT > 9;
       if (o.state === 'chase' && lost) o.state = 'return';
+      // searching on foot: walk to where you were last seen and look about (calling out); spot you and it's a chase;
+      // nothing for 25 s and it's back to the car, which then moves on (so the gossip still cools)
+      if (o.state === 'search') {
+        o.searchT += dt; const sees = dist(o, pl) < (P.hidden ? 6 : 22) && VH.AI.los(o.x, o.y, pl.x, pl.y) && !pl.inShop && pl.onFoot;
+        if (sees) { o.state = 'chase'; FX.text(o.x, o.y - 3, U.pick(['THERE YOU ARE!', 'OI! YOU!', 'STAY RIGHT THERE!']), '#9fd4ec'); P.seenT = 0; P.last = { x: pl.x, y: pl.y }; }
+        else if (o.searchT > 25 || car.removed) { o.state = 'return'; FX.text(o.x, o.y - 3, 'NOTHING HERE.', '#9fd4ec'); car.searchDone = G().t; }
+        else {
+          if (!o.look || dist(o, o.look) < 2) { const c = P.last || car; const q = VH.Nav.snap(c.x + U.rand(-10, 10), c.y + U.rand(-10, 10), 6) || c; o.look = { x: q.x, y: q.y }; }
+          o.ang = Math.atan2(o.look.y - o.y, o.look.x - o.x); o.torch = o.ang + Math.sin(o.t * 1.6) * 0.5;
+          o.callT = (o.callT || 2) - dt; if (o.callT <= 0) { o.callT = U.rand(4, 6); FX.text(o.x, o.y - 3, U.pick(['POLICE! ANYONE ABOUT?', 'WE KNOW YOU\'RE OUT HERE', 'COME ON, MAKE IT EASY ON YOURSELF']), '#9fd4ec'); }
+          o.intent = { kind: 'goto', x: o.look.x, y: o.look.y, speed: 3.2 }; VH.Nav.update(o, dt); continue;
+        }
+      }
       const tx = o.state === 'chase' ? pl.x : car.x, ty = o.state === 'chase' ? pl.y : car.y;
       const dx = tx - o.x, dy = ty - o.y, d = Math.hypot(dx, dy); const sp = o.state === 'chase' ? 10.5 : 8;
-      // run at the target; if a wall has us stuck, slide along it for a moment
-      let mx = dx / (d || 1), my = dy / (d || 1);
-      if (o.side > 0) { o.side -= dt; const s = o.sideDir; mx = -dy / (d || 1) * s * 0.9 + mx * 0.3; my = dx / (d || 1) * s * 0.9 + my * 0.3; }
-      const bx = o.x, by = o.y;
-      if (d > 0.9) { const st = Math.min(d - 0.8, sp * dt); o.x += mx * st; o.y += my * st; o.ang = Math.atan2(my, mx); o.anim += st * 1.4; }
-      W.wallGrid.query(o.x - 0.6, o.y - 0.6, o.x + 0.6, o.y + 0.6, s => { const [dd, qx, qy] = U.segPointDist(o.x, o.y, s.ax, s.ay, s.bx, s.by); if (dd < 0.5 && dd > 1e-6) { o.x = qx + (o.x - qx) / dd * 0.5; o.y = qy + (o.y - qy) / dd * 0.5; } });
-      if (d > 2 && Math.hypot(o.x - bx, o.y - by) < sp * dt * 0.25) { o.stuckT = (o.stuckT || 0) + dt; if (o.stuckT > 0.3 && !(o.side > 0)) { o.side = 0.9; o.sideDir = o.sideDir ? -o.sideDir : (Math.random() < 0.5 ? 1 : -1); o.stuckT = 0; } } else o.stuckT = 0;
-      // taser, once the gossip is high: a visible, dodgeable dart (never fired past a bystander)
-      if (o.state === 'chase' && g.meter >= 3 && d < 11 && d > 2.2 && o.zapT <= 0 && pl.stunT <= 0 && VH.AI.los(o.x, o.y, pl.x, pl.y) && P.clearLine(o.x, o.y, pl.x, pl.y)) {
-        o.zapT = 3.2; const lead = d / 24; const ax = pl.x + pl.vx * lead, ay = pl.y + pl.vy * lead; const a = Math.atan2(ay - o.y, ax - o.x);
-        P.darts.push({ x: o.x, y: o.y, ox: o.x, oy: o.y, vx: Math.cos(a) * 24, vy: Math.sin(a) * 24, life: (d + 1.5) / 24, o }); sfx('zap', { vol: 0.35, pitch: 1.4 });
-      }
+      // run straight at you when there's a clear run, otherwise the way round (footpaths, yards, round buildings);
+      // never into the water
+      o.intent = { kind: 'chase', target: o.state === 'chase' ? pl : car, speed: sp, near: 0.8 }; VH.Nav.update(o, dt);
+      if (swim && o.state === 'chase') { o.shoutT = (o.shoutT || 0) - dt; if (o.shoutT <= 0 && d < 40) { o.shoutT = U.rand(2.2, 3.5); FX.text(o.x, o.y - 3, U.pick(['OUT OF THE WATER!', "WE'LL WAIT!", "I'M NOT GETTING MY BOOTS WET!", 'YOU CAN\'T STAY OUT THERE ALL NIGHT!', 'COME ON, OUT YOU GET!']), '#9fd4ec'); } }
       if (o.state === 'return' && d < 2) { o.gone = true; car.officerOut = false; }
     }
     P.officers = P.officers.filter(o => !o.gone && !o.car.removed);
     for (const o of P.officers) if (o.state === 'return' && dist(o, o.car) < 2.5) { o.gone = true; o.car.officerOut = false; }
-    for (const dt0 of P.darts) {
-      dt0.x += dt0.vx * dt; dt0.y += dt0.vy * dt; dt0.life -= dt;
-      if (pl.onFoot && !pl.hidden && Math.hypot(dt0.x - pl.x, dt0.y - pl.y) < 0.9) { dt0.life = 0; pl.stunT = 1.6; sfx('zap'); FX.sparks(pl.x, pl.y, 12); FX.text(pl.x, pl.y - 4, 'ZZZT!', '#ffe94a'); FX.kick(0.25); }
-    }
-    P.darts = P.darts.filter(d => d.life > 0);
-  };
-
-  // ---------- shots at your vehicle (high gossip only; tracers, sparks, dents, tyres) ----------
-  P.maybeFire = function (v, dt) {
-    // never at anyone you can see on board: no bikes, scooters or gophers (open riders), and never the tram or train
-    const g = G(), pl = g.player; if (g.meter < 3.5 || pl.onFoot || !pl.vehicle || pl.vehicle.rail || pl.vehicle.def.bike || pl.vehicle.def.gopher) { v.burst = 0; return; }
-    const tg = pl.vehicle; const d = dist(v, tg);
-    v.fireT = (v.fireT == null ? U.rand(0.5, 1.5) : v.fireT) - dt; v.burstT = (v.burstT || 0) - dt;
-    if (d > 55 || d < 6 || !VH.AI.los(v.x, v.y, tg.x, tg.y)) return;
-    const shooting = P.units.filter(u => u.burst > 0).length;
-    if (v.fireT <= 0 && shooting < 2) { v.burst = 3; v.fireT = U.rand(2.4, 3.6); }
-    if (v.burst > 0 && v.burstT <= 0) {
-      if (!P.clearLine(v.x, v.y, tg.x, tg.y)) { v.burst = 0; return; }
-      const lead = d / 90; const ax = tg.x + tg.vx * lead + U.rand(-1.8, 1.8), ay = tg.y + tg.vy * lead + U.rand(-1.8, 1.8); const a = Math.atan2(ay - v.y, ax - v.x);
-      const sx = v.x + Math.cos(a) * 2.2, sy = v.y + Math.sin(a) * 2.2;
-      P.shots.push({ x: sx, y: sy, vx: Math.cos(a) * 90, vy: Math.sin(a) * 90, life: (d + 3) / 90 }); // stops just past the target
-      FX.add({ type: 'spark', x: sx, y: sy, vx: Math.cos(a) * 6, vy: Math.sin(a) * 6, life: 0.1, col: '#fff6b0', drag: 3 });
-      sfx('shot', { vol: U.clamp(0.6 - dist(v, pl) / 200, 0.15, 0.6) }); v.burst--; v.burstT = 0.13;
-    }
-  };
-  P.updateShots = function (dt) {
-    const pl = G().player; const tv = !pl.onFoot && pl.vehicle;
-    for (const s of P.shots) {
-      for (let k = 0; k < 3 && s.life > 0; k++) {
-        s.x += s.vx * dt / 3; s.y += s.vy * dt / 3;
-        if (tv) { let hit = false; tv.eachCircle((cx, cy, r) => { if (!hit && Math.hypot(s.x - cx, s.y - cy) < r + 0.15) hit = true; }); if (hit) { s.life = 0; P.hitVehicle(tv, s.x, s.y); break; } }
-        if (W.groundAt(s.x, s.y) === GC.BUILDING) { s.life = 0; FX.sparks(s.x, s.y, 3); }
-      }
-      s.life -= dt;
-    }
-    P.shots = P.shots.filter(s => s.life > 0);
-  };
-  P.hitVehicle = function (v, x, y) {
-    sfx('ping', { vol: 0.6 }); FX.sparks(x, y, 6);
-    v.damage = Math.min(1, v.damage + 0.035 / Math.max(0.6, v.def.hp));
-    if (v.sprite === v.base) v.sprite = SP.damaged(v.base);
-    const fx = Math.cos(v.ang), fy = Math.sin(v.ang), dx = x - v.x, dy = y - v.y; SP.dent(v.sprite, v.sprite.width / 2 + (dx * fx + dy * fy) * 4, v.sprite.height / 2 + (-dx * fy + dy * fx) * 4, false);
-    if (!v.flat && Math.random() < 0.12) { v.flat = true; sfx('tyre'); FX.debris(x, y, ['#1b1b20', '#333'], 5, 4); G().toast("TYRE'S GONE!", '#ff9a30'); }
-    if (v.damage >= 1 && !v.dead) { v.dead = true; sfx('puff'); FX.smoke(v.x, v.y, '#333', 12, 1.8, 2.5); G().onWreck && G().onWreck(v); }
   };
 
   // ---------- spike strips (police roadblocks and Kev's) ----------
@@ -363,8 +379,21 @@
       else if (P.spikesLeft <= 0) g.toast('NO SPIKE STRIPS LEFT TONIGHT', '#ff9a30');
       else { const back = v.def.L / 2 + 3; P.spikes.push({ x: v.x - Math.cos(v.ang) * back, y: v.y - Math.sin(v.ang) * back, a: v.ang + Math.PI / 2, len: 5.5, t: 0, owner: 'kev' }); P.spikesLeft--; sfx('spikes'); g.toast(`SPIKES DOWN (${P.spikesLeft} LEFT TONIGHT)`, '#9fd4ec'); }
     }
+    P.megaT = Math.max(0, (P.megaT || 0) - dt);
+    // the magnetic roof light: any car Kev commandeers can run a siren
+    if (I.consume('light')) {
+      const v = pl.vehicle;
+      if (!v) g.toast('THE ROOF LIGHT GOES ON A CAR: COMMANDEER ONE FIRST (E)', '#ffd23a');
+      else if (v.rail || v.def.heli || v.def.bike || v.def.gopher) g.toast("THE MAGNET WON'T STICK TO THAT", '#ff9a30');
+      else if (v.type === 'police' || v.type === 'paddy') g.toast("THIS ONE'S GOT LIGHTS ALREADY: H FOR THE SIREN", '#9fd4ec');
+      else if (!v.roofLight) { v.roofLight = true; v.siren = true; sfx('clang', { pitch: 1.4, vol: 0.5 }); g.callout('ROOF LIGHT ON!', '#9fd4ec'); g.toast('MAGNETIC LIGHT ON THE ROOF. H: SIREN ON AND OFF', '#9fd4ec'); }
+      else { v.roofLight = false; v.siren = false; g.toast('ROOF LIGHT OFF', '#9fd4ec'); }
+    }
     if (I.consume('backup')) {
-      if (P.backupT > 0) g.toast(`BACKUP IS BUSY. READY IN ${Math.ceil(P.backupT)}S`, '#ffd23a');
+      if (!P.kevCar() && !P.spare) P.callSpare();
+      else if (VH.Escort.waiting().length && !VH.Escort.paddy) VH.Escort.callPaddy();
+      else if (!P.kevCar() && P.spare) g.toast(P.spare.phase === 'radio' ? "SARGE: 'IT'S COMING, KEV. HOLD YOUR HORSES.'" : 'THE SPARE CAR IS ON ITS WAY', '#7fa6ff');
+      else if (P.backupT > 0) g.toast(`BACKUP IS BUSY. READY IN ${Math.ceil(P.backupT)}S`, '#ffd23a');
       else {
         P.backupT = 60; let n = 0;
         for (let i = 0; i < 2; i++) { const v = spawnCar(pl, 70, 150); if (v) { v.backup = true; v.owner = JUNIORS[i]; v.life = 50; v.role = i; P.backup.push(v); n++; } }
@@ -385,12 +414,57 @@
       }
       v.siren = true; return true;
     });
-    P.updateSpikes(dt);
+    P.updateSpikes(dt); P.updateSpare(dt); P.updateTow();
   };
-  // megaphone (Kev on foot): anyone running nearby stops in their tracks for a moment
+  // Kev's own police car, if he still has one that goes
+  P.spawnCar = spawnCar;
+  P.kevCar = () => G().vehicles.find(v => v.owned && v.type === 'police' && !v.removed && !v.sinking && !v.dead) || null;
+  // a wrecked or sunk police car: radio for a spare (B) and a junior constable drops one off; otherwise one turns up
+  // back at the station after a while. The wreck gets towed once nobody's looking.
+  P.callSpare = function () {
+    const g = G(); P.spare = { phase: 'radio', t: 7, who: U.pick(JUNIORS) }; sfx('radio');
+    g.toast(`SARGE: 'RIGHT. ${P.spare.who.replace('CONSTABLE ', '')}'S BRINGING YOU THE SPARE. TRY TO BRING THIS ONE BACK.'`, '#7fa6ff');
+  };
+  P.updateSpare = function (dt) {
+    const g = G(), pl = g.player, have = P.kevCar();
+    // station recovery: the automatic fallback when there's no car and no spare coming
+    if (have) { P.recoverT = 0; P.lost = null; }
+    else {
+      if (!P.lost) { const gone = g.vehicles.find(v => v.owned && v.type === 'police'); P.lost = gone && !gone.sinking && !gone.removed ? 'wreck' : 'drink'; P.recoverT = U.rand(60, 90); }
+      if (!P.spare) { P.recoverT -= dt; if (P.recoverT <= 0) {
+        const v = g.park('police', g.places.police, { colour: '#fff' }); if (v) { v.owned = true; v.parked = false; g.lastVeh = v; g.callout(P.lost === 'drink' ? 'COP CAR RECOVERED FROM THE DRINK' : 'COP CAR PATCHED UP', '#7fd4ff'); g.toast(P.lost === 'drink' ? "COP CAR RECOVERED FROM THE DRINK. IT'S AT THE STATION." : "THE WORKSHOP PATCHED UP A COP CAR. IT'S AT THE STATION.", '#7fd4ff'); sfx('radio'); P.towWrecks(); }
+        P.lost = null; } }
+    }
+    const sp = P.spare; if (!sp) return;
+    sp.t -= dt;
+    if (sp.phase === 'radio' && sp.t <= 0) {
+      const v = spawnCar(pl, 70, 150, e => e.w >= 5); if (!v) { sp.t = 1; return; }
+      v.siren = true; v.delivery = true; v.owner = sp.who; sp.v = v; sp.phase = 'drive'; sp.t = 35; g.toast(sp.who + ' IS ON THE WAY WITH THE SPARE', '#7fa6ff');
+    }
+    if (sp.phase === 'drive') {
+      const v = sp.v; if (!v || v.removed || v.sinking || v.dead) { P.spare = null; return; }
+      const a = pl.ang + 2.2; const aim = { x: pl.x + Math.cos(a) * 7, y: pl.y + Math.sin(a) * 7, vx: 0, vy: 0 };
+      VH.AI.pursue(v, dt, aim); const close = dist(v, pl) < 13;
+      if (close) { v.throttle = 0; v.brake = 1; }
+      if ((close && v.speed < 1.5) || sp.t <= 0) {
+        v.delivery = false; v.ai = null; v.siren = false; v.owned = true; v.parked = false; v.throttle = 0; v.brake = 1; g.lastVeh = v; P.spare = null; P.towWrecks();
+        const side = v.ang - Math.PI / 2, jx = v.x + Math.cos(side) * 2, jy = v.y + Math.sin(side) * 2;
+        const j = new VH.Ped('cop', VH.Nav.walkable(jx, jy) ? jx : v.x, VH.Nav.walkable(jx, jy) ? jy : v.y + 2.5, { hat: 'cop', shirt: '#7fa6d8', hair: '#1a2236' }); j.say("THERE YOU GO, KEV. DON'T SINK THIS ONE.", 3); g.peds.push(j);
+        g.toast(`THE SPARE IS HERE (${Math.round(dist(v, pl))}M). THE WRECK'S BEING TOWED.`, '#7fd4ff'); sfx('door');
+      }
+    }
+  };
+  P.towWrecks = function () { const g = G(); for (const v of g.vehicles) if (v.owned && v.type === 'police' && (v.dead || v.sinking)) { v.owned = false; v.tow = true; } };
+  P.updateTow = function () {
+    const g = G(); const view = g.viewHalf || [90, 60];
+    for (const v of g.vehicles) if (v.tow && !v.removed && (Math.abs(v.x - g.cam.x) > view[0] + 15 || Math.abs(v.y - g.cam.y) > view[1] + 15)) { v.removed = true; g.toast('THE TOW TRUCK HAS TAKEN THE WRECK', '#9fd4ec'); }
+  };
+  // megaphone (Kev on foot): anyone running nearby stops in their tracks for 2.5 seconds; it needs a moment to recharge
   P.megaphone = function () {
-    const g = G(), pl = g.player; sfx('megaphone'); FX.text(pl.x, pl.y - 4, 'STOP! POLICE!', '#9fd4ec'); FX.ring(pl.x, pl.y, '#9fd4ec', 8, 0.8);
-    let n = 0; for (const p of g.peds) if (dist(p, pl) < 30 && (p.state === 'flee' || p.fleeing || p.tag === 'ditcher')) { p.frozen = 2.5; p.say(U.pick(['ERM...', 'BUSTED.', 'FAIR ENOUGH!', 'WASNT ME!']), 2); n++; }
+    const g = G(), pl = g.player;
+    if (P.megaT > 0) { g.toast(`MEGAPHONE RECHARGING (${Math.ceil(P.megaT)}S)`, '#ffd23a'); sfx('click'); return 0; }
+    P.megaT = 3.5; sfx('megaphone'); FX.text(pl.x, pl.y - 4, 'STOP! POLICE!', '#9fd4ec'); FX.ring(pl.x, pl.y, '#9fd4ec', 30, 0.8);
+    let n = 0; for (const p of g.peds) if (dist(p, pl) < 30 && !p.cuffed && !p.caught && (p.state === 'flee' || p.state === 'run' || p.fleeing || p.tag === 'ditcher')) { p.frozen = 2.5; p.say(U.pick(['ERM...', 'BUSTED.', 'FAIR ENOUGH!', 'WASNT ME!']), 2); n++; }
     return n;
   };
 
@@ -401,13 +475,11 @@
   };
   P.drawPeople = function (ctx, left, top, S) {
     for (const o of P.officers) { const fr = o.dive > 0 || o.downT > 0 || o.state === 'tackle' ? 0 : VH.walkFrame(o); const lying = o.downT > 0 || o.state === 'tackle'; ctx.fillStyle = 'rgba(20,20,45,0.35)'; ctx.fillRect(Math.round((o.x - left) * S) - 2, Math.round((o.y - top) * S) - 2, 7, 7); VH.drawRot(ctx, SP.person(o.rank === 'sergeant' ? '#5a7ab8' : '#7fa6d8', '#1a2236', fr, { hat: 'cop' }), (o.x - left) * S, (o.y - top) * S, o.ang + (lying ? Math.PI / 2 : 0)); if (o.rank === 'sergeant') { U.text(ctx, 'SARGE', (o.x - left) * S, (o.y - top) * S - 14, { align: 'center', color: '#9fd4ec' }); } }
-    for (const d of P.darts) { ctx.strokeStyle = 'rgba(255,233,74,0.85)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo((d.o.x - left) * S, (d.o.y - top) * S); ctx.lineTo((d.x - left) * S, (d.y - top) * S); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.fillRect(Math.round((d.x - left) * S) - 1, Math.round((d.y - top) * S) - 1, 2, 2); }
     const pl = G().player; if (pl.stunT > 0 && pl.onFoot) for (let i = 0; i < 3; i++) { const a = G().t * 8 + i * 2.1; ctx.fillStyle = '#ffe94a'; ctx.fillRect(Math.round((pl.x - left) * S + Math.cos(a) * 7), Math.round((pl.y - top) * S - 8 + Math.sin(a) * 3), 2, 2); }
   };
-  // tracers, the chopper and its spotlight sit on top of the lighting
+  // the chopper and its spotlight sit on top of the lighting
   P.drawAir = function (ctx, left, top, S, night) {
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
-    for (const s of P.shots) { const x0 = (s.x - left) * S, y0 = (s.y - top) * S; ctx.strokeStyle = 'rgba(255,240,170,0.95)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0 - s.vx * 0.035 * S, y0 - s.vy * 0.035 * S); ctx.stroke(); }
     const h = P.heli;
     if (h) { const sx = (h.sx - left) * S, sy = (h.sy - top) * S; const r = 10 * S; ctx.globalAlpha = night ? 0.35 : 0.18; ctx.drawImage(SP.light('#f4f8ff', 64), sx - r, sy - r, r * 2, r * 2); ctx.globalAlpha = 1; }
     ctx.restore();

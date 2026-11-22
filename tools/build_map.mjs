@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Schoolies Siege map baker.
+// Schoolies Mayhem map baker.
 // Reads the raw OpenStreetMap extract (game/data/raw/G-01-victor-harbor-all.osm, ODbL)
 // and writes compact game data the browser loads with no network access:
 //   game/data/map.json      vector layers (roads, rails, buildings, areas, barriers, props, POIs, road graph)
@@ -1046,6 +1046,9 @@ const out = {
     labels, places: placeLabels,
   },
 };
+// ---------- spawn slots (a separate pass: tools/bake_slots.mjs) ----------
+// typed, validated places the game may spawn things on; the bake throws (and the build fails) if any slot doesn't pass
+{ const { bakeSlots, ACCESS } = await import('./bake_slots.mjs'); const { slots } = bakeSlots(out, OUT); out.slots = { v: 1, access: ACCESS, kinds: slots }; }
 const json = JSON.stringify(out);
 fs.writeFileSync(path.join(OUT, 'map.json'), json);
 console.log('wrote map.json', json.length);

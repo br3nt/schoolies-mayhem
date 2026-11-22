@@ -60,7 +60,10 @@
     });
     W.railRoutes = {}; for (const k of ['train', 'tram']) { const p = dm(map.railRoutes[k]); W.railRoutes[k] = { p, cum: U.cumLen(p) }; }
     W.pois = map.pois.map(p => ({ ...p, x: p.x / 10, y: p.y / 10 }));
+    // real car places from OpenStreetMap (fuel, car wash, car yard...), with the building and a road access point
+    W.carPlaces = (map.carPlaces || []).map(p => ({ ...p, x: p.x / 10, y: p.y / 10, a: p.a ? { x: p.a[0] / 10, y: p.a[1] / 10 } : null }));
     W.doors = map.doors.map(d => ({ x: d[0] / 10, y: d[1] / 10, lx: d[2] / 10, ly: d[3] / 10, lit: 0 }));
+    W.slotsRaw = map.slots || null; // typed spawn slots (tools/bake_slots.mjs); VH.Spawn reads them
     W.shore = dm(map.shore);
     W.propsRaw = map.props;
     // collision walls (building edges) in a grid
@@ -94,6 +97,8 @@
       W.gOutAll[ed.a].push({ e: ed, dir: 1 }); W.gOutAll[ed.b].push({ e: ed, dir: -1 });
       return ed;
     });
+    // edges that run over a bridge (parked cars aren't left there)
+    for (const r of W.roads) if (r.br) for (const e of W.edges) { if (e.bb[2] < r.bb[0] - 5 || e.bb[0] > r.bb[2] + 5 || e.bb[3] < r.bb[1] - 5 || e.bb[1] > r.bb[3] + 5) continue; const [mx, my] = U.alongPoly(e.p, e.cum, e.len / 2); for (let i = 0; i + 3 < r.p.length; i += 2) if (U.segPointDist(mx, my, r.p[i], r.p[i + 1], r.p[i + 2], r.p[i + 3])[0] < 3) { e.br = true; break; } }
     W.edgeGrid = new U.Grid(24);
     for (const e of W.edges) W.edgeGrid.addBox(e, e.bb[0] - e.w, e.bb[1] - e.w, e.bb[2] + e.w, e.bb[3] + e.w);
     // area lookup for named places (golf course etc.)

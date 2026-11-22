@@ -114,6 +114,7 @@
     const r = A.race;
     if (!r && g.char === 'cop') return;
     if (!r) {
+      const M = VH.Missions; if (M.job && M.job.started && M.job.ownsVehicle && v && M.job.ownsVehicle(v)) return; // a job's vehicle doesn't start a time trial
       for (const rc of A.races) if (dist(pl, rc.start) < (rc.rail ? 14 : 9) && rc.need(v) && v.speed < 3) {
         if (A.raceCool > 0) continue;
         A.race = { rc, cd: 3, t: 0, i: 0 }; A.raceCool = 6; sfx('menu'); g.toast(rc.name + ': GET READY', '#38e0c8'); return;
@@ -148,7 +149,7 @@
     const h = g.hour; const pg = A.penguin; const night = h >= 20 || h < 5;
     if (pg && night && dist(pl, pg) < 300) {
       pg.t += dt; pg.ang += Math.sin(pg.t * 0.5) * dt; const nx = pg.x + Math.cos(pg.ang) * 0.8 * dt, ny = pg.y + Math.sin(pg.ang) * 0.8 * dt;
-      if (W.seaDist(nx, ny) > 3 && dist({ x: nx, y: ny }, A.penguinHome) < 40) { pg.x = nx; pg.y = ny; } else pg.ang += 1.5;
+      if (W.seaDist(nx, ny) > 3 && dist({ x: nx, y: ny }, A.penguinHome) < 40) { if (!VH.Nav.move(pg, nx - pg.x, ny - pg.y, 1.2, { noCars: true })) pg.ang += 1.5; } else pg.ang += 1.5;
       if (pl.onFoot && dist(pl, pg) < 6) A.egg('penguin', 'THE GIANT PENGUIN NODS AT YOU, SOLEMNLY.');
     }
     const midnight = h >= 23.6 || h < 0.9; const M = VH.Missions;

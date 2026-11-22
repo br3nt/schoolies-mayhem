@@ -12,23 +12,24 @@
 
   // ---------- setup ----------
   SL.init = function () {
-    const P = G().places; const rnd = U.seeded(77123);
-    const ok = (x, y) => { const g = W.groundAt(x, y); return g !== W.GC.BUILDING && g !== W.GC.SEA && g !== W.GC.WATER && W.roadDist(x, y) >= 2; };
-    // crates: the industrial estate, car parks, alleys (service lanes) and the foreshore
-    const near = (cx, cy, r, n) => { for (let i = 0, k = 0; i < 200 && k < n; i++) { const a = rnd() * U.TAU, d = rnd() * r; const x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d; if (ok(x, y) && SL.crates.every(c => dist(c, { x, y }) > 25)) { SL.crates.push(VH.Props.add(PK.crate, x, y, rnd() * 0.6, { crate: true })); k++; } } };
-    near(P.industrial.x, P.industrial.y, 200, 6); near(P.warland.x, P.warland.y, 220, 5); near(4600, 2600, 300, 6);
-    for (const a of W.areas) if (a.k === 'paved' && SL.crates.length < 40 && Math.abs(a.bb[2] - a.bb[0]) > 25 && Math.hypot(a.bb[0] - 4500, a.bb[1] - 2700) < 1800 && rnd() < 0.5) near((a.bb[0] + a.bb[2]) / 2, (a.bb[1] + a.bb[3]) / 2, 10, 1);
-    for (const e of W.edges) if (SL.crates.length < 48 && e.w <= 4.5 && Math.hypot(e.p[0] - 4500, e.p[1] - 2700) < 1500 && rnd() < 0.08) { const [x, y, a] = U.alongPoly(e.p, e.cum, e.len / 2); near(x + Math.sin(a) * 3, y - Math.cos(a) * 3, 3, 1); }
+    const P = G().places;
+    // crates (on baked slots): car-park bays round the industrial estate and the town, and footpaths in town
+    const crate = s => SL.crates.push(VH.Props.add(PK.crate, s.x, s.y, s.a, { crate: true }));
+    const S = VH.Spawn; const town = { x: 4500, y: 2700 };
+    for (const s of S.many('carpark', 6, { near: P.industrial, maxDist: 500, spacing: 25, optional: true })) crate(s);
+    for (const s of S.many('carpark', 14, { near: town, maxDist: 1800, spacing: 60, filter: q => SL.crates.every(c => dist(c, q) > 25) })) crate(s);
+    for (const s of S.many('footpath', 20, { near: town, maxDist: 1500, spacing: 70, filter: q => SL.crates.every(c => dist(c, q) > 25) })) crate(s);
     // places to shake the police
     const roadAt = (x, y) => { const n = W.nearestEdge(x, y, 80); return n ? { x: n.x, y: n.y, a: n.ang } : { x, y, a: 0 }; };
     // respray shops live in shops.js (VH.Shops.resprays)
-    SL.wash = { ...roadAt(4602, 2650), label: 'CAR WASH' };
+    // the real car washes (OpenStreetMap carPlaces): places to wash off the heat and lie low
+    const washes = W.carPlaces.filter(p => p.kind === 'car_wash').map(cw => ({ ...roadAt((cw.a || cw).x, (cw.a || cw).y), label: 'CAR WASH' }));
+    SL.wash = washes[0] || { ...roadAt(4602, 2650), label: 'CAR WASH' }; SL.washes = washes.length ? washes : [SL.wash];
     SL.jetty = { x: 5027, y: 3058, label: 'UNDER THE JETTY' };
-    SL.spots = [SL.wash, SL.jetty];
+    SL.spots = [...SL.washes, SL.jetty];
     // batteries along footpaths near the foreshore and town, boost pads on the race routes
-    SL.batteries = []; const rb = U.seeded(4242);
-    const paths = W.roads.filter(r => (r.c === 'footway' || r.c === 'path' || r.c === 'cycleway') && Math.hypot(r.p[0] - 4600, r.p[1] - 2800) < 1400);
-    for (let i = 0; i < 400 && SL.batteries.length < 18; i++) { const r = paths[Math.floor(rb() * paths.length)]; if (!r) break; const c = U.cumLen(r.p); const [x, y] = U.alongPoly(r.p, c, rb() * c[c.length - 1]); if (SL.batteries.every(b => dist(b, { x, y }) > 90)) SL.batteries.push({ x, y, respawn: 0 }); }
+    SL.batteries = [];
+    for (const b of VH.Spawn.many('footpath', 18, { near: { x: 4600, y: 2800 }, maxDist: 1400, spacing: 90, access: 'gopher' })) SL.batteries.push({ x: b.x, y: b.y, respawn: 0 });
     SL.pads = [];
     for (const rc of VH.Acts.races.filter(r => r.id === 'gopher' || r.id === 'bike')) rc.cps.forEach((c, i) => { const n = rc.cps[i + 1]; if (n && i % 2 === 0) SL.pads.push({ x: c.x, y: c.y, a: Math.atan2(n.y - c.y, n.x - c.x) }); });
     // doorbell cameras on some houses (a blinking light by the door)
@@ -107,29 +108,60 @@
   };
 
   // ---------- doorbell cameras and the community page ----------
-  const COMMENTS = [
-    // early: a mixed bag
-    ['CALL THE POLICE!', 'BRUCE, IT\'S A DOORBELL, MATE.', 'HARMLESS FUN. WE ALL DID IT.', 'IS THAT THE KID FROM THE BAKERY?', 'MY DOG BARKED AT 9:14 TOO!!', 'SCHOOLIES. EVERY YEAR. STREWTH.', 'LOVELY HYDRANGEAS THOUGH, BEV', 'GO BACK TO BED, GARY'],
-    // building: more grumbling
-    ['THIS IS THE THIRD ONE TONIGHT', 'SOMEONE RING THE COUNCIL', 'RIGHT, I\'M GETTING MY TORCH', 'DRONGO. ABSOLUTE DRONGO.', 'NOT SO HARMLESS NOW IS IT', 'I\'VE SEEN THAT SHIRT ON THE ESPLANADE', 'KEEP YOUR EYES PEELED, PEOPLE'],
-    // notorious: the whole town is on the lookout
-    ['THAT\'S THEM! THE ONE FROM ALL THE VIDEOS!', 'NEIGHBOURHOOD WATCH, ASSEMBLE', 'IF YOU SEE THEM, GRAB THEM. POLITELY.', 'I\'M PRINTING A POSTER', 'FAMOUS NOW. FAMOUS FOR THE WRONG REASONS.', 'MUM IF YOU\'RE READING THIS IT WASN\'T ME'],
-  ];
-  const POSTS = ['ANYONE KNOW THIS KID? RANG MY BELL AT {T}', 'CAUGHT ON THE DOORBELL CAM AGAIN. SCHOOLIES?', 'WHO IS THIS?? SHARE PLEASE', 'DOORBELL CAM CAUGHT SOMEONE CREEPING ABOUT. THOUGHTS?'];
+  // The comments fit who's in the clip: schoolies-week reactions for Jaz; affectionate exasperation for Merv; and for
+  // Kev, how the town feels about the police (and Kev) as the complaints pile up. Three tiers each, by notoriety (for
+  // Kev, the complaints meter). Local and good-natured: invented first names only, nobody's cruel.
+  const FEED = {
+    schoolie: {
+      posts: ['ANYONE KNOW THIS KID? RANG MY BELL AT {T}', 'CAUGHT ON THE DOORBELL CAM AGAIN. SCHOOLIES?', 'WHO IS THIS?? SHARE PLEASE', 'DOORBELL CAM CAUGHT SOMEONE CREEPING ABOUT. THOUGHTS?'],
+      tiers: [
+        ['CALL THE POLICE!', 'BRUCE, IT\'S A DOORBELL, MATE.', 'HARMLESS FUN. WE ALL DID IT.', 'IS THAT THE KID FROM THE BAKERY?', 'MY DOG BARKED AT 9:14 TOO!!', 'SCHOOLIES. EVERY YEAR. STREWTH.', 'LOVELY HYDRANGEAS THOUGH, BEV', 'GO BACK TO BED, GARY'],
+        ['THIS IS THE THIRD ONE TONIGHT', 'SOMEONE RING THE COUNCIL', 'RIGHT, I\'M GETTING MY TORCH', 'DRONGO. ABSOLUTE DRONGO.', 'NOT SO HARMLESS NOW IS IT', 'I\'VE SEEN THAT SHIRT ON THE ESPLANADE', 'KEEP YOUR EYES PEELED, PEOPLE'],
+        ['THAT\'S THEM! THE ONE FROM ALL THE VIDEOS!', 'NEIGHBOURHOOD WATCH, ASSEMBLE', 'IF YOU SEE THEM, GRAB THEM. POLITELY.', 'I\'M PRINTING A POSTER', 'FAMOUS NOW. FAMOUS FOR THE WRONG REASONS.', 'MUM IF YOU\'RE READING THIS IT WASN\'T ME'],
+      ],
+      spotted: "IT'S THAT KID FROM THE COMMUNITY PAGE!",
+    },
+    grump: {
+      posts: ['MERV AT MY LETTERBOX AGAIN AT {T}. ANOTHER LETTER.', 'IS THAT MERV ON THE DOORBELL CAM?', 'MERV\'S GOPHER WENT PAST AT {T}. FLAT OUT.', 'DOORBELL CAM: A GOPHER, A TORCH AND A VERY CROSS MAN'],
+      tiers: [
+        ['MERV\'S ON ONE OF HIS MISSIONS AGAIN', 'JUST MERV DOING MERV THINGS', 'HE\'S 81, LET HIM LIVE', 'GOOD ON YA MERV', 'THAT GOPHER\'S QUICKER THAN MY HATCHBACK', 'HE\'S NOT WRONG ABOUT THE MUSIC THOUGH', 'TURN YOUR HEARING AID UP MERV, IT\'S 9PM'],
+        ['SOMEONE CHECK ON MERV', 'MERV, IT\'S A WEEKNIGHT, MATE', 'BACK IN MY DAY WE JUST WROTE TO THE PAPER', 'HE\'S GOT A STRONGLY WORDED LETTER FOR EVERYONE', 'BEV SAYS HE\'S BEEN AT IT SINCE TEA TIME', 'I\'LL PUT THE KETTLE ON IN CASE HE DROPS BY'],
+        ['THIS IS GETTING OUT OF HAND, MERV', 'MERV. MATE. THE B-DOUBLE?', 'WHO GAVE MERV A TURBO??', 'LOVE YOU MERV BUT GO TO BED', 'HE\'LL OUTLAST THE LOT OF US', 'SOMEONE RING HIS DAUGHTER'],
+      ],
+      spotted: "THAT'S MERV FROM THE COMMUNITY PAGE!",
+    },
+    cop: {
+      posts: ['POLICE CAR DOWN OUR STREET AT {T}. WHAT\'S GOING ON?', 'KEV\'S OUT AND ABOUT TONIGHT', 'SIRENS AT {T}. ANYONE KNOW WHY?', 'SPOTTED: OUR LOCAL CONSTABLE, VERY BUSY'],
+      tiers: [
+        ['GOOD ON YA KEV', 'KEV\'S ALRIGHT', 'NICE TO SEE A COPPER ON THE BEAT', 'HE WAVED AT MY KIDS. LOVELY', 'BUSY WEEK FOR THE POLICE WITH SCHOOLIES ON', 'THANKS FOR KEEPING AN EYE OUT, KEV'],
+        ['DOESN\'T KEV HAVE REAL CRIME TO SOLVE?', 'BIT MUCH WITH THE SIREN, MATE', 'HE BORROWED MY UTE. FOR \'POLICE BUSINESS\'', 'THE POLICE ARE ALWAYS AROUND WHEN YOU DON\'T NEED THEM', 'KEV, MATE, IT\'S A GOPHER'],
+        ['THIRD TIME HE\'S PULLED NAN OVER THIS WEEK', 'SOMEONE RING THE SARGE', 'KEV. MATE. THE PADDY WAGON IS NOT A TAXI', 'I\'M WRITING TO THE COUNCIL ABOUT KEV', 'MERV, WRITE HIM ONE OF YOUR LETTERS', 'WE LOVE YOU KEV BUT HAVE A NIGHT OFF'],
+      ],
+      spotted: "THAT'S THE COPPER FROM THE COMMUNITY PAGE!",
+    },
+  };
+  FEED.roam = FEED.schoolie;
+  SL.feedFor = c => FEED[c] || FEED.schoolie;
+  SL.post = function (tier) {
+    const g = G(), F = SL.feedFor(g.char);
+    const hh = Math.floor(g.hour), mm = Math.floor((g.hour % 1) * 60); const t = `${hh % 12 || 12}:${String(mm).padStart(2, '0')}${hh >= 12 ? 'PM' : 'AM'}`;
+    const pool = [...F.tiers[tier], ...(tier ? F.tiers[tier - 1].slice(0, 3) : [])].sort(() => Math.random() - 0.5).slice(0, 5);
+    SL.feed = { t: 0, post: U.pick(F.posts).replace('{T}', t), comments: pool, likes: 3 + Math.floor(Math.random() * 20) * Math.max(1, SL.notoriety) };
+    sfx('sms');
+  };
   SL.caughtOnCam = function (d) {
     const g = G(); if (g.char === 'cop') return; d.camUntil = g.t + 30;
     SL.notoriety = Math.min(6, SL.notoriety + 1); g.addMeter(0.4);
-    const hh = Math.floor(g.hour), mm = Math.floor((g.hour % 1) * 60); const t = `${hh % 12 || 12}:${String(mm).padStart(2, '0')}${hh >= 12 ? 'PM' : 'AM'}`;
-    const tier = SL.notoriety <= 1 ? 0 : SL.notoriety <= 3 ? 1 : 2;
-    const pool = [...COMMENTS[tier], ...(tier ? COMMENTS[tier - 1].slice(0, 3) : [])].sort(() => Math.random() - 0.5).slice(0, 5);
-    SL.feed = { t: 0, post: U.pick(POSTS).replace('{T}', t), comments: pool, likes: 3 + Math.floor(Math.random() * 20) * SL.notoriety };
-    sfx('sms'); FX.text(d.x, d.y - 4, 'DOORBELL CAMERA!', '#7fa6ff');
+    SL.post(SL.notoriety <= 1 ? 0 : SL.notoriety <= 3 ? 1 : 2);
+    FX.text(d.x, d.y - 4, 'DOORBELL CAMERA!', '#7fa6ff');
     g.toast(`CAUGHT ON A DOORBELL CAMERA. NOTORIETY ${SL.notoriety}`, '#7fa6ff');
   };
+  // Kev and Merv: the town talks about them when the meter goes up a level (at most one post every 40 s)
+  SL.levelPost = function (level) { const g = G(); if (level < 1 || g.t - (SL.postT || -99) < 40) return; SL.postT = g.t; SL.post(level <= 1 ? 0 : level <= 3 ? 1 : 2); };
 
   // ---------- citizen's arrest: a resident grabs your collar; wriggle free if you're not too notorious ----------
   SL.grabbed = function (who) {
-    const g = G(); if (SL.grab || VH.Tackle.on || g.state !== 'play') return;
+    const g = G(); if (SL.grab || VH.Tackle.on || g.state !== 'play' || !g.arrestAllowed('player')) return;
     SL.grab = { who }; who.say && who.say(U.pick(["GOTCHA, YOU LITTLE RASCAL!", "CITIZEN'S ARREST!", 'NOT SO FAST!']), 3); sfx('megaphone');
     VH.Tackle.start({ mode: 'escape', rank: 'watch', who, startCuff: Math.min(0.4, SL.notoriety * 0.07),
       onWin: () => { SL.grab = null; FX.text(g.player.x, g.player.y - 4, 'WRIGGLED FREE!', '#9be15d'); g.addMeter(0.5); if (who.state != null) { who.state = 'sit'; who.t = 0; } },
@@ -142,7 +174,7 @@
     for (const p of g.peds) {
       if (p.tag || p.state === 'dive' || dist(p, pl) > 7) continue;
       if (Math.random() < 0.004 * SL.notoriety) {
-        SL.recT = 6; p.say("IT'S THAT KID FROM THE COMMUNITY PAGE!", 2.5); g.addMeter(0.3);
+        SL.recT = 6; p.say(SL.feedFor(g.char).spotted, 2.5); g.addMeter(0.3);
         if (p.kind === 'retiree' && SL.notoriety >= 3 && dist(p, pl) < 3) SL.grabbed(p);
         break;
       }
@@ -164,8 +196,9 @@
       const near = v && dist(v, r) < 9;
       if (near && !v.rail && !v.def.heli && !v.def.bike && !v.def.gopher && v.speed < 3 && !(r.cool > 0)) {
         r.cool = 8;
-        if (g.voucher) { g.voucher = false; SL.respray(v, true); }
-        else if (g.cash >= r.cost) { g.cash -= r.cost; SL.respray(v); sfx('cash'); }
+        if (r.service === 'tyres') { if (!v.flat) g.toast(r.name + ': TYRES LOOK FINE. (COMING SOON: GRIP UPGRADES)', '#9fd4ec'); else if (g.cash >= r.cost) { g.cash -= r.cost; v.flat = false; sfx('cash'); g.toast(r.name + ': NEW TYRES ON. -$' + r.cost, '#9be15d'); } else g.toast(r.name + ': $10 A TYRE. COME BACK WITH CASH.', '#ff9a30'); }
+        else if (g.voucher) { g.voucher = false; SL.respray(v, true); }
+        else if (g.cash >= r.cost) { g.cash -= r.cost; SL.respray(v); sfx('cash'); g.toast(r.name + (r.wraps ? ': A NEW COLOUR. (COMING SOON: WRAPS AND UPGRADES)' : ': COMING SOON: UPGRADES'), '#9fd4ec'); }
         else g.toast(r.name + ': A RESPRAY IS $25. COME BACK WITH CASH.', '#ff9a30');
       }
       if (r.cool > 0 && !near) r.cool -= dt;
@@ -196,9 +229,9 @@
     }
     for (const b of SL.batteries) if (b.respawn <= 0 && inView(b)) { const sx = Math.round((b.x - left) * S), sy = Math.round((b.y - top) * S - 3 - Math.abs(Math.sin(t * 4 + b.x)) * 2); ctx.fillStyle = '#120c24'; ctx.fillRect(sx - 3, sy - 5, 7, 10); ctx.fillStyle = '#9be15d'; ctx.fillRect(sx - 2, sy - 4, 5, 8); ctx.fillStyle = '#fff'; ctx.fillRect(sx - 1, sy - 6, 3, 1); ctx.fillStyle = '#120c24'; ctx.fillRect(sx, sy - 2, 1, 4); ctx.fillRect(sx - 1, sy - 1, 3, 1); }
     for (const p of SL.pads) if (inView(p)) { ctx.save(); ctx.translate(Math.round((p.x - left) * S), Math.round((p.y - top) * S)); ctx.rotate(p.a); for (let i = 0; i < 3; i++) { const ph = ((t * 3 + i) % 3) / 3; ctx.strokeStyle = `rgba(56,224,200,${0.4 + ph * 0.6})`; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo((-1.5 + i * 1.2) * S, -1.2 * S); ctx.lineTo((-0.6 + i * 1.2) * S, 0); ctx.lineTo((-1.5 + i * 1.2) * S, 1.2 * S); ctx.stroke(); } ctx.restore(); }
-    for (const s of [SL.wash, SL.jetty]) if (s && inView(s, 30)) {
+    for (const s of SL.spots) if (s && inView(s, 30)) {
       const sx = Math.round((s.x - left) * S), sy = Math.round((s.y - top) * S);
-      if (s === SL.wash) { ctx.fillStyle = 'rgba(80,140,200,0.35)'; ctx.fillRect(sx - 4 * S, sy - 3 * S, 8 * S, 6 * S); ctx.strokeStyle = '#9fd4ec'; ctx.strokeRect(sx - 4 * S, sy - 3 * S, 8 * S, 6 * S); }
+      if (SL.washes.includes(s)) { ctx.fillStyle = 'rgba(80,140,200,0.35)'; ctx.fillRect(sx - 4 * S, sy - 3 * S, 8 * S, 6 * S); ctx.strokeStyle = '#9fd4ec'; ctx.strokeRect(sx - 4 * S, sy - 3 * S, 8 * S, 6 * S); }
       U.text(ctx, s.label, sx, sy - 5 * S - 10, { align: 'center', color: '#9fd4ec' });
     }
   };

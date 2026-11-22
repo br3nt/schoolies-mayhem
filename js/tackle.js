@@ -16,7 +16,13 @@
     watch: { label: 'NEIGHBOURHOOD WATCH', speed: 0.15, grip: 0.65, slipEvery: 2.0 },
     kid: { label: 'A DING DONG DITCHER', speed: 0.2, grip: 0.8, slipEvery: 2.4 },
     hoon: { label: 'THE HOON', speed: 0.32, grip: 1.0, slipEvery: 2.6 },
+    // takeovers: the same struggle, against a spooked horse or a runaway train's brake
+    horse: { label: 'THE SPOOKED HORSE', speed: 0.3, grip: 0.95, slipEvery: 2.4 },
+    brake: { label: 'THE BRAKE LEVER', speed: 0.26, grip: 1.05, slipEvery: 2.8 },
+    cuffed: { label: 'A CUFFED PRISONER', speed: 0.14, grip: 0.55, slipEvery: 2.0 }, // already cuffed: an easy hold
   };
+  // opts.text overrides the words for other contests, e.g. a takeover:
+  //   { head, mine, theirs, win, lose, good, tip } (headline, your meter, their meter, the result lines, a good SLIP, the hold tip)
   T.skill = () => +U.store.get('escapeSkill', 0) || 0;
   T.kevSkill = () => +U.store.get('kevGrip', 0) || 0;
   // opts: { mode: 'escape' | 'hold', rank, who, head, onWin, onLose }
@@ -26,7 +32,7 @@
     const base = opts.mode === 'hold' ? 0.26 + Math.min(10, T.kevSkill()) * 0.012 : 0.2 + Math.min(12, T.skill()) * 0.014 + (g.sunscreen ? 0.06 : 0);
     T.on = { ...opts, r, w: U.clamp(base - (r.grip - 1) * 0.06, 0.1, 0.42), c: 0.5, cv: 0, m: 0.3, mv: 0, mine: 0, theirs: opts.startCuff || 0, t: 0, nextSlip: U.rand(1.2, r.slipEvery), slip: null, done: null, doneT: 0 };
     sfx('thud', { pitch: 0.7 }); FX.kick(0.35); FX.dust(g.player.x, g.player.y, '#c8bfa0', 8);
-    g.callout(opts.mode === 'hold' ? 'TACKLED! KEEP HOLD' : 'TACKLED!', opts.mode === 'hold' ? '#9fd4ec' : '#ff6a5a');
+    g.callout(opts.text && opts.text.callout || (opts.mode === 'hold' ? 'TACKLED! KEEP HOLD' : 'TACKLED!'), opts.mode === 'hold' ? '#9fd4ec' : '#ff6a5a');
     return true;
   };
   T.update = function (dt) {
@@ -50,7 +56,7 @@
     const press = L ? -1 : R ? 1 : tapDir;
     if (k.slip) {
       k.slip.t -= dt;
-      if (press) { if (press === k.slip.dir) { k.mine += 0.22; FX.text(g.player.x, g.player.y - 5, k.mode === 'hold' ? 'GOOD GRIP!' : 'SLIP!', '#9be15d'); sfx('whoosh'); } else { k.theirs += 0.08; sfx('thud', { vol: 0.4 }); } k.slip = null; k.nextSlip = U.rand(1.4, k.r.slipEvery); }
+      if (press) { if (press === k.slip.dir) { k.mine += 0.22; FX.text(g.player.x, g.player.y - 5, k.text && k.text.good || (k.mode === 'hold' ? 'GOOD GRIP!' : 'SLIP!'), '#9be15d'); sfx('whoosh'); } else { k.theirs += 0.08; sfx('thud', { vol: 0.4 }); } k.slip = null; k.nextSlip = U.rand(1.4, k.r.slipEvery); }
       else if (k.slip.t <= 0) { k.slip = null; k.nextSlip = U.rand(1.4, k.r.slipEvery); }
     } else if (press) k.theirs += 0.04; // flailing when nothing's on offer
     if (k.mine >= 1) { k.done = 'win'; sfx(k.mode === 'hold' ? 'clang' : 'win', { pitch: k.mode === 'hold' ? 2.2 : 1 }); }
@@ -65,7 +71,7 @@
     const pw = Math.min(w - 16 * ts, 240 * ts), ph = 62 * ts; const x = Math.round(w / 2 - pw / 2), y = Math.round(h * 0.52);
     T.panel = { x, y, w: pw, h: ph };
     VH.UI.panel(ctx, x, y, pw, ph, { accent: k.mode === 'hold' ? '#7fa6ff' : '#ff6a5a', fill: 'rgba(18,12,36,0.94)' });
-    const head = k.mode === 'hold' ? 'KEEP HOLD OF ' + k.r.label : 'STRUGGLE FREE FROM ' + k.r.label;
+    const tx = k.text || {}; const head = tx.head || (k.mode === 'hold' ? 'KEEP HOLD OF ' + k.r.label : 'STRUGGLE FREE FROM ' + k.r.label);
     U.text(ctx, head, x + pw / 2, y + 4 * ts, { align: 'center', color: '#f4f0ff', scale: ts });
     const bx = x + 8 * ts, bw = pw - 16 * ts, by = y + 15 * ts, bh = 10 * ts;
     ctx.fillStyle = '#2a2040'; ctx.fillRect(bx, by, bw, bh);
@@ -75,12 +81,12 @@
     const mw = (bw - 6 * ts) / 2; const my = by + bh + 6 * ts;
     ctx.fillStyle = '#2a2040'; ctx.fillRect(bx, my, mw, 5 * ts); ctx.fillRect(bx + mw + 6 * ts, my, mw, 5 * ts);
     ctx.fillStyle = '#9be15d'; ctx.fillRect(bx, my, mw * Math.min(1, k.mine), 5 * ts); ctx.fillStyle = '#ff6a5a'; ctx.fillRect(bx + mw + 6 * ts, my, mw * Math.min(1, k.theirs), 5 * ts);
-    U.text(ctx, k.mode === 'hold' ? 'CUFFS ON' : 'ESCAPE', bx, my + 7 * ts, { color: '#9be15d', scale: ts }); U.text(ctx, k.mode === 'hold' ? 'SLIPPING AWAY' : 'CUFFS', bx + bw, my + 7 * ts, { color: '#ff6a5a', scale: ts, align: 'right' });
-    const tip = k.slip ? (k.slip.dir < 0 ? (I.touchMode ? '[ TAP LEFT  SLIP!' : '[ LEFT  NOW!') : (I.touchMode ? 'SLIP! TAP RIGHT ]' : 'NOW!  RIGHT ]')) : (I.touchMode ? 'HOLD: KEEP THE MARK IN THE GREEN' : 'HOLD SPACE: KEEP THE MARK IN THE GREEN');
+    U.text(ctx, tx.mine || (k.mode === 'hold' ? 'CUFFS ON' : 'ESCAPE'), bx, my + 7 * ts, { color: '#9be15d', scale: ts }); U.text(ctx, tx.theirs || (k.mode === 'hold' ? 'SLIPPING AWAY' : 'CUFFS'), bx + bw, my + 7 * ts, { color: '#ff6a5a', scale: ts, align: 'right' });
+    const tip = k.slip ? (k.slip.dir < 0 ? (I.touchMode ? '[ TAP LEFT  SLIP!' : '[ LEFT  NOW!') : (I.touchMode ? 'SLIP! TAP RIGHT ]' : 'NOW!  RIGHT ]')) : (tx.tip || (I.touchMode ? 'HOLD: KEEP THE MARK IN THE GREEN' : 'HOLD SPACE: KEEP THE MARK IN THE GREEN'));
     U.text(ctx, tip, x + pw / 2, y + ph - 10 * ts, { align: 'center', color: k.slip ? '#ffd23a' : '#a99fc8', scale: ts });
     if (k.lv == null) k.lv = Math.floor(k.mode === 'hold' ? T.kevSkill() : T.skill()); const lv = (k.mode === 'hold' ? 'GRIP LV ' : 'ESCAPE ARTIST LV ') + k.lv;
     U.text(ctx, lv, x + pw - 4 * ts, y - 9 * ts, { align: 'right', color: '#7fa6ff', scale: ts });
-    if (k.done) U.text(ctx, k.done === 'win' ? (k.mode === 'hold' ? 'CUFFED!' : 'BROKE FREE!') : (k.mode === 'hold' ? 'THEY WRIGGLED OFF!' : 'CUFFED.'), x + pw / 2, y - 22 * ts, { align: 'center', color: k.done === 'win' ? '#9be15d' : '#ff6a5a', scale: ts * 2 });
+    if (k.done) U.text(ctx, k.done === 'win' ? (tx.win || (k.mode === 'hold' ? 'CUFFED!' : 'BROKE FREE!')) : (tx.lose || (k.mode === 'hold' ? 'THEY WRIGGLED OFF!' : 'CUFFED.')), x + pw / 2, y - 22 * ts, { align: 'center', color: k.done === 'win' ? '#9be15d' : '#ff6a5a', scale: ts * 2 });
     if (I.touchMode) {
       // one big hold button
       const r = 26 * ts; let cx = w - r - 10 * ts, cy = Math.min(y + ph + r + 8 * ts, h - r - 6 * ts);

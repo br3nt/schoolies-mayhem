@@ -48,8 +48,8 @@
     return ty;
   }
   const STONE = ['#a39d8f', '#7c776c', '#4a4f66'];
-  LK.draw = function (ctx, left, top, S, t) {
-    const b = LK.b; if (!b) return; const vw = ctx.canvas.width / S, vh = ctx.canvas.height / S;
+  LK.draw = function (ctx, left, top, S, t) { // (inside the front desk the roof and its turrets are lifted away)
+    const b = LK.b; if (!b) return; const ins = G().player && G().player.inShop; if (ins && ins.desk === 'lockup') return; const vw = ctx.canvas.width / S, vh = ctx.canvas.height / S;
     if (b.bb[2] < left - 30 || b.bb[0] > left + vw + 30 || b.bb[3] < top - 10 || b.bb[1] > top + vh + 40) { if (dist(LK.gate, { x: left + vw / 2, y: top + vh / 2 }) > Math.max(vw, vh)) return; }
     const off = LK.off, lift = LK.lift;
     // an extra storey of dressed stone above the baked walls, then a slate roof and battlements
@@ -154,6 +154,17 @@
     pl.hidden = false; pl.onFoot = true; pl.vehicle = null; pl.x = rp.x; pl.y = rp.y; pl.vx = pl.vy = 0; pl.ang = rp.a || 0;
     if (r && r.owned && !r.owned.removed && !r.owned.sinking) { const o = r.owned; const a = (rp.a || 0) + Math.PI / 2; o.x = rp.x + Math.cos(a) * 3; o.y = rp.y + Math.sin(a) * 3; o.vx = o.vy = 0; o.ang = rp.a || 0; o.damage = Math.min(o.damage, 0.5); o.dead = false; o.flat = false; g.toast('YOUR GOPHER WAS TOWED UP TO THE GATE', '#9fd4ec'); }
     LK.ride = null; g.cam.x = pl.x; g.cam.y = pl.y; VH.MapRender.prefetch(pl.x, pl.y, 110);
+    // a bike (and a tired old hatchback) left by the gate for people let out, so it isn't a long walk home
+    if (!(r && r.owned && !r.owned.removed)) {
+      for (const v of g.gateRides || []) v.removed = true; g.gateRides = [];
+      // on the two nearest kerb slots outside the gate (baked, validated: never in a wall or on the verge's trees)
+      const used = [];
+      for (const type of ['cruiser', 'hatch']) {
+        const k = VH.Spawn.pick('kerb', { near: rp, maxDist: 120, access: 'car', nearest: true, unoccupied: true, optional: true, filter: q => used.every(u => Math.hypot(u.x - q.x, u.y - q.y) > 5) }); if (!k) continue; used.push(k);
+        const v = VH.Spawn.vehicle(type, k, { parked: true }); v.gateRide = true; if (type === 'hatch') v.damage = 0.3; g.gateRides.push(v);
+      }
+      g.toast("YOUR BIKE'S BY THE GATE (AND THERE'S AN OLD HATCHBACK). NOBODY'S WATCHING FOR A BIT.", '#7fd4ff');
+    }
   };
   LK.releasePt = () => LK.release || LK.gate;
 
@@ -171,7 +182,9 @@
   };
   LK.update = function (dt) {
     LK.gateOpen += U.clamp(LK.gateWant - LK.gateOpen, -dt * 0.8, dt * 0.8);
-    const g = G(), pl = g.player; if (g.char !== 'cop' || !g.custody || !g.custody.length) return;
+    const g = G(), pl = g.player; if (g.char !== 'cop') return;
+    if (VH.Escort.list.some(q => dist(q, LK.door) < 40) || (pl.vehicle && dist(pl, LK.gate) < 30 && VH.Escort.list.length)) LK.gateWant = 1; // the gate opens for a prisoner
+    if (!g.custody || !g.custody.length) return;
     const v = pl.vehicle; if (!v || !LK.capacity(v)) return;
     const near = dist(v, LK.door) < 22 || dist(v, LK.gate) < 18;
     if (near) LK.gateWant = 1;

@@ -266,6 +266,20 @@
     x.putImageData(img, 0, 0);
     return c;
   });
+  // a swimmer, facing +x: head and shoulders only, the body a dark shape under the water, arms in a crawl stroke
+  // (frames 0-3: left arm reaching, left pulling, right reaching, right pulling) with a splash at the reaching hand
+  SP.swimmer = (shirt, hair, frame, hat) => get(`sw:${shirt}${hair}${frame}${hat || ''}`, () => {
+    const [c, x] = U.canvas(14, 12); x.translate(2, 1);
+    x.globalAlpha = 0.45; x.fillStyle = shade(shirt, 0.35); x.fillRect(0, 3, 4, 4); x.fillRect(-2, 4, 2, 2); x.globalAlpha = 1; // body under the water
+    x.fillStyle = shade(shirt, 0.6); x.fillRect(3, 2, 2, 6); // shoulders breaking the surface
+    const reach = (y) => { x.fillStyle = '#d8a882'; x.fillRect(5, y, 4, 1); x.fillStyle = '#f4fbff'; x.fillRect(9, y, 1, 1); x.fillRect(9, y + (y ? -1 : 1), 1, 1); };
+    const pull = (y) => { x.fillStyle = '#b08a6a'; x.fillRect(1, y, 3, 1); };
+    const mid = (y) => { x.fillStyle = '#d8a882'; x.fillRect(4, y, 2, 1); };
+    const f = frame % 4; if (f === 0) { reach(1); pull(8); } else if (f === 1) { mid(0); mid(9); } else if (f === 2) { reach(8); pull(1); } else { mid(0); mid(9); }
+    x.fillStyle = shade(hair, 0.7); x.fillRect(4, 3, 3, 4); x.fillStyle = hair; x.fillRect(4, 3, 2, 3); x.fillStyle = '#e8bc90'; x.fillRect(6, 4, 1, 2);
+    if (hat === 'cop') { x.fillStyle = '#1a2236'; x.fillRect(4, 3, 3, 4); x.fillStyle = '#ffd23a'; x.fillRect(5, 4, 1, 1); }
+    return c;
+  });
   // dog for dog-walkers
   SP.dog = frame => get('dog' + frame, () => { const [c, x] = U.canvas(6, 4); x.fillStyle = '#8a5a2a'; x.fillRect(1, 1, 4, 2); x.fillRect(4, 0, 2, 2); x.fillStyle = '#3a2a1a'; x.fillRect(5, 0, 1, 1); x.fillRect(0, frame ? 0 : 2, 1, 1); return c; });
 
