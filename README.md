@@ -41,7 +41,7 @@ Your agent should read [`AGENTS.md`](AGENTS.md) first. It explains how the game 
 Copyright © 2026 Brent Jacobs. All rights reserved: this is not an open-source licence (see [`LICENSE.md`](LICENSE.md)).
 
 - **Contributions are welcome through this repository:** pull requests and issues (plus ideas and lore in Discussions).
-- **Clones:** clones of the game are monitored, whether they copy this code or rebuild the game without it (reverse-engineered, "clean room", or AI-generated). Any additions made in them will be ported back into this game.
+- **Clones:** clones of the game are monitored, whether they copy this code or rebuild the game without it (reverse-engineered, "clean room", or AI-generated). I reserve the right to port any additions made in them back into this game.
 
 ## Credits
 
